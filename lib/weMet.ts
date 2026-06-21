@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { sendNotification } from './notifications'
 
 export interface WeMet {
   id: string
@@ -62,13 +63,13 @@ export async function sendWeMet(params: {
     return null
   }
 
-  // Notify recipient
-  await supabase.from('notifications').insert({
-    user_id: params.recipientId,
-    type: 'we_met_request',
-    title: 'Someone wants to confirm you met!',
-    body: 'Tap to confirm or decline.',
-    data: { we_met_id: data.id },
+  // Notify recipient (in-app + push)
+  await sendNotification({
+    userId: params.recipientId,
+    type:   'we_met_request',
+    title:  'Someone wants to confirm you met! 🤝',
+    body:   'Tap to confirm or decline.',
+    data:   { we_met_id: data.id },
   })
 
   return data
@@ -98,12 +99,12 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
     .eq('recipient_id', user.id)
 
   if (record) {
-    await supabase.from('notifications').insert({
-      user_id: record.initiator_id,
-      type: 'we_met_confirmed',
-      title: 'We Met confirmed! 🤝',
-      body: 'You can now message each other for 72 hours.',
-      data: { we_met_id: wemetId },
+    await sendNotification({
+      userId: record.initiator_id,
+      type:   'we_met_confirmed',
+      title:  'We Met confirmed! 🤝',
+      body:   'You have 72 hours to message each other.',
+      data:   { we_met_id: wemetId },
     })
   }
 }

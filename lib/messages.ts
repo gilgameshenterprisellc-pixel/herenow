@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { sendNotification } from './notifications'
 
 export interface DirectMessage {
   id: string
@@ -74,12 +75,12 @@ export async function sendMessage(params: {
     return null
   }
 
-  await supabase.from('notifications').insert({
-    user_id: recipientId,
-    type:    'message',
-    title:   'New message',
-    body:    params.content.slice(0, 80),
-    data:    { we_met_id: params.wemetId },
+  await sendNotification({
+    userId: recipientId,
+    type:   'message',
+    title:  '💌 New message',
+    body:   params.content.slice(0, 80),
+    data:   { we_met_id: params.wemetId },
   })
 
   return data

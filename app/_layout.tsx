@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useGeofenceTask } from '@/hooks/useGeofenceTask'
 import { SessionProvider } from '@/contexts/SessionContext'
 import { supabase } from '@/lib/supabase'
+import { registerPushToken } from '@/lib/push'
 
 export default function RootLayout() {
   useGeofenceTask()
@@ -12,9 +13,13 @@ export default function RootLayout() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event !== 'SIGNED_IN' || !session?.user) return
+
+      // Register for push notifications on every sign-in (idempotent — just updates the token)
+      registerPushToken()
+
       if (Platform.OS !== 'web') return
 
-      // Check for a pending profile from the signup flow (set when email confirm is required)
+      // Web-only: restore pending profile created during email confirmation flow
       const raw = localStorage.getItem('herenow_pending_profile')
       if (!raw) return
 
@@ -26,11 +31,12 @@ export default function RootLayout() {
 
       if (!existing) {
         try {
-          const { displayName, username } = JSON.parse(raw)
+          const { displayName, username, isVenueOwner } = JSON.parse(raw)
           await supabase.from('profiles').insert({
-            id: session.user.id,
-            display_name: displayName,
+            id:             session.user.id,
+            display_name:   displayName,
             username,
+            is_venue_owner: isVenueOwner ?? false,
           })
         } catch {}
       }
