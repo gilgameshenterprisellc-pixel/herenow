@@ -7,18 +7,18 @@ import {
   RefreshControl,
 } from 'react-native'
 import { supabase } from '@/lib/supabase'
+import { fetchLikedPostIds } from '@/lib/posts'
 import PostCard from '@/components/PostCard'
 import type { Post } from '@/components/PostCard'
 
 export default function FeedScreen() {
-  const [posts, setPosts] = useState<Post[]>([])
+  const [posts, setPosts]       = useState<Post[]>([])
   const [refreshing, setRefreshing] = useState(false)
 
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Posts from zones the user is a member of
     const { data } = await supabase
       .from('zone_posts')
       .select(`
@@ -29,7 +29,11 @@ export default function FeedScreen() {
       .order('created_at', { ascending: false })
       .limit(50)
 
-    setPosts((data as Post[]) ?? [])
+    const raw = (data ?? []) as unknown as Post[]
+
+    // Hydrate liked status in a single query
+    const likedIds = await fetchLikedPostIds(raw.map((p) => p.id))
+    setPosts(raw.map((p) => ({ ...p, is_liked: likedIds.has(p.id) })))
   }
 
   useEffect(() => { load() }, [])
@@ -52,7 +56,7 @@ export default function FeedScreen() {
         keyExtractor={(p) => p.id}
         contentContainerStyle={styles.list}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f59e0b" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />
         }
         renderItem={({ item }) => <PostCard post={item} />}
         ListEmptyComponent={
@@ -68,13 +72,13 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
+  container: { flex: 1, backgroundColor: '#050A15' },
   header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
   headerTitle: { fontSize: 28, fontWeight: '800', color: '#f8fafc' },
-  headerSub: { fontSize: 13, color: '#64748b', marginTop: 2 },
+  headerSub: { fontSize: 13, color: '#7A93AC', marginTop: 2 },
   list: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
   empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#f8fafc' },
-  emptySub: { fontSize: 14, color: '#64748b', textAlign: 'center', paddingHorizontal: 32 },
+  emptySub: { fontSize: 14, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32 },
 })
