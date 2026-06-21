@@ -180,7 +180,23 @@ Both login and signup use the same electric premium design:
 | #2 | feat/animated-auth-venue-dashboard | Premium animated auth screens, venue owner path, venue dashboard |
 | #3 | feat/venue-edit-page | Venue edit page — GPS pin drop, radius picker, create/update zone |
 | #4 | feat/premium-auth-ui | First attempt at electric orb UI — had duplicate import merge artifact, superseded by PR #5 |
-| #5 | feat/premium-auth-v2 | **Current** — clean electric orb auth, pixel-perfect toggle, premium signup with venue type grid. Vercel Preview: Ready. **Pending merge to main for production.** |
+| #5 | feat/premium-auth-v2 | Clean electric orb auth, pixel-perfect toggle, premium signup with venue type grid |
+| #6 | (merged) | Various bug fixes — see git log |
+| #7 | (merged) | Various bug fixes — see git log |
+| #8 | fix/bug-mobile-sweep | Safe-area insets, canGoBack() guards, .maybeSingle() fixes, KAV behavior, venue owner post-signup route |
+| #9 | fix/dm-timing-and-docs | DM timing fix (DMs locked until checkout, 72h starts on checkout), signup flow docs, CLAUDE.md updated |
+| #10 | feat/push-notifications | Push notification infrastructure complete — placeholder projectId guard, SQL + eas init instructions |
+
+---
+
+## Required SQL Migration — Run Once
+
+```sql
+-- Allow we_met.expires_at to be NULL (means "confirmed but DMs locked until checkout")
+ALTER TABLE we_met ALTER COLUMN expires_at DROP NOT NULL;
+```
+
+Run this in Supabase SQL editor before going live. Without it, `confirmWeMet()` will fail when trying to set `expires_at = NULL`.
 
 ---
 
@@ -207,19 +223,28 @@ VALUES (
 
 ### Before Jacob's Test Run
 
-1. **Merge PR #5** — `feat/premium-auth-v2` is Ready in Vercel preview. Merge to main → goes to production at `herenow-pi.vercel.app`.
+1. ✅ All PRs merged (#1–#9)
+2. ✅ SQL schema applied (confirmed — `we_met`, `profiles`, etc. all exist)
+3. ✅ Jacob's venue — he sets his own location via `/venue/edit` (no manual seed needed)
 
-2. **Apply SQL to Supabase** — Nothing works until all 3 SQL files are run:
-   - `supabase/schema.sql`
-   - `supabase/phase2.sql`
-   - `supabase/safety.sql`
-   Run in that order via Supabase SQL editor at `orxtyreipavkrdiycpht.supabase.co`.
+4. **Push notifications — one manual step remaining:**
+   The push code is fully built (`lib/push.ts`, wired in `_layout.tsx`, fires via `sendNotification()`).
+   Two things needed to activate it:
 
-3. **Seed Jacob's venue** — After Joshua signs up as a venue owner and the SQL is applied, run the seed SQL above with the real lat/lng of Jacob's location.
+   **Step A — SQL (run once in Supabase):**
+   ```sql
+   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_token TEXT DEFAULT NULL;
+   ```
 
-4. **Push notifications** — `expo-notifications` package + Expo Push Service (free). Without it, We Met requests and DM notifications are invisible on device.
+   **Step B — EAS project ID (run once in terminal):**
+   ```bash
+   npx eas login          # log in to your Expo account (expo.dev)
+   npx eas init           # links this project, auto-updates app.json with real projectId
+   ```
+   After running `eas init`, commit the updated `app.json` — that's the only file that changes.
+   Once that's done, push tokens register on every sign-in and Expo Push Service delivers notifications.
 
-5. **Real device testing** — GPS and background geofencing behavior cannot be validated in simulator or browser. Must run on actual Android or iOS hardware via Expo Go.
+5. **Real device testing** — both Joshua and Jacob scan `herenow-pi.vercel.app` QR in Expo Go. GPS, geofencing, and KAV behavior must be validated on real hardware — not simulators or browser.
 
 ### Near-Term Feature Gaps
 
