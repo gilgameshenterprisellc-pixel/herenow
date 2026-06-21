@@ -46,7 +46,9 @@ export default function VenueDashboard() {
 
     const [{ data: profile }, { data: zones }] = await Promise.all([
       supabase.from('profiles').select('display_name').eq('id', user.id).single(),
-      supabase.from('zones').select('*').eq('owner_id', user.id).limit(1),
+      supabase.from('zones').select('*')
+        .or(`owner_id.eq.${user.id},created_by.eq.${user.id}`)
+        .limit(1),
     ])
 
     setOwnerName(profile?.display_name ?? '')
@@ -54,28 +56,17 @@ export default function VenueDashboard() {
     setVenue(z)
 
     if (z) {
-      // Pull active sessions for this zone to build aggregate stats
-      const { data: sessions } = await supabase
-        .from('sessions')
-        .select('profiles(age_range, interest_tags)')
-        .eq('zone_id', z.id)
-        .is('checked_out_at', null)
-
-      const ageRanges: Record<string, number> = {}
-      const interests: Record<string, number> = {}
-      let total = 0
-
-      for (const s of (sessions ?? []) as any[]) {
-        const p = s.profiles
-        if (!p) continue
-        total++
-        if (p.age_range) ageRanges[p.age_range] = (ageRanges[p.age_range] ?? 0) + 1
-        for (const tag of (p.interest_tags ?? [])) {
-          interests[tag] = (interests[tag] ?? 0) + 1
+      // SECURITY DEFINER RPC — verifies ownership server-side, returns aggregate only
+      const { data: raw } = await supabase.rpc('get_venue_live_stats', { p_zone_id: z.id })
+      const result = raw as any
+      if (result && !result.error) {
+        const ageRanges: Record<string, number> = result.age_ranges ?? {}
+        const interests: Record<string, number> = {}
+        for (const item of (result.top_interests ?? [])) {
+          interests[item.tag] = item.cnt
         }
+        setStats({ total: result.total ?? 0, ageRanges, interests })
       }
-
-      setStats({ total, ageRanges, interests })
     }
 
     setLoading(false)

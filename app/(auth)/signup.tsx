@@ -77,25 +77,18 @@ export default function SignupScreen() {
       if (profileError) { Alert.alert('Error', profileError.message); return }
       router.replace('/profile/edit')
     } else {
-      // Venue signup — create profile + zone in one shot
+      // Venue signup — create profile marked as venue owner
+      // Zone is created from the dashboard once they provide an address
+      const cleanedUsername = cleanUsername(venueName).slice(0, 24) || `venue${data.user.id.slice(0, 6)}`
       const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
-        display_name: displayName.trim() || venueName.trim(),
-        username: cleanUsername(venueName).slice(0, 24) || `venue_${data.user.id.slice(0, 6)}`,
+        display_name: venueName.trim(),
+        username: cleanedUsername,
         is_venue_owner: true,
-      })
-      if (profileError) { setLoading(false); Alert.alert('Error', profileError.message); return }
-
-      const { error: zoneError } = await supabase.from('zones').insert({
-        name: venueName.trim(),
-        type: venueType || 'Other',
-        owner_id: data.user.id,
-        lat: 0,
-        lng: 0,
       })
 
       setLoading(false)
-      if (zoneError) { Alert.alert('Zone error', zoneError.message); return }
+      if (profileError) { Alert.alert('Error', profileError.message); return }
       router.replace('/venue/dashboard' as any)
     }
   }
