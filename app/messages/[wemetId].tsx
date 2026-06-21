@@ -1,0 +1,209 @@
+import { useState, useEffect, useRef } from 'react'
+import {
+  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
+} from 'react-native'
+import { useLocalSearchParams, router } from 'expo-router'
+import { supabase } from '@/lib/supabase'
+import { useDmThread } from '@/hooks/useMessages'
+import { sendMessage, markMessagesRead } from '@/lib/messages'
+import DmBubble from '@/components/DmBubble'
+import ExpiryLabel from '@/components/ExpiryLabel'
+
+export default function DmConversationScreen() {
+  const { wemetId }         = useLocalSearchParams<{ wemetId: string }>()
+  const [userId, setUserId] = useState<string | null>(null)
+  const [text, setText]     = useState('')
+  const [sending, setSending] = useState(false)
+  const [expiresAt, setExpiresAt] = useState<string | null>(null)
+  const [otherName, setOtherName] = useState('')
+  const listRef = useRef<FlatList>(null)
+
+  const { messages, loading } = useDmThread(wemetId, userId ?? '')
+
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUserId(user?.id ?? null)
+
+      // Fetch thread meta from we_met
+      const { data: wm } = await supabase
+        .from('we_met')
+        .select('expires_at, initiator_id, recipient_id')
+        .eq('id', wemetId)
+        .single()
+
+      if (wm) {
+        setExpiresAt(wm.expires_at)
+        const otherId = wm.initiator_id === user?.id ? wm.recipient_id : wm.initiator_id
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', otherId)
+          .single()
+        setOtherName(profile?.display_name ?? 'Unknown')
+      }
+
+      if (user) await markMessagesRead(wemetId, user.id)
+    }
+    init()
+  }, [wemetId])
+
+  const handleSend = async () => {
+    if (!text.trim() || sending || !userId) return
+    setSending(true)
+    await sendMessage({ wemetId, content: text.trim() })
+    setText('')
+    setSending(false)
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100)
+  }
+
+  const isExpired = expiresAt ? new Date(expiresAt) < new Date() : false
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.headerInfo}>
+          <Text style={styles.name}>{otherName}</Text>
+          {expiresAt && (
+            <ExpiryLabel expiresAt={expiresAt} prefix="Expires" />
+          )}
+        </View>
+      </View>
+
+      {/* Expired notice */}
+      {isExpired && (
+        <View style={styles.expiredBanner}>
+          <Text style={styles.expiredText}>
+            This conversation expired. Messages are read-only.
+          </Text>
+        </View>
+      )}
+
+      {/* Messages */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color="#29B6F6" />
+        </View>
+      ) : (
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(m) => m.id}
+          contentContainerStyle={styles.list}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          renderItem={({ item }) => (
+            <DmBubble message={item} currentUserId={userId ?? ''} />
+          )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>💌</Text>
+              <Text style={styles.emptyTitle}>Start the conversation</Text>
+              <Text style={styles.emptySub}>
+                You actually met this person. Say hi!
+              </Text>
+            </View>
+          }
+        />
+      )}
+
+      {/* Compose */}
+      {!isExpired && (
+        <View style={styles.compose}>
+          <TextInput
+            style={styles.input}
+            placeholder="Message..."
+            placeholderTextColor="#4A6580"
+            value={text}
+            onChangeText={setText}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+            maxLength={1000}
+            multiline
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
+            onPress={handleSend}
+            disabled={!text.trim() || sending}
+          >
+            {sending
+              ? <ActivityIndicator color="#050A15" size="small" />
+              : <Text style={styles.sendIcon}>↑</Text>
+            }
+          </TouchableOpacity>
+        </View>
+      )}
+    </KeyboardAvoidingView>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#050A15' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 56,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0D1B2E',
+    gap: 12,
+  },
+  backBtn: { padding: 8 },
+  backText: { fontSize: 22, color: '#f8fafc' },
+  headerInfo: { flex: 1 },
+  name: { fontSize: 17, fontWeight: '800', color: '#f8fafc' },
+  expiredBanner: {
+    backgroundColor: '#1e1010',
+    borderBottomWidth: 1,
+    borderBottomColor: '#450a0a',
+    padding: 10,
+    alignItems: 'center',
+  },
+  expiredText: { fontSize: 12, color: '#ef4444', textAlign: 'center' },
+  list: { padding: 14, gap: 6 },
+  empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
+  emptyEmoji: { fontSize: 36 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#f8fafc' },
+  emptySub: { fontSize: 13, color: '#7A93AC' },
+  compose: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 10,
+    borderTopWidth: 1,
+    borderTopColor: '#0D1B2E',
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#0D1B2E',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: '#f8fafc',
+    fontSize: 14,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#29B6F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnDisabled: { opacity: 0.4 },
+  sendIcon: { fontSize: 18, fontWeight: '800', color: '#050A15' },
+})

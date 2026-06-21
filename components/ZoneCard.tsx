@@ -1,9 +1,10 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+﻿import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import type { Zone } from '@/lib/zones'
 
 interface Props {
   zone: Zone
   onPress: () => void
+  selected?: boolean
 }
 
 function formatDistance(meters: number) {
@@ -11,9 +12,13 @@ function formatDistance(meters: number) {
   return `${(meters / 1000).toFixed(1)}km`
 }
 
-export default function ZoneCard({ zone, onPress }: Props) {
+export default function ZoneCard({ zone, onPress, selected }: Props) {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={[styles.card, selected && styles.cardSelected]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
       <View style={styles.top}>
         <View style={styles.nameBadge}>
           <Text style={styles.nameInitial}>{zone.name[0]?.toUpperCase()}</Text>
@@ -51,33 +56,37 @@ export default function ZoneCard({ zone, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0D1B2E',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A2E4A',
     gap: 12,
+  },
+  cardSelected: {
+    borderColor: '#29B6F6',
+    backgroundColor: '#29B6F608',
   },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   nameBadge: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#f59e0b22',
+    backgroundColor: '#29B6F622',
     borderWidth: 1,
-    borderColor: '#f59e0b44',
+    borderColor: '#29B6F644',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  nameInitial: { fontSize: 18, fontWeight: '800', color: '#f59e0b' },
+  nameInitial: { fontSize: 18, fontWeight: '800', color: '#29B6F6' },
   info: { flex: 1 },
   name: { fontSize: 16, fontWeight: '700', color: '#f8fafc' },
-  desc: { fontSize: 13, color: '#64748b', marginTop: 3, lineHeight: 18 },
-  distance: { fontSize: 12, color: '#f59e0b', fontWeight: '600', flexShrink: 0 },
+  desc: { fontSize: 13, color: '#7A93AC', marginTop: 3, lineHeight: 18 },
+  distance: { fontSize: 12, color: '#29B6F6', fontWeight: '600', flexShrink: 0 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statNum: { fontSize: 13, fontWeight: '700', color: '#94a3b8' },
-  statLabel: { fontSize: 12, color: '#475569' },
-  statDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#334155' },
+  statNum: { fontSize: 13, fontWeight: '700', color: '#8EADC7' },
+  statLabel: { fontSize: 12, color: '#4A6580' },
+  statDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#1A2E4A' },
 })

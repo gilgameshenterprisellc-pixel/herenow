@@ -20,8 +20,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0f172a"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#050A15"
       },
       "package": "com.gilgameshenterprise.herenow",
       "permissions": [
@@ -35,7 +35,16 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "HereNow",
+      "shortName": "HereNow",
+      "description": "Connect where you are. Check in to venues, meet people IRL, and see who's out tonight.",
+      "backgroundColor": "#050A15",
+      "themeColor": "#29B6F6",
+      "lang": "en",
+      "display": "standalone",
+      "startUrl": "/",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-router",

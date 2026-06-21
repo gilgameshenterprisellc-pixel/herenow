@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router'
+﻿import { Redirect } from 'expo-router'
 import { useAuth } from '@/hooks/useAuth'
 import { View, ActivityIndicator } from 'react-native'
 
@@ -7,8 +7,8 @@ export default function Index() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#f59e0b" />
+      <View style={{ flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#29B6F6" />
       </View>
     )
   }

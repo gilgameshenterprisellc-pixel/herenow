@@ -1,5 +1,4 @@
-'use client'
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import {
   View,
   Text,
@@ -11,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native'
+import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 
@@ -37,9 +37,11 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.inner}>
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>H</Text>
-        </View>
+        <Image
+          source={require('@/assets/logo.webp')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={styles.title}>HereNow</Text>
         <Text style={styles.subtitle}>Connect where you are.</Text>
 
@@ -47,7 +49,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#64748b"
+            placeholderTextColor="#7A93AC"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -57,7 +59,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#64748b"
+            placeholderTextColor="#7A93AC"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -70,7 +72,7 @@ export default function LoginScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#0f172a" />
+              <ActivityIndicator color="#050A15" />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
@@ -86,39 +88,44 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  inner: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  logo: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: '#f59e0b',
+  container: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
+  inner: {
+    width: '100%',
+    maxWidth: 380,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 28,
+    paddingVertical: 48,
+    backgroundColor: '#0A1628',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
   },
-  logoText: { fontSize: 32, fontWeight: '900', color: '#0f172a' },
-  title: { fontSize: 28, fontWeight: '800', color: '#f8fafc', marginBottom: 4 },
-  subtitle: { fontSize: 15, color: '#64748b', marginBottom: 40 },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 14,
+  },
+  title: { fontSize: 26, fontWeight: '800', color: '#f8fafc', marginBottom: 4 },
+  subtitle: { fontSize: 14, color: '#7A93AC', marginBottom: 36 },
   form: { width: '100%', gap: 12 },
   input: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#050A15',
     borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 12,
-    padding: 16,
+    borderColor: '#1A2E4A',
+    borderRadius: 10,
+    padding: 14,
     color: '#f8fafc',
     fontSize: 15,
   },
   button: {
-    backgroundColor: '#f59e0b',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#29B6F6',
+    borderRadius: 10,
+    padding: 14,
     alignItems: 'center',
     marginTop: 8,
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#0f172a', fontWeight: '700', fontSize: 16 },
-  link: { alignSelf: 'center', marginTop: 8 },
-  linkText: { color: '#64748b', fontSize: 14 },
+  buttonText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
+  link: { alignSelf: 'center', marginTop: 16 },
+  linkText: { color: '#7A93AC', fontSize: 13 },
 })

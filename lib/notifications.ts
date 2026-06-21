@@ -1,0 +1,62 @@
+import { supabase } from './supabase'
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: string
+  title: string
+  body: string | null
+  data: Record<string, any>
+  is_read: boolean
+  created_at: string
+}
+
+export async function fetchNotifications(): Promise<Notification[]> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error) {
+    console.error('[notifications] fetch error:', error.message)
+    return []
+  }
+
+  return data ?? []
+}
+
+export async function markAllRead(): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
+}
+
+export async function markOneRead(notificationId: string): Promise<void> {
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId)
+}
+
+export async function getUnreadCount(): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
+
+  const { count } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
+
+  return count ?? 0
+}

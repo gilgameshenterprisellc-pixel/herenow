@@ -8,6 +8,8 @@ export interface Zone {
   distance_meters: number | null
   member_count: number
   post_count: number
+  center_lat: number
+  center_lng: number
 }
 
 export async function fetchNearbyZones(
@@ -57,7 +59,12 @@ export async function createZone(params: {
     return null
   }
 
-  return { ...data, distance_meters: null }
+  return {
+    ...data,
+    distance_meters: null,
+    center_lat: params.latitude,
+    center_lng: params.longitude,
+  }
 }
 
 export async function checkUserInZone(
