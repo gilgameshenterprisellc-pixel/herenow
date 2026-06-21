@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
 ]
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets()
   const [profile, setProfile]       = useState<Profile | null>(null)
   const [loading, setLoading]       = useState(true)
   const [badgeCount, setBadgeCount] = useState(0)
@@ -39,7 +41,7 @@ export default function ProfileScreen() {
     if (!user) { router.replace('/(auth)/login'); return }
 
     const [{ data: p }, earned] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
       fetchUserBadges(user.id),
     ])
 
@@ -75,7 +77,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       {/* Avatar + name */}
-      <View style={styles.profileHead}>
+      <View style={[styles.profileHead, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.push('/profile/edit')} style={styles.avatarWrap}>
           <AvatarImage uri={profile?.avatar_url} name={profile?.display_name ?? '?'} size={88} />
           <View style={styles.cameraOverlay}>
@@ -169,7 +171,6 @@ const styles = StyleSheet.create({
   content: { paddingBottom: TAB_SAFE_BOTTOM, gap: 16 },
   profileHead: {
     alignItems: 'center',
-    paddingTop: 64,
     paddingBottom: 24,
     paddingHorizontal: 24,
     gap: 6,

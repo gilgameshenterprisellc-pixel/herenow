@@ -63,7 +63,8 @@ export default function DmConversationScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100)
   }
 
-  const isExpired = expiresAt ? new Date(expiresAt) < new Date() : false
+  const isLocked  = expiresAt === null   // confirmed but still at venue — DMs not yet open
+  const isExpired = !isLocked && expiresAt !== null && new Date(expiresAt) < new Date()
 
   if (notFound) {
     return (
@@ -99,11 +100,23 @@ export default function DmConversationScreen() {
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{otherName}</Text>
-          {expiresAt && (
+          {!isLocked && expiresAt && (
             <ExpiryLabel expiresAt={expiresAt} prefix="Expires" />
+          )}
+          {isLocked && (
+            <Text style={styles.lockedLabel}>🔒 Unlocks when you leave</Text>
           )}
         </View>
       </View>
+
+      {/* Locked notice — still at the venue */}
+      {isLocked && (
+        <View style={styles.lockedBanner}>
+          <Text style={styles.lockedText}>
+            🔒 DMs unlock when you leave the venue. You'll have 72 hours to reach out.
+          </Text>
+        </View>
+      )}
 
       {/* Expired notice */}
       {isExpired && (
@@ -142,8 +155,8 @@ export default function DmConversationScreen() {
       )}
 
       {/* Compose */}
-      {!isExpired && (
-        <View style={styles.compose}>
+      {!isExpired && !isLocked && (
+        <View style={[styles.compose, { paddingBottom: insets.bottom + 10 }]}>
           <TextInput
             style={styles.input}
             placeholder="Message..."
@@ -187,6 +200,15 @@ const styles = StyleSheet.create({
   backText: { fontSize: 22, color: '#f8fafc' },
   headerInfo: { flex: 1 },
   name: { fontSize: 17, fontWeight: '800', color: '#f8fafc' },
+  lockedBanner: {
+    backgroundColor: '#0D1B2E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A2E4A',
+    padding: 12,
+    alignItems: 'center',
+  },
+  lockedText: { fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 },
+  lockedLabel: { fontSize: 11, color: '#7A93AC', marginTop: 2 },
   expiredBanner: {
     backgroundColor: '#1e1010',
     borderBottomWidth: 1,
@@ -205,7 +227,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    paddingBottom: insets.bottom + 10,
     borderTopWidth: 1,
     borderTopColor: '#0D1B2E',
     gap: 8,

@@ -3,11 +3,13 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   ActivityIndicator,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useDmThreads } from '@/hooks/useMessages'
 import { supabase } from '@/lib/supabase'
 
 export default function MessagesScreen() {
+  const insets = useSafeAreaInsets()
   const [userId, setUserId] = useState<string | null>(null)
   const { threads, loading, refresh } = useDmThreads(userId ?? '')
 
@@ -25,18 +27,19 @@ export default function MessagesScreen() {
     return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
   }
 
-  const getExpiryStatus = (expiresAt: string) => {
+  const getExpiryStatus = (expiresAt: string | null) => {
+    if (expiresAt === null) return { locked: true, expired: false, label: '🔒', warn: false }
     const ms = new Date(expiresAt).getTime() - Date.now()
-    if (ms < 0) return { expired: true, label: 'Expired' }
+    if (ms < 0) return { locked: false, expired: true, label: 'Expired', warn: false }
     const hrs = Math.floor(ms / 3_600_000)
-    if (hrs < 2) return { expired: false, label: `${hrs}h left`, warn: true }
-    return { expired: false, label: null }
+    if (hrs < 2) return { locked: false, expired: false, label: `${hrs}h left`, warn: true }
+    return { locked: false, expired: false, label: null, warn: false }
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Messages 💌</Text>
@@ -58,8 +61,8 @@ export default function MessagesScreen() {
             const isMe = item.last_sender_id === userId
             return (
               <TouchableOpacity
-                style={[styles.thread, expiry.expired && styles.threadExpired]}
-                onPress={() => !expiry.expired && router.push(`/messages/${item.we_met_id}`)}
+                style={[styles.thread, expiry.expired && styles.threadExpired, expiry.locked && styles.threadLocked]}
+                onPress={() => router.push(`/messages/${item.we_met_id}`)}
                 activeOpacity={0.8}
               >
                 <View style={styles.avatar}>
@@ -87,6 +90,9 @@ export default function MessagesScreen() {
                           : item.last_content
                         : 'No messages yet'}
                     </Text>
+                    {expiry.locked && (
+                      <Text style={styles.expiryLocked}>🔒 At venue</Text>
+                    )}
                     {expiry.warn && !expiry.expired && (
                       <Text style={styles.expiryWarn}>{expiry.label}</Text>
                     )}
@@ -100,7 +106,7 @@ export default function MessagesScreen() {
                     </Text>
                   )}
                 </View>
-                {!expiry.expired && item.unread_count > 0 && (
+                {!expiry.expired && !expiry.locked && item.unread_count > 0 && (
                   <View style={styles.unread}>
                     <Text style={styles.unreadText}>{item.unread_count}</Text>
                   </View>
@@ -136,7 +142,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
@@ -157,6 +162,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#0D1B2E',
   },
   threadExpired: { opacity: 0.4 },
+  threadLocked: { opacity: 0.7 },
   avatar: {
     width: 46,
     height: 46,
@@ -177,6 +183,7 @@ const styles = StyleSheet.create({
   preview: { fontSize: 13, color: '#7A93AC', flex: 1 },
   previewEmpty: { fontStyle: 'italic' },
   expiryNote: { fontSize: 11, color: '#4A6580' },
+  expiryLocked: { fontSize: 11, fontWeight: '700', color: '#7A93AC' },
   expiryWarn: { fontSize: 11, fontWeight: '700', color: '#29B6F6' },
   expiryDead: { fontSize: 11, fontWeight: '700', color: '#ef4444' },
   unread: {

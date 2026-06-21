@@ -54,7 +54,7 @@ react-native-maps is currently **shimmed for web** (web gets a placeholder). The
 - **Mood Mode** — Open / Selective / Not Today (how approachable you are)
 - **Pulse Post** — ephemeral in-venue post, visible only to checked-in users, expires in 12h
 - **Venue Chat** — ephemeral 24h group chat for everyone checked in, via Supabase Realtime
-- **We Met** — mutual IRL confirmation (both tap). Unlocks 72h DMs. Expires 4h after either leaves.
+- **We Met** — mutual IRL confirmation (both tap). DMs are LOCKED while at the venue. When a user checks out, `unlockWeMetsOnCheckout()` sets `expires_at = NOW() + 72h` on all confirmed We Mets from that session. The 72h clock starts at checkout, not at confirmation. Pending We Met requests expire 4h after the session ends.
 - **Afterglow** — auto-generated recap when user checks out (duration, people count, connections)
 - **Heat Bar** — visual busyness indicator (how many active sessions in zone right now)
 
@@ -162,6 +162,52 @@ Both login and signup use the same electric premium design:
 
 ---
 
+## Signup Flows — Step by Step
+
+### New Person Signup
+
+1. **`/(auth)/login`** — user taps "Sign up". Toggle is on "Person" (default).
+2. **`/(auth)/signup`** — Person fields: Display Name, Username, Email, Password. Taps "Create Account".
+   - Supabase `auth.signUp()` creates auth user
+   - `profiles` row inserted: `{ display_name, username, is_venue_owner: false }`
+   - Routes to **`/profile/edit`**
+3. **`/profile/edit`** — user fills out: bio, age range (18–24 / 25–34 / 35–44 / 45+), up to 16 interest tags, kickoff prompt. Avatar upload is web-only (Supabase Storage). Taps "Save & Continue".
+   - Routes to **`/(tabs)`** (main app)
+4. **`/(tabs)/index`** — Nearby map. First time: **OnboardingModal** (5 slides: Welcome / Social Mode / Mood Mode / We Met / Afterglow) shows on mount, gated by AsyncStorage key `herenow_onboarding_v1_seen`.
+5. User taps a venue card → **`/zone/[id]`** → taps "Check In" → **`/check-in/[zoneId]`** (Social Mode + Mood Mode selection) → checks in, enters zone.
+6. Inside zone: sees People tab (other checked-in users via `active_sessions_in_zone` RPC), Pulse tab, Chat tab, Events tab.
+7. User taps **"🤝 We Met"** on another person's card → `sendWeMet()` fires, sends in-app notification to recipient.
+8. Recipient confirms via **`/we-met`** → `confirmWeMet()` sets `status='confirmed'`, `expires_at=NULL` (DMs locked until checkout).
+9. Both users check out → `checkOut()` calls `unlockWeMetsOnCheckout(sessionId)` → `expires_at = NOW() + 72h` set on confirmed We Mets → DMs open.
+10. **Afterglow** screen (`/afterglow/[sessionId]`) auto-shows after checkout: duration, people count, connections made.
+11. **`/messages/[wemetId]`** — 72h DM window. Locked banner shown if still at venue. Expired banner if time ran out.
+
+### New Venue Owner Signup
+
+1. **`/(auth)/login`** — user taps "Sign up". Toggles to "Venue".
+2. **`/(auth)/signup`** — Venue fields: Venue Name, Venue Type (pill grid: Bar / Coffee Shop / Restaurant / Event Space / Music Venue / Gym / Co-working / Other), Email, Password. Taps "Create Account".
+   - Supabase `auth.signUp()` creates auth user
+   - `profiles` row inserted: `{ display_name: venueName, is_venue_owner: true }`
+   - **No zone is created at signup** — venue owner must set location separately
+   - Routes to **`/venue/dashboard`**
+3. **`/venue/dashboard`** — shows live check-in counter (0 to start), aggregate stats, quick actions. First visit will show empty state.
+   - Taps **"Edit Venue"** quick action → **`/venue/edit`**
+4. **`/venue/edit`** — venue setup form:
+   - Name + description fields (pre-filled from profile)
+   - **"📍 Use My Current Location"** button → calls `expo-location` on native (`Location.requestForegroundPermissionsAsync()` then `getCurrentPositionAsync()`), or `navigator.geolocation` on web
+   - Radius picker: Small 80m / Medium 150m / Large 300m
+   - Taps "Save Venue" → upserts `zones` row with `center = ST_GeomFromText('POINT(lng lat)', 4326)`, `radius_meters`, `owner_id`, `is_active: true`
+   - Routes back to `/venue/dashboard`
+5. Venue is now live. Users who enter the geofence radius will see it on the map and can check in.
+6. **Venue owner does NOT check in as a person** — the dashboard is their home, not the zone tabs.
+7. **Geofencing for users** — `useGeofenceTask` (background task) monitors zone centers + radii from DB. When a user enters a zone, they get a prompt to check in. This runs automatically once zones exist in DB — no admin action needed per venue.
+
+### Key Geofencing Clarification (venue owners read this)
+
+**You do NOT need to manually add lat/long to the DB.** The venue edit screen has a "Use My Current Location" button. Stand at your venue, tap it, save. That's it. The `zones` row is inserted with your GPS coordinates automatically. The geofencing system reads all active zones from DB and registers them with the OS — no extra setup needed.
+
+---
+
 ## Known TypeScript Patterns
 
 - Supabase join returns arrays for related tables. Cast with `as unknown as TargetType[]`.
@@ -180,7 +226,22 @@ Both login and signup use the same electric premium design:
 | #2 | feat/animated-auth-venue-dashboard | Premium animated auth screens, venue owner path, venue dashboard |
 | #3 | feat/venue-edit-page | Venue edit page — GPS pin drop, radius picker, create/update zone |
 | #4 | feat/premium-auth-ui | First attempt at electric orb UI — had duplicate import merge artifact, superseded by PR #5 |
-| #5 | feat/premium-auth-v2 | **Current** — clean electric orb auth, pixel-perfect toggle, premium signup with venue type grid. Vercel Preview: Ready. **Pending merge to main for production.** |
+| #5 | feat/premium-auth-v2 | Clean electric orb auth, pixel-perfect toggle, premium signup with venue type grid |
+| #6 | (merged) | Various bug fixes — see git log |
+| #7 | (merged) | Various bug fixes — see git log |
+| #8 | fix/bug-mobile-sweep | Safe-area insets, canGoBack() guards, .maybeSingle() fixes, KAV behavior, venue owner post-signup route |
+| #9 | fix/dm-timing-and-docs | DM timing fix (DMs locked until checkout, 72h starts on checkout), signup flow docs, CLAUDE.md updated |
+
+---
+
+## Required SQL Migration — Run Once
+
+```sql
+-- Allow we_met.expires_at to be NULL (means "confirmed but DMs locked until checkout")
+ALTER TABLE we_met ALTER COLUMN expires_at DROP NOT NULL;
+```
+
+Run this in Supabase SQL editor before going live. Without it, `confirmWeMet()` will fail when trying to set `expires_at = NULL`.
 
 ---
 

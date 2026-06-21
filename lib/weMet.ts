@@ -11,7 +11,7 @@ export interface WeMet {
   status: 'pending' | 'confirmed' | 'declined' | 'expired'
   initiated_at: string
   confirmed_at: string | null
-  expires_at: string
+  expires_at: string | null  // NULL = confirmed but DMs locked until checkout
   initiator_profile?: {
     id: string
     display_name: string
@@ -85,15 +85,13 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
     .eq('id', wemetId)
     .single()
 
-  // Open the 72-hour DM window starting from confirmation time
-  const dmWindowExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
-
+  // Leave expires_at as NULL — DM window opens when the user checks out of the venue
   await supabase
     .from('we_met')
     .update({
       status:       'confirmed',
       confirmed_at: new Date().toISOString(),
-      expires_at:   dmWindowExpiry,
+      expires_at:   null,
     })
     .eq('id', wemetId)
     .eq('recipient_id', user.id)
@@ -103,10 +101,22 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
       userId: record.initiator_id,
       type:   'we_met_confirmed',
       title:  'We Met confirmed! 🤝',
-      body:   'You have 72 hours to message each other.',
+      body:   'DMs unlock when you both leave the venue. You\'ll have 72 hours.',
       data:   { we_met_id: wemetId },
     })
   }
+}
+
+// Called on checkout — opens the 72-hour DM window for all confirmed We Mets from this session
+export async function unlockWeMetsOnCheckout(sessionId: string): Promise<void> {
+  const dmWindowExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+
+  await supabase
+    .from('we_met')
+    .update({ expires_at: dmWindowExpiry })
+    .eq('status', 'confirmed')
+    .or(`initiator_session_id.eq.${sessionId},recipient_session_id.eq.${sessionId}`)
+    .is('expires_at', null)
 }
 
 export async function declineWeMet(wemetId: string): Promise<void> {

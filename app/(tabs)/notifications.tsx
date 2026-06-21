@@ -2,6 +2,7 @@
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { router } from 'expo-router'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -25,6 +26,7 @@ function timeAgo(iso: string): string {
 }
 
 export default function NotificationsScreen() {
+  const insets = useSafeAreaInsets()
   const { notifications, loading, unreadCount: unread, refresh } = useNotifications()
 
   const handlePress = async (n: (typeof notifications)[0]) => {
@@ -45,7 +47,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <Text style={styles.title}>Notifications 🔔</Text>
         {unread > 0 && (
           <TouchableOpacity onPress={() => { markAllRead().then(refresh) }}>
@@ -107,7 +109,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 60,
+    paddingTop: 0,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
