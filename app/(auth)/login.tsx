@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Animated,
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  Animated, Easing, Platform, ActivityIndicator, Alert,
 } from 'react-native'
+import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
@@ -11,242 +12,365 @@ import { supabase } from '@/lib/supabase'
 type Mode = 'person' | 'venue'
 
 export default function LoginScreen() {
+  const [mode, setMode]         = useState<Mode>('person')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
-  const [mode, setMode]         = useState<Mode>('person')
+  const [toggleWidth, setToggleWidth] = useState(0)
 
+  // Sliding pill
   const pillAnim = useRef(new Animated.Value(0)).current
-  const btnScale = useRef(new Animated.Value(1)).current
+
+  // Background orbs — each on its own timing so they breathe independently
+  const orb1 = useRef(new Animated.Value(0)).current
+  const orb2 = useRef(new Animated.Value(0)).current
+  const orb3 = useRef(new Animated.Value(0)).current
+  const orb4 = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    const breathe = (val: Animated.Value, dur: number, delay = 0) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(val, { toValue: 1, duration: dur, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+          Animated.timing(val, { toValue: 0, duration: dur, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+        ])
+      )
+    breathe(orb1, 3000).start()
+    breathe(orb2, 4200, 600).start()
+    breathe(orb3, 2700, 1300).start()
+    breathe(orb4, 3800, 900).start()
+  }, [])
 
   const switchMode = (m: Mode) => {
     setMode(m)
     Animated.spring(pillAnim, {
-      toValue: m === 'person' ? 0 : 1,
+      toValue: m === 'venue' ? 1 : 0,
       useNativeDriver: true,
       damping: 18,
-      stiffness: 200,
+      stiffness: 220,
     }).start()
   }
 
-  const onPressIn  = () => Animated.spring(btnScale, { toValue: 0.96, useNativeDriver: true, damping: 14 }).start()
-  const onPressOut = () => Animated.spring(btnScale, { toValue: 1,    useNativeDriver: true, damping: 14 }).start()
-
   const handleLogin = async () => {
-    if (!email || !password) return
+    if (!email.trim() || !password.trim()) return
     setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error || !data.user) {
-      setLoading(false)
-      Alert.alert('Login failed', error?.message ?? 'Unknown error')
-      return
-    }
-
-    // Check if this user is a venue owner and route accordingly
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_venue_owner')
-      .eq('id', data.user.id)
-      .maybeSingle()
-
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
     setLoading(false)
-    if (profile?.is_venue_owner) {
-      router.replace('/venue/dashboard' as any)
+
+    if (error) { Alert.alert('Login failed', error.message); return }
+
+    if (mode === 'venue') {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_venue_owner')
+        .eq('id', data.user.id)
+        .maybeSingle()
+      if (profile?.is_venue_owner) {
+        router.replace('/venue/dashboard' as any)
+      } else {
+        Alert.alert('Not a venue account', "This email isn't registered as a venue. Switch to Person or register a new venue.")
+      }
     } else {
       router.replace('/(tabs)')
     }
   }
 
-  const pillTranslateX = pillAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [2, 150],
-  })
+  const pillX = toggleWidth > 0
+    ? pillAnim.interpolate({ inputRange: [0, 1], outputRange: [2, toggleWidth / 2] })
+    : new Animated.Value(2)
+
+  // Orb scale + opacity pairs
+  const o1s = orb1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] })
+  const o1o = orb1.interpolate({ inputRange: [0, 1], outputRange: [0.18, 0.6] })
+  const o2s = orb2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] })
+  const o2o = orb2.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.48] })
+  const o3s = orb3.interpolate({ inputRange: [0, 1], outputRange: [1, 1.4] })
+  const o3o = orb3.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.55] })
+  const o4o = orb4.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.65] })
+  const o4s = orb4.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] })
+
+  const isVenue = mode === 'venue'
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {/* Ambient glow blobs */}
-      <View style={[styles.glow, styles.glowCyan]} />
-      <View style={[styles.glow, styles.glowBlue]} />
+    <View style={styles.root}>
 
-      <View style={styles.inner}>
+      {/* ── Electric background ── */}
+
+      {/* Top-right cluster: large bloom + bright core */}
+      <Animated.View style={[styles.orb, {
+        width: 420, height: 420,
+        backgroundColor: '#0A4DCA',
+        top: -130, right: -140,
+        opacity: o1o, transform: [{ scale: o1s }],
+      }]} />
+      <Animated.View style={[styles.orb, {
+        width: 160, height: 160,
+        backgroundColor: '#29B6F6',
+        top: -40, right: -30,
+        opacity: orb1.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.85] }),
+        transform: [{ scale: orb1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }],
+      }]} />
+
+      {/* Bottom-left cluster */}
+      <Animated.View style={[styles.orb, {
+        width: 380, height: 380,
+        backgroundColor: '#003FA0',
+        bottom: -110, left: -120,
+        opacity: o2o, transform: [{ scale: o2s }],
+      }]} />
+      <Animated.View style={[styles.orb, {
+        width: 140, height: 140,
+        backgroundColor: '#1E90FF',
+        bottom: -20, left: 0,
+        opacity: orb2.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.75] }),
+      }]} />
+
+      {/* Left-center accent */}
+      <Animated.View style={[styles.orb, {
+        width: 240, height: 240,
+        backgroundColor: '#006699',
+        top: '38%', left: -80,
+        opacity: o3o, transform: [{ scale: o3s }],
+      }]} />
+
+      {/* Top-center subtle */}
+      <Animated.View style={[styles.orb, {
+        width: 300, height: 300,
+        backgroundColor: '#0A3A80',
+        top: -60, left: '25%',
+        opacity: o4o, transform: [{ scale: o4s }],
+      }]} />
+
+      {/* ── Card ── */}
+      <View style={[
+        styles.card,
+        Platform.OS === 'web'
+          ? { boxShadow: '0 0 0 1px rgba(41,182,246,0.4), 0 0 40px rgba(41,182,246,0.35), 0 0 90px rgba(41,182,246,0.18), 0 0 160px rgba(41,182,246,0.08)' } as any
+          : { shadowColor: '#29B6F6', shadowOpacity: 0.55, shadowRadius: 40, shadowOffset: { width: 0, height: 0 }, elevation: 28 }
+      ]}>
+
         {/* Logo */}
-        <Reanimated.View entering={ZoomIn.springify().damping(14).delay(0)}>
-          <Image source={require('@/assets/logo.webp')} style={styles.logo} resizeMode="contain" />
+        <Reanimated.View entering={ZoomIn.springify().damping(14)}>
+          <View style={styles.logoWrap}>
+            <Image source={require('@/assets/logo.webp')} style={styles.logo} resizeMode="contain" />
+          </View>
         </Reanimated.View>
 
-        <Reanimated.Text entering={FadeInDown.delay(80).springify().damping(16)} style={styles.title}>
-          HereNow
-        </Reanimated.Text>
-        <Reanimated.Text entering={FadeInDown.delay(140).springify().damping(16)} style={styles.subtitle}>
-          Connect where you are.
-        </Reanimated.Text>
+        <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)}>
+          <Text style={styles.title}>HereNow</Text>
+          <Text style={styles.subtitle}>Connect where you are.</Text>
+        </Reanimated.View>
 
         {/* Person / Venue toggle */}
-        <Reanimated.View entering={FadeInDown.delay(200).springify().damping(16)} style={styles.toggleWrap}>
-          <Animated.View style={[styles.togglePill, { transform: [{ translateX: pillTranslateX }] }]} />
-          <TouchableOpacity style={styles.toggleBtn} onPress={() => switchMode('person')} activeOpacity={0.8}>
-            <Text style={[styles.toggleText, mode === 'person' && styles.toggleTextActive]}>👤 Person</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.toggleBtn} onPress={() => switchMode('venue')} activeOpacity={0.8}>
-            <Text style={[styles.toggleText, mode === 'venue' && styles.toggleTextActive]}>🏢 Venue</Text>
+        <Reanimated.View entering={FadeInDown.delay(120).springify().damping(16)} style={{ width: '100%' }}>
+          <View
+            style={styles.toggle}
+            onLayout={(e) => setToggleWidth(e.nativeEvent.layout.width)}
+          >
+            {/* Sliding pill */}
+            {toggleWidth > 0 && (
+              <Animated.View
+                style={[
+                  styles.pill,
+                  {
+                    width: toggleWidth / 2 - 4,
+                    transform: [{ translateX: pillX }],
+                  },
+                  Platform.OS === 'web'
+                    ? { boxShadow: '0 0 12px rgba(41,182,246,0.7)' } as any
+                    : { shadowColor: '#29B6F6', shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } }
+                ]}
+              />
+            )}
+            <TouchableOpacity style={styles.toggleOpt} onPress={() => switchMode('person')} activeOpacity={0.8}>
+              <Text style={[styles.toggleTxt, !isVenue && styles.toggleTxtOn]}>👤 Person</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.toggleOpt} onPress={() => switchMode('venue')} activeOpacity={0.8}>
+              <Text style={[styles.toggleTxt, isVenue && styles.toggleTxtOn]}>🏢 Venue</Text>
+            </TouchableOpacity>
+          </View>
+        </Reanimated.View>
+
+        {/* Inputs */}
+        <Reanimated.View entering={FadeInDown.delay(180).springify().damping(16)} style={{ width: '100%', gap: 10 }}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#2B4560"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#2B4560"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoComplete="current-password"
+          />
+        </Reanimated.View>
+
+        {/* Sign in button */}
+        <Reanimated.View entering={FadeInUp.delay(220).springify().damping(16)} style={{ width: '100%' }}>
+          <TouchableOpacity
+            style={[
+              styles.btn,
+              loading && { opacity: 0.6 },
+              Platform.OS === 'web'
+                ? { boxShadow: '0 0 24px rgba(41,182,246,0.55), 0 4px 20px rgba(41,182,246,0.4)' } as any
+                : { shadowColor: '#29B6F6', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 4 } }
+            ]}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading
+              ? <ActivityIndicator color="#050A15" />
+              : <Text style={styles.btnTxt}>
+                  {isVenue ? 'Sign In to Venue Dashboard' : 'Sign In'}
+                </Text>
+            }
           </TouchableOpacity>
         </Reanimated.View>
 
-        <View style={styles.form}>
-          <Reanimated.View entering={FadeInUp.delay(260).springify().damping(16)}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="#4A6580"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-            />
-          </Reanimated.View>
+        {/* Footer link */}
+        <Reanimated.View entering={FadeInUp.delay(280).springify().damping(16)}>
+          <Link href="/(auth)/signup">
+            <Text style={styles.footerLink}>
+              {isVenue ? 'Register a new venue →' : 'New here? Create an account →'}
+            </Text>
+          </Link>
+        </Reanimated.View>
 
-          <Reanimated.View entering={FadeInUp.delay(320).springify().damping(16)}>
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#4A6580"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="current-password"
-            />
-          </Reanimated.View>
-
-          <Reanimated.View entering={FadeInUp.delay(380).springify().damping(16)}>
-            <TouchableOpacity
-              activeOpacity={1}
-              onPressIn={onPressIn}
-              onPressOut={onPressOut}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              <Animated.View style={[styles.button, loading && styles.buttonDisabled, { transform: [{ scale: btnScale }] }]}>
-                {loading
-                  ? <ActivityIndicator color="#050A15" />
-                  : <Text style={styles.buttonText}>
-                      {mode === 'venue' ? 'Sign In to Venue Dashboard' : 'Sign In'}
-                    </Text>
-                }
-              </Animated.View>
-            </TouchableOpacity>
-          </Reanimated.View>
-
-          <Reanimated.View entering={FadeInUp.delay(440).springify().damping(16)} style={styles.footer}>
-            <Link href="/(auth)/signup" style={styles.link}>
-              <Text style={styles.linkText}>
-                {mode === 'venue' ? 'Register a new venue →' : 'New here? Create an account →'}
-              </Text>
-            </Link>
-          </Reanimated.View>
-        </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
-
-  glow: { position: 'absolute', borderRadius: 999, opacity: 0.12 },
-  glowCyan: {
-    width: 320, height: 320,
-    backgroundColor: '#29B6F6',
-    top: -60, left: -80,
-  },
-  glowBlue: {
-    width: 280, height: 280,
-    backgroundColor: '#3b82f6',
-    bottom: 40, right: -60,
-  },
-
-  inner: {
-    width: '100%',
-    maxWidth: 380,
+  root: {
+    flex: 1,
+    backgroundColor: '#020810',
     alignItems: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 44,
-    backgroundColor: '#0A1628CC',
+    justifyContent: 'center',
+  },
+  orb: {
+    position: 'absolute',
+    borderRadius: 999,
+    // @ts-ignore
+    pointerEvents: 'none',
+  },
+
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    marginHorizontal: 20,
+    backgroundColor: '#060D1A',
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: '#1A2E4A',
-    ...(Platform.OS === 'web' ? {
-      boxShadow: '0 8px 64px rgba(41,182,246,0.08), 0 2px 12px rgba(0,0,0,0.6)',
-    } as any : {
-      shadowColor: '#29B6F6',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 32,
-      elevation: 12,
-    }),
+    borderColor: 'rgba(41,182,246,0.2)',
+    paddingHorizontal: 26,
+    paddingVertical: 30,
+    alignItems: 'center',
+    gap: 16,
   },
 
-  logo: { width: 84, height: 84, marginBottom: 12 },
-  title: { fontSize: 28, fontWeight: '900', color: '#f8fafc', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#7A93AC', marginBottom: 28 },
+  logoWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  logo: { width: 80, height: 80 },
 
-  toggleWrap: {
-    flexDirection: 'row',
-    backgroundColor: '#0D1B2E',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1A2E4A',
-    padding: 2,
-    marginBottom: 24,
-    position: 'relative',
-    width: 300,
+  title: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#f8fafc',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#3A5C7A',
+    textAlign: 'center',
+    marginTop: -8,
+  },
+
+  toggle: {
     height: 44,
+    backgroundColor: '#0B1526',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(41,182,246,0.15)',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    position: 'relative',
   },
-  togglePill: {
+  pill: {
     position: 'absolute',
     top: 2,
-    width: 146,
-    height: 38,
-    backgroundColor: '#162840',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#29B6F640',
+    bottom: 2,
+    left: 2,
+    borderRadius: 9,
+    backgroundColor: '#29B6F6',
   },
-  toggleBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
-  toggleText: { fontSize: 13, fontWeight: '600', color: '#4A6580' },
-  toggleTextActive: { color: '#29B6F6' },
+  toggleOpt: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  toggleTxt: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#3A5C7A',
+  },
+  toggleTxtOn: {
+    color: '#020810',
+  },
 
-  form: { width: '100%', gap: 10 },
   input: {
-    backgroundColor: '#06101E',
+    backgroundColor: '#0B1526',
     borderWidth: 1,
-    borderColor: '#1A2E4A',
+    borderColor: 'rgba(41,182,246,0.15)',
     borderRadius: 12,
-    padding: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
     color: '#f8fafc',
     fontSize: 15,
+    width: '100%',
   },
-  button: {
+
+  btn: {
     backgroundColor: '#29B6F6',
     borderRadius: 12,
-    padding: 16,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 6,
-    ...(Platform.OS === 'web' ? {
-      boxShadow: '0 0 24px rgba(41,182,246,0.3)',
-    } as any : {
-      shadowColor: '#29B6F6',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-    }),
+    marginTop: 4,
   },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
-  footer: { alignItems: 'center', marginTop: 6 },
-  link: {},
-  linkText: { color: '#7A93AC', fontSize: 13 },
+  btnTxt: {
+    color: '#020810',
+    fontWeight: '900',
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
+
+  footerLink: {
+    color: '#3A5C7A',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingTop: 4,
+  },
 })
