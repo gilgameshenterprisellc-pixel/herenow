@@ -1,170 +1,477 @@
-﻿import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Alert,
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  Animated, Easing, Platform, ActivityIndicator, Alert, ScrollView,
 } from 'react-native'
+import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 
+type Mode = 'person' | 'venue'
+
+const VENUE_TYPES = ['Bar', 'Restaurant', 'Coffee Shop', 'Venue / Event Space', 'Gym', 'Other']
+
 export default function SignupScreen() {
+  const [mode, setMode]             = useState<Mode>('person')
   const [displayName, setDisplayName] = useState('')
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [username, setUsername]     = useState('')
+  const [email, setEmail]           = useState('')
+  const [password, setPassword]     = useState('')
+  const [venueName, setVenueName]   = useState('')
+  const [venueType, setVenueType]   = useState<string | null>(null)
+  const [loading, setLoading]       = useState(false)
+  const [toggleWidth, setToggleWidth] = useState(0)
+
+  const pillAnim = useRef(new Animated.Value(0)).current
+  const orb1     = useRef(new Animated.Value(0)).current
+  const orb2     = useRef(new Animated.Value(0)).current
+  const orb3     = useRef(new Animated.Value(0)).current
+  const orb4     = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    const breathe = (val: Animated.Value, dur: number, delay = 0) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(val, { toValue: 1, duration: dur, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+          Animated.timing(val, { toValue: 0, duration: dur, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
+        ])
+      )
+    breathe(orb1, 3200).start()
+    breathe(orb2, 4400, 700).start()
+    breathe(orb3, 2900, 1400).start()
+    breathe(orb4, 3600, 500).start()
+  }, [])
+
+  const switchMode = (m: Mode) => {
+    setMode(m)
+    Animated.spring(pillAnim, {
+      toValue: m === 'venue' ? 1 : 0,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 220,
+    }).start()
+  }
 
   const handleSignup = async () => {
-    if (!displayName || !username || !email || !password) {
-      Alert.alert('Missing fields', 'Please fill in all fields.')
-      return
+    const isVenue = mode === 'venue'
+
+    if (isVenue) {
+      if (!venueName.trim() || !email.trim() || !password.trim()) {
+        Alert.alert('Missing fields', 'Enter venue name, email, and password.')
+        return
+      }
+    } else {
+      if (!displayName.trim() || !username.trim() || !email.trim() || !password.trim()) {
+        Alert.alert('Missing fields', 'Please fill in all fields.')
+        return
+      }
     }
 
     setLoading(true)
-
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+    setLoading(false)
 
     if (error || !data.user) {
-      setLoading(false)
       Alert.alert('Signup failed', error?.message ?? 'Unknown error')
       return
     }
 
+    const cleanUsername = isVenue
+      ? venueName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
+      : username.toLowerCase().replace(/[^a-z0-9_]/g, '')
+
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
-      display_name: displayName,
-      username: username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
+      display_name: isVenue ? venueName.trim() : displayName.trim(),
+      username: cleanUsername,
+      is_venue_owner: isVenue,
     })
-
-    setLoading(false)
 
     if (profileError) {
       Alert.alert('Profile error', profileError.message)
       return
     }
 
-    // Send them to profile/edit first so they set interests + kickoff before exploring
-    router.replace('/profile/edit')
+    if (isVenue) {
+      router.replace('/venue/dashboard' as any)
+    } else {
+      router.replace('/profile/edit')
+    }
   }
 
+  const pillX = toggleWidth > 0
+    ? pillAnim.interpolate({ inputRange: [0, 1], outputRange: [2, toggleWidth / 2] })
+    : new Animated.Value(2)
+
+  const o1s = orb1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] })
+  const o1o = orb1.interpolate({ inputRange: [0, 1], outputRange: [0.18, 0.58] })
+  const o2s = orb2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] })
+  const o2o = orb2.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.46] })
+  const o3s = orb3.interpolate({ inputRange: [0, 1], outputRange: [1, 1.38] })
+  const o3o = orb3.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.52] })
+  const o4o = orb4.interpolate({ inputRange: [0, 1], outputRange: [0.18, 0.62] })
+  const o4s = orb4.interpolate({ inputRange: [0, 1], outputRange: [1, 1.22] })
+
+  const isVenue = mode === 'venue'
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.inner}>
-        <Image
-          source={require('@/assets/logo.webp')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Join HereNow</Text>
-        <Text style={styles.subtitle}>Be present. Connect locally.</Text>
+    <View style={styles.root}>
 
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Display name"
-            placeholderTextColor="#7A93AC"
-            value={displayName}
-            onChangeText={setDisplayName}
-            autoCapitalize="words"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Username (no spaces)"
-            placeholderTextColor="#7A93AC"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#7A93AC"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#7A93AC"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="new-password"
-          />
+      {/* ── Electric background ── */}
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSignup}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#050A15" />
-            ) : (
-              <Text style={styles.buttonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
+      {/* Top-left cluster */}
+      <Animated.View style={[styles.orb, {
+        width: 380, height: 380,
+        backgroundColor: '#0A4DCA',
+        top: -120, left: -130,
+        opacity: o1o, transform: [{ scale: o1s }],
+      }]} />
+      <Animated.View style={[styles.orb, {
+        width: 150, height: 150,
+        backgroundColor: '#29B6F6',
+        top: -30, left: -20,
+        opacity: orb1.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }),
+        transform: [{ scale: orb1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }],
+      }]} />
 
-          <Link href="/(auth)/login" style={styles.link}>
-            <Text style={styles.linkText}>Already have an account? Sign in</Text>
-          </Link>
+      {/* Bottom-right cluster */}
+      <Animated.View style={[styles.orb, {
+        width: 360, height: 360,
+        backgroundColor: '#003FA0',
+        bottom: -100, right: -110,
+        opacity: o2o, transform: [{ scale: o2s }],
+      }]} />
+      <Animated.View style={[styles.orb, {
+        width: 130, height: 130,
+        backgroundColor: '#1E90FF',
+        bottom: -15, right: 0,
+        opacity: orb2.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.72] }),
+      }]} />
+
+      {/* Right center accent */}
+      <Animated.View style={[styles.orb, {
+        width: 220, height: 220,
+        backgroundColor: '#006699',
+        top: '30%', right: -70,
+        opacity: o3o, transform: [{ scale: o3s }],
+      }]} />
+
+      {/* Top-center subtle */}
+      <Animated.View style={[styles.orb, {
+        width: 280, height: 280,
+        backgroundColor: '#0A3A80',
+        top: -40, left: '30%',
+        opacity: o4o, transform: [{ scale: o4s }],
+      }]} />
+
+      {/* ── Card ── */}
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[
+          styles.card,
+          Platform.OS === 'web'
+            ? { boxShadow: '0 0 0 1px rgba(41,182,246,0.4), 0 0 40px rgba(41,182,246,0.35), 0 0 90px rgba(41,182,246,0.18), 0 0 160px rgba(41,182,246,0.08)' } as any
+            : { shadowColor: '#29B6F6', shadowOpacity: 0.5, shadowRadius: 40, shadowOffset: { width: 0, height: 0 }, elevation: 28 }
+        ]}>
+
+          {/* Logo */}
+          <Reanimated.View entering={ZoomIn.springify().damping(14)}>
+            <Image source={require('@/assets/logo.webp')} style={styles.logo} resizeMode="contain" />
+          </Reanimated.View>
+
+          <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)}>
+            <Text style={styles.title}>Join HereNow</Text>
+            <Text style={styles.subtitle}>Be present. Connect locally.</Text>
+          </Reanimated.View>
+
+          {/* Toggle */}
+          <Reanimated.View entering={FadeInDown.delay(110).springify().damping(16)} style={{ width: '100%' }}>
+            <View
+              style={styles.toggle}
+              onLayout={(e) => setToggleWidth(e.nativeEvent.layout.width)}
+            >
+              {toggleWidth > 0 && (
+                <Animated.View
+                  style={[
+                    styles.pill,
+                    {
+                      width: toggleWidth / 2 - 4,
+                      transform: [{ translateX: pillX }],
+                    },
+                    Platform.OS === 'web'
+                      ? { boxShadow: '0 0 12px rgba(41,182,246,0.7)' } as any
+                      : { shadowColor: '#29B6F6', shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } }
+                  ]}
+                />
+              )}
+              <TouchableOpacity style={styles.toggleOpt} onPress={() => switchMode('person')} activeOpacity={0.8}>
+                <Text style={[styles.toggleTxt, !isVenue && styles.toggleTxtOn]}>👤 Person</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.toggleOpt} onPress={() => switchMode('venue')} activeOpacity={0.8}>
+                <Text style={[styles.toggleTxt, isVenue && styles.toggleTxtOn]}>🏢 Venue</Text>
+              </TouchableOpacity>
+            </View>
+          </Reanimated.View>
+
+          {/* ── Person fields ── */}
+          {!isVenue && (
+            <Reanimated.View entering={FadeInDown.delay(160).springify().damping(16)} style={styles.fields}>
+              <TextInput
+                style={styles.input}
+                placeholder="Display name"
+                placeholderTextColor="#2B4560"
+                value={displayName}
+                onChangeText={setDisplayName}
+                autoCapitalize="words"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Username (no spaces)"
+                placeholderTextColor="#2B4560"
+                value={username}
+                onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                autoCapitalize="none"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor="#2B4560"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#2B4560"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="new-password"
+              />
+            </Reanimated.View>
+          )}
+
+          {/* ── Venue fields ── */}
+          {isVenue && (
+            <Reanimated.View entering={FadeInDown.delay(160).springify().damping(16)} style={styles.fields}>
+              <TextInput
+                style={styles.input}
+                placeholder="Venue name"
+                placeholderTextColor="#2B4560"
+                value={venueName}
+                onChangeText={setVenueName}
+                autoCapitalize="words"
+              />
+
+              {/* Venue type pills */}
+              <Text style={styles.fieldLabel}>Venue type</Text>
+              <View style={styles.typeGrid}>
+                {VENUE_TYPES.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.typePill, venueType === t && styles.typePillOn]}
+                    onPress={() => setVenueType(venueType === t ? null : t)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.typeTxt, venueType === t && styles.typeTxtOn]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor="#2B4560"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#2B4560"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="new-password"
+              />
+            </Reanimated.View>
+          )}
+
+          {/* Submit */}
+          <Reanimated.View entering={FadeInUp.delay(240).springify().damping(16)} style={{ width: '100%' }}>
+            <TouchableOpacity
+              style={[
+                styles.btn,
+                loading && { opacity: 0.6 },
+                Platform.OS === 'web'
+                  ? { boxShadow: '0 0 24px rgba(41,182,246,0.55), 0 4px 20px rgba(41,182,246,0.4)' } as any
+                  : { shadowColor: '#29B6F6', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 4 } }
+              ]}
+              onPress={handleSignup}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading
+                ? <ActivityIndicator color="#020810" />
+                : <Text style={styles.btnTxt}>
+                    {isVenue ? 'Register Venue' : 'Create Account'}
+                  </Text>
+              }
+            </TouchableOpacity>
+          </Reanimated.View>
+
+          <Reanimated.View entering={FadeInUp.delay(300).springify().damping(16)}>
+            <Link href="/(auth)/login">
+              <Text style={styles.footerLink}>Already have an account? Sign in →</Text>
+            </Link>
+          </Reanimated.View>
+
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
-  inner: {
-    width: '100%',
-    maxWidth: 380,
+  root: {
+    flex: 1,
+    backgroundColor: '#020810',
+  },
+  scroll: {
+    flexGrow: 1,
     alignItems: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 48,
-    backgroundColor: '#0A1628',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#1A2E4A',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
-  logo: {
-    width: 90,
-    height: 90,
-    marginBottom: 16,
+  orb: {
+    position: 'absolute',
+    borderRadius: 999,
+    // @ts-ignore
+    pointerEvents: 'none',
   },
-  title: { fontSize: 28, fontWeight: '800', color: '#f8fafc', marginBottom: 4 },
-  subtitle: { fontSize: 15, color: '#7A93AC', marginBottom: 40 },
-  form: { width: '100%', gap: 12 },
-  input: {
-    backgroundColor: '#0D1B2E',
+
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    marginHorizontal: 20,
+    backgroundColor: '#060D1A',
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: '#1A2E4A',
+    borderColor: 'rgba(41,182,246,0.2)',
+    paddingHorizontal: 26,
+    paddingVertical: 30,
+    alignItems: 'center',
+    gap: 14,
+  },
+
+  logo: { width: 76, height: 76, borderRadius: 18, marginBottom: 2 },
+
+  title: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#f8fafc',
+    letterSpacing: -0.4,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#3A5C7A',
+    textAlign: 'center',
+    marginTop: -8,
+  },
+
+  toggle: {
+    height: 44,
+    backgroundColor: '#0B1526',
     borderRadius: 12,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(41,182,246,0.15)',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  pill: {
+    position: 'absolute',
+    top: 2,
+    bottom: 2,
+    left: 2,
+    borderRadius: 9,
+    backgroundColor: '#29B6F6',
+  },
+  toggleOpt: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  toggleTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
+  toggleTxtOn: { color: '#020810' },
+
+  fields: { width: '100%', gap: 10 },
+
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#3A5C7A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 4,
+  },
+
+  input: {
+    backgroundColor: '#0B1526',
+    borderWidth: 1,
+    borderColor: 'rgba(41,182,246,0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
     color: '#f8fafc',
     fontSize: 15,
+    width: '100%',
   },
-  button: {
+
+  typeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  typePill: {
+    backgroundColor: '#0B1526',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(41,182,246,0.15)',
+  },
+  typePillOn: {
+    backgroundColor: 'rgba(41,182,246,0.12)',
+    borderColor: '#29B6F6',
+  },
+  typeTxt: { fontSize: 13, color: '#3A5C7A', fontWeight: '600' },
+  typeTxtOn: { color: '#29B6F6', fontWeight: '700' },
+
+  btn: {
     backgroundColor: '#29B6F6',
     borderRadius: 12,
-    padding: 16,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#050A15', fontWeight: '700', fontSize: 16 },
-  link: { alignSelf: 'center', marginTop: 8 },
-  linkText: { color: '#7A93AC', fontSize: 14 },
+  btnTxt: { color: '#020810', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
+
+  footerLink: { color: '#3A5C7A', fontSize: 13, textAlign: 'center', paddingTop: 4 },
 })
