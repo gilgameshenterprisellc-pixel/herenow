@@ -6,7 +6,6 @@ import {
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
-import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { supabase } from '@/lib/supabase'
 
 type Mode = 'person' | 'venue'
@@ -16,12 +15,12 @@ const VENUE_TYPES = ['Bar', 'Restaurant', 'Coffee Shop', 'Venue / Event Space', 
 export default function SignupScreen() {
   const [mode, setMode]             = useState<Mode>('person')
   const [displayName, setDisplayName] = useState('')
-  const [username, setUsername]     = useState('')
-  const [email, setEmail]           = useState('')
-  const [password, setPassword]     = useState('')
-  const [venueName, setVenueName]   = useState('')
-  const [venueType, setVenueType]   = useState<string | null>(null)
-  const [loading, setLoading]       = useState(false)
+  const [username, setUsername]       = useState('')
+  const [email, setEmail]             = useState('')
+  const [password, setPassword]       = useState('')
+  const [venueName, setVenueName]     = useState('')
+  const [venueType, setVenueType]     = useState<string | null>(null)
+  const [loading, setLoading]         = useState(false)
   const [toggleWidth, setToggleWidth] = useState(0)
 
   const pillAnim = useRef(new Animated.Value(0)).current
@@ -57,7 +56,6 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     const isVenue = mode === 'venue'
-
     if (isVenue) {
       if (!venueName.trim() || !email.trim() || !password.trim()) {
         Alert.alert('Missing fields', 'Enter venue name, email, and password.')
@@ -69,7 +67,6 @@ export default function SignupScreen() {
         return
       }
     }
-    if (mode === 'venue' && !venueName) { Alert.alert('Missing fields', 'Enter your venue name.'); return }
 
     setLoading(true)
     const { data, error } = await supabase.auth.signUp({
@@ -84,7 +81,7 @@ export default function SignupScreen() {
     }
 
     const cleanUsername = isVenue
-      ? venueName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
+      ? venueName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) || `venue_${data.user.id.slice(0, 6)}`
       : username.toLowerCase().replace(/[^a-z0-9_]/g, '')
 
     const { error: profileError } = await supabase.from('profiles').insert({
@@ -99,6 +96,7 @@ export default function SignupScreen() {
       return
     }
 
+    // Venue owners go set up their zone; person users go complete their profile
     if (isVenue) {
       router.replace('/venue/dashboard' as any)
     } else {
@@ -124,54 +122,25 @@ export default function SignupScreen() {
   return (
     <View style={styles.root}>
 
-      {/* ── Electric background ── */}
-
-      {/* Top-left cluster */}
-      <Animated.View style={[styles.orb, {
-        width: 380, height: 380,
-        backgroundColor: '#0A4DCA',
-        top: -120, left: -130,
-        opacity: o1o, transform: [{ scale: o1s }],
-      }]} />
-      <Animated.View style={[styles.orb, {
-        width: 150, height: 150,
-        backgroundColor: '#29B6F6',
-        top: -30, left: -20,
+      {/* Top-left bloom cluster */}
+      <Animated.View style={[styles.orb, { width: 380, height: 380, backgroundColor: '#0A4DCA', top: -120, left: -130, opacity: o1o, transform: [{ scale: o1s }] }]} />
+      <Animated.View style={[styles.orb, { width: 150, height: 150, backgroundColor: '#29B6F6', top: -30, left: -20,
         opacity: orb1.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }),
         transform: [{ scale: orb1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }],
       }]} />
 
-      {/* Bottom-right cluster */}
-      <Animated.View style={[styles.orb, {
-        width: 360, height: 360,
-        backgroundColor: '#003FA0',
-        bottom: -100, right: -110,
-        opacity: o2o, transform: [{ scale: o2s }],
-      }]} />
-      <Animated.View style={[styles.orb, {
-        width: 130, height: 130,
-        backgroundColor: '#1E90FF',
-        bottom: -15, right: 0,
+      {/* Bottom-right bloom cluster */}
+      <Animated.View style={[styles.orb, { width: 360, height: 360, backgroundColor: '#003FA0', bottom: -100, right: -110, opacity: o2o, transform: [{ scale: o2s }] }]} />
+      <Animated.View style={[styles.orb, { width: 130, height: 130, backgroundColor: '#1E90FF', bottom: -15, right: 0,
         opacity: orb2.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.72] }),
       }]} />
 
-      {/* Right center accent */}
-      <Animated.View style={[styles.orb, {
-        width: 220, height: 220,
-        backgroundColor: '#006699',
-        top: '30%', right: -70,
-        opacity: o3o, transform: [{ scale: o3s }],
-      }]} />
+      {/* Right-center accent */}
+      <Animated.View style={[styles.orb, { width: 220, height: 220, backgroundColor: '#006699', top: '30%', right: -70, opacity: o3o, transform: [{ scale: o3s }] }]} />
 
       {/* Top-center subtle */}
-      <Animated.View style={[styles.orb, {
-        width: 280, height: 280,
-        backgroundColor: '#0A3A80',
-        top: -40, left: '30%',
-        opacity: o4o, transform: [{ scale: o4s }],
-      }]} />
+      <Animated.View style={[styles.orb, { width: 280, height: 280, backgroundColor: '#0A3A80', top: -40, left: '30%', opacity: o4o, transform: [{ scale: o4s }] }]} />
 
-      {/* ── Card ── */}
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -184,7 +153,6 @@ export default function SignupScreen() {
             : { shadowColor: '#29B6F6', shadowOpacity: 0.5, shadowRadius: 40, shadowOffset: { width: 0, height: 0 }, elevation: 28 }
         ]}>
 
-          {/* Logo */}
           <Reanimated.View entering={ZoomIn.springify().damping(14)}>
             <Image source={require('@/assets/logo.webp')} style={styles.logo} resizeMode="contain" />
           </Reanimated.View>
@@ -204,10 +172,7 @@ export default function SignupScreen() {
                 <Animated.View
                   style={[
                     styles.pill,
-                    {
-                      width: toggleWidth / 2 - 4,
-                      transform: [{ translateX: pillX }],
-                    },
+                    { width: toggleWidth / 2 - 4, transform: [{ translateX: pillX }] },
                     Platform.OS === 'web'
                       ? { boxShadow: '0 0 12px rgba(41,182,246,0.7)' } as any
                       : { shadowColor: '#29B6F6', shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } }
@@ -223,7 +188,7 @@ export default function SignupScreen() {
             </View>
           </Reanimated.View>
 
-          {/* ── Person fields ── */}
+          {/* Person fields */}
           {!isVenue && (
             <Reanimated.View entering={FadeInDown.delay(160).springify().damping(16)} style={styles.fields}>
               <TextInput
@@ -264,7 +229,7 @@ export default function SignupScreen() {
             </Reanimated.View>
           )}
 
-          {/* ── Venue fields ── */}
+          {/* Venue fields */}
           {isVenue && (
             <Reanimated.View entering={FadeInDown.delay(160).springify().damping(16)} style={styles.fields}>
               <TextInput
@@ -275,8 +240,6 @@ export default function SignupScreen() {
                 onChangeText={setVenueName}
                 autoCapitalize="words"
               />
-
-              {/* Venue type pills */}
               <Text style={styles.fieldLabel}>Venue type</Text>
               <View style={styles.typeGrid}>
                 {VENUE_TYPES.map((t) => (
@@ -290,7 +253,6 @@ export default function SignupScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -313,7 +275,6 @@ export default function SignupScreen() {
             </Reanimated.View>
           )}
 
-          {/* Submit */}
           <Reanimated.View entering={FadeInUp.delay(240).springify().damping(16)} style={{ width: '100%' }}>
             <TouchableOpacity
               style={[
@@ -329,9 +290,7 @@ export default function SignupScreen() {
             >
               {loading
                 ? <ActivityIndicator color="#020810" />
-                : <Text style={styles.btnTxt}>
-                    {isVenue ? 'Register Venue' : 'Create Account'}
-                  </Text>
+                : <Text style={styles.btnTxt}>{isVenue ? 'Register Venue' : 'Create Account'}</Text>
               }
             </TouchableOpacity>
           </Reanimated.View>
@@ -349,23 +308,14 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#020810',
-  },
-  scroll: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
+  root: { flex: 1, backgroundColor: '#020810' },
+  scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   orb: {
     position: 'absolute',
     borderRadius: 999,
     // @ts-ignore
     pointerEvents: 'none',
   },
-
   card: {
     width: '100%',
     maxWidth: 400,
@@ -379,23 +329,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
-
   logo: { width: 76, height: 76, borderRadius: 18, marginBottom: 2 },
-
-  title: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#f8fafc',
-    letterSpacing: -0.4,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#3A5C7A',
-    textAlign: 'center',
-    marginTop: -8,
-  },
-
+  title: { fontSize: 24, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.4, textAlign: 'center' },
+  subtitle: { fontSize: 13, color: '#3A5C7A', textAlign: 'center', marginTop: -8 },
   toggle: {
     height: 44,
     backgroundColor: '#0B1526',
@@ -414,26 +350,14 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: '#29B6F6',
   },
-  toggleOpt: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
+  toggleOpt: { flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   toggleTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
   toggleTxtOn: { color: '#020810' },
-
   fields: { width: '100%', gap: 10 },
-
   fieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#3A5C7A',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 4,
+    fontSize: 12, fontWeight: '700', color: '#3A5C7A',
+    textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4,
   },
-
   input: {
     backgroundColor: '#0B1526',
     borderWidth: 1,
@@ -445,35 +369,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     width: '100%',
   },
-
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
+  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   typePill: {
-    backgroundColor: '#0B1526',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(41,182,246,0.15)',
+    backgroundColor: '#0B1526', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderWidth: 1, borderColor: 'rgba(41,182,246,0.15)',
   },
-  typePillOn: {
-    backgroundColor: 'rgba(41,182,246,0.12)',
-    borderColor: '#29B6F6',
-  },
+  typePillOn: { backgroundColor: 'rgba(41,182,246,0.12)', borderColor: '#29B6F6' },
   typeTxt: { fontSize: 13, color: '#3A5C7A', fontWeight: '600' },
   typeTxtOn: { color: '#29B6F6', fontWeight: '700' },
-
   btn: {
-    backgroundColor: '#29B6F6',
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 4,
+    backgroundColor: '#29B6F6', borderRadius: 12,
+    paddingVertical: 15, alignItems: 'center', marginTop: 4,
   },
   btnTxt: { color: '#020810', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
-
   footerLink: { color: '#3A5C7A', fontSize: 13, textAlign: 'center', paddingTop: 4 },
 })

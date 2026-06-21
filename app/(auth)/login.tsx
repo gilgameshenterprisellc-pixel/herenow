@@ -6,7 +6,6 @@ import {
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
-import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { supabase } from '@/lib/supabase'
 
 type Mode = 'person' | 'venue'
@@ -20,12 +19,10 @@ export default function LoginScreen() {
 
   // Sliding pill
   const pillAnim = useRef(new Animated.Value(0)).current
-
-  // Background orbs — each on its own timing so they breathe independently
-  const orb1 = useRef(new Animated.Value(0)).current
-  const orb2 = useRef(new Animated.Value(0)).current
-  const orb3 = useRef(new Animated.Value(0)).current
-  const orb4 = useRef(new Animated.Value(0)).current
+  const orb1     = useRef(new Animated.Value(0)).current
+  const orb2     = useRef(new Animated.Value(0)).current
+  const orb3     = useRef(new Animated.Value(0)).current
+  const orb4     = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     const breathe = (val: Animated.Value, dur: number, delay = 0) =>
@@ -83,11 +80,10 @@ export default function LoginScreen() {
     ? pillAnim.interpolate({ inputRange: [0, 1], outputRange: [2, toggleWidth / 2] })
     : new Animated.Value(2)
 
-  // Orb scale + opacity pairs
   const o1s = orb1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] })
-  const o1o = orb1.interpolate({ inputRange: [0, 1], outputRange: [0.18, 0.6] })
+  const o1o = orb1.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.6] })
   const o2s = orb2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] })
-  const o2o = orb2.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.48] })
+  const o2o = orb2.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.5] })
   const o3s = orb3.interpolate({ inputRange: [0, 1], outputRange: [1, 1.4] })
   const o3o = orb3.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.55] })
   const o4o = orb4.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.65] })
@@ -98,54 +94,26 @@ export default function LoginScreen() {
   return (
     <View style={styles.root}>
 
-      {/* ── Electric background ── */}
-
-      {/* Top-right cluster: large bloom + bright core */}
-      <Animated.View style={[styles.orb, {
-        width: 420, height: 420,
-        backgroundColor: '#0A4DCA',
-        top: -130, right: -140,
-        opacity: o1o, transform: [{ scale: o1s }],
-      }]} />
-      <Animated.View style={[styles.orb, {
-        width: 160, height: 160,
-        backgroundColor: '#29B6F6',
-        top: -40, right: -30,
+      {/* Top-right bloom cluster */}
+      <Animated.View style={[styles.orb, { width: 420, height: 420, backgroundColor: '#0A4DCA', top: -130, right: -140, opacity: o1o, transform: [{ scale: o1s }] }]} />
+      <Animated.View style={[styles.orb, { width: 160, height: 160, backgroundColor: '#29B6F6', top: -40, right: -30,
         opacity: orb1.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.85] }),
         transform: [{ scale: orb1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }],
       }]} />
 
-      {/* Bottom-left cluster */}
-      <Animated.View style={[styles.orb, {
-        width: 380, height: 380,
-        backgroundColor: '#003FA0',
-        bottom: -110, left: -120,
-        opacity: o2o, transform: [{ scale: o2s }],
-      }]} />
-      <Animated.View style={[styles.orb, {
-        width: 140, height: 140,
-        backgroundColor: '#1E90FF',
-        bottom: -20, left: 0,
+      {/* Bottom-left bloom cluster */}
+      <Animated.View style={[styles.orb, { width: 380, height: 380, backgroundColor: '#003FA0', bottom: -110, left: -120, opacity: o2o, transform: [{ scale: o2s }] }]} />
+      <Animated.View style={[styles.orb, { width: 140, height: 140, backgroundColor: '#1E90FF', bottom: -20, left: 0,
         opacity: orb2.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.75] }),
       }]} />
 
       {/* Left-center accent */}
-      <Animated.View style={[styles.orb, {
-        width: 240, height: 240,
-        backgroundColor: '#006699',
-        top: '38%', left: -80,
-        opacity: o3o, transform: [{ scale: o3s }],
-      }]} />
+      <Animated.View style={[styles.orb, { width: 240, height: 240, backgroundColor: '#006699', top: '38%', left: -80, opacity: o3o, transform: [{ scale: o3s }] }]} />
 
       {/* Top-center subtle */}
-      <Animated.View style={[styles.orb, {
-        width: 300, height: 300,
-        backgroundColor: '#0A3A80',
-        top: -60, left: '25%',
-        opacity: o4o, transform: [{ scale: o4s }],
-      }]} />
+      <Animated.View style={[styles.orb, { width: 300, height: 300, backgroundColor: '#0A3A80', top: -60, left: '25%', opacity: o4o, transform: [{ scale: o4s }] }]} />
 
-      {/* ── Card ── */}
+      {/* Card */}
       <View style={[
         styles.card,
         Platform.OS === 'web'
@@ -153,11 +121,8 @@ export default function LoginScreen() {
           : { shadowColor: '#29B6F6', shadowOpacity: 0.55, shadowRadius: 40, shadowOffset: { width: 0, height: 0 }, elevation: 28 }
       ]}>
 
-        {/* Logo */}
         <Reanimated.View entering={ZoomIn.springify().damping(14)}>
-          <View style={styles.logoWrap}>
-            <Image source={require('@/assets/logo.webp')} style={styles.logo} resizeMode="contain" />
-          </View>
+          <Image source={require('@/assets/logo.webp')} style={styles.logo} resizeMode="contain" />
         </Reanimated.View>
 
         <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)}>
@@ -165,21 +130,17 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Connect where you are.</Text>
         </Reanimated.View>
 
-        {/* Person / Venue toggle */}
+        {/* Toggle */}
         <Reanimated.View entering={FadeInDown.delay(120).springify().damping(16)} style={{ width: '100%' }}>
           <View
             style={styles.toggle}
             onLayout={(e) => setToggleWidth(e.nativeEvent.layout.width)}
           >
-            {/* Sliding pill */}
             {toggleWidth > 0 && (
               <Animated.View
                 style={[
                   styles.pill,
-                  {
-                    width: toggleWidth / 2 - 4,
-                    transform: [{ translateX: pillX }],
-                  },
+                  { width: toggleWidth / 2 - 4, transform: [{ translateX: pillX }] },
                   Platform.OS === 'web'
                     ? { boxShadow: '0 0 12px rgba(41,182,246,0.7)' } as any
                     : { shadowColor: '#29B6F6', shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } }
@@ -218,7 +179,6 @@ export default function LoginScreen() {
           />
         </Reanimated.View>
 
-        {/* Sign in button */}
         <Reanimated.View entering={FadeInUp.delay(220).springify().damping(16)} style={{ width: '100%' }}>
           <TouchableOpacity
             style={[
@@ -234,14 +194,11 @@ export default function LoginScreen() {
           >
             {loading
               ? <ActivityIndicator color="#050A15" />
-              : <Text style={styles.btnTxt}>
-                  {isVenue ? 'Sign In to Venue Dashboard' : 'Sign In'}
-                </Text>
+              : <Text style={styles.btnTxt}>{isVenue ? 'Sign In to Venue Dashboard' : 'Sign In'}</Text>
             }
           </TouchableOpacity>
         </Reanimated.View>
 
-        {/* Footer link */}
         <Reanimated.View entering={FadeInUp.delay(280).springify().damping(16)}>
           <Link href="/(auth)/signup">
             <Text style={styles.footerLink}>
@@ -268,7 +225,6 @@ const styles = StyleSheet.create({
     // @ts-ignore
     pointerEvents: 'none',
   },
-
   card: {
     width: '100%',
     maxWidth: 400,
@@ -282,18 +238,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-
-  logoWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  logo: { width: 80, height: 80 },
-
+  logo: { width: 80, height: 80, borderRadius: 20, marginBottom: 2 },
   title: {
     fontSize: 26,
     fontWeight: '900',
@@ -307,7 +252,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: -8,
   },
-
   toggle: {
     height: 44,
     backgroundColor: '#0B1526',
@@ -326,21 +270,9 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: '#29B6F6',
   },
-  toggleOpt: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  toggleTxt: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#3A5C7A',
-  },
-  toggleTxtOn: {
-    color: '#020810',
-  },
-
+  toggleOpt: { flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  toggleTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
+  toggleTxtOn: { color: '#020810' },
   input: {
     backgroundColor: '#0B1526',
     borderWidth: 1,
@@ -352,7 +284,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     width: '100%',
   },
-
   btn: {
     backgroundColor: '#29B6F6',
     borderRadius: 12,
@@ -360,17 +291,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  btnTxt: {
-    color: '#020810',
-    fontWeight: '900',
-    fontSize: 15,
-    letterSpacing: 0.2,
-  },
-
-  footerLink: {
-    color: '#3A5C7A',
-    fontSize: 13,
-    textAlign: 'center',
-    paddingTop: 4,
-  },
+  btnTxt: { color: '#020810', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
+  footerLink: { color: '#3A5C7A', fontSize: 13, textAlign: 'center', paddingTop: 4 },
 })
