@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useDmThread } from '@/hooks/useMessages'
@@ -12,11 +13,13 @@ import ExpiryLabel from '@/components/ExpiryLabel'
 
 export default function DmConversationScreen() {
   const { wemetId }         = useLocalSearchParams<{ wemetId: string }>()
+  const insets              = useSafeAreaInsets()
   const [userId, setUserId] = useState<string | null>(null)
   const [text, setText]     = useState('')
   const [sending, setSending] = useState(false)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [otherName, setOtherName] = useState('')
+  const [notFound, setNotFound]   = useState(false)
   const listRef = useRef<FlatList>(null)
 
   const { messages, loading } = useDmThread(wemetId, userId ?? '')
@@ -26,23 +29,25 @@ export default function DmConversationScreen() {
       const { data: { user } } = await supabase.auth.getUser()
       setUserId(user?.id ?? null)
 
-      // Fetch thread meta from we_met
-      const { data: wm } = await supabase
+      const { data: wm, error: wmErr } = await supabase
         .from('we_met')
         .select('expires_at, initiator_id, recipient_id')
         .eq('id', wemetId)
-        .single()
+        .maybeSingle()
 
-      if (wm) {
-        setExpiresAt(wm.expires_at)
-        const otherId = wm.initiator_id === user?.id ? wm.recipient_id : wm.initiator_id
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('id', otherId)
-          .single()
-        setOtherName(profile?.display_name ?? 'Unknown')
+      if (wmErr || !wm) {
+        setNotFound(true)
+        return
       }
+
+      setExpiresAt(wm.expires_at)
+      const otherId = wm.initiator_id === user?.id ? wm.recipient_id : wm.initiator_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', otherId)
+        .maybeSingle()
+      setOtherName(profile?.display_name ?? 'Unknown')
 
       if (user) await markMessagesRead(wemetId, user.id)
     }
@@ -60,14 +65,36 @@ export default function DmConversationScreen() {
 
   const isExpired = expiresAt ? new Date(expiresAt) < new Date() : false
 
+  if (notFound) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/messages' as any)} style={styles.backBtn}>
+            <Text style={styles.backText}>←</Text>
+          </TouchableOpacity>
+          <View style={styles.headerInfo}>
+            <Text style={styles.name}>Conversation</Text>
+          </View>
+        </View>
+        <View style={styles.center}>
+          <Text style={{ fontSize: 36 }}>💌</Text>
+          <Text style={[styles.name, { marginTop: 12 }]}>Thread not found</Text>
+          <Text style={[styles.expiredText, { marginTop: 6, textAlign: 'center', paddingHorizontal: 32 }]}>
+            This conversation may have expired or been removed.
+          </Text>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/messages' as any)} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerInfo}>
@@ -150,7 +177,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
@@ -179,7 +205,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 10,
+    paddingBottom: insets.bottom + 10,
     borderTopWidth: 1,
     borderTopColor: '#0D1B2E',
     gap: 8,

@@ -73,7 +73,7 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
 
         {/* ⋯ menu — only for other people */}
         {!isMe && (onReport || onBlock) && (
-          <TouchableOpacity style={styles.moreBtn} onPress={showMoreMenu} hitSlop={8}>
+          <TouchableOpacity style={styles.moreBtn} onPress={showMoreMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.moreBtnText}>⋯</Text>
           </TouchableOpacity>
         )}

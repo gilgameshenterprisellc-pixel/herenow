@@ -9,6 +9,7 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const ONBOARDING_KEY = 'herenow_onboarding_v1_seen'
@@ -57,6 +58,7 @@ interface Props {
 }
 
 export default function OnboardingModal({ onDone }: Props) {
+  const insets = useSafeAreaInsets()
   const [visible, setVisible] = useState(false)
   const [step, setStep] = useState(0)
   const fadeAnim = useRef(new Animated.Value(1)).current
@@ -106,7 +108,7 @@ export default function OnboardingModal({ onDone }: Props) {
   return (
     <Modal visible={visible} animationType="fade" transparent statusBarTranslucent>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
           {/* Progress dots */}
           <View style={styles.dots}>
             {SLIDES.map((_, i) => (
@@ -174,7 +176,6 @@ const styles = StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.82,
     borderTopWidth: 1,
     borderColor: '#1A2E4A',
-    paddingBottom: 40,
   },
   dots: {
     flexDirection: 'row',

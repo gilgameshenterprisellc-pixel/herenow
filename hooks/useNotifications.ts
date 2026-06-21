@@ -18,11 +18,11 @@ export function useNotifications() {
   useEffect(() => {
     refresh()
 
-    const setupRealtime = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
-      const channel = supabase
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      channel = supabase
         .channel(`notifications:${user.id}`)
         .on(
           'postgres_changes',
@@ -35,11 +35,9 @@ export function useNotifications() {
           () => refresh()
         )
         .subscribe()
+    })
 
-      return () => { supabase.removeChannel(channel) }
-    }
-
-    setupRealtime()
+    return () => { if (channel) supabase.removeChannel(channel) }
   }, [refresh])
 
   return { notifications, unreadCount, loading, refresh }

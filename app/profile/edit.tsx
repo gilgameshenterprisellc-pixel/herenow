@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, Platform,
+  ScrollView, Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
@@ -26,6 +27,7 @@ const KICKOFF_PROMPTS = [
 ]
 
 export default function EditProfileScreen() {
+  const insets = useSafeAreaInsets()
   const [loading, setLoading]         = useState(true)
   const [saving, setSaving]           = useState(false)
   const [uploading, setUploading]     = useState(false)
@@ -41,13 +43,13 @@ export default function EditProfileScreen() {
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) { router.replace('/(auth)/login'); return }
       setUserId(user.id)
       const { data } = await supabase
         .from('profiles')
         .select('display_name, bio, age_range, interest_tags, kickoffs, avatar_url')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
       if (data) {
         setDisplayName(data.display_name ?? '')
         setBio(data.bio ?? '')
@@ -117,8 +119,11 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -278,7 +283,7 @@ export default function EditProfileScreen() {
           </Text>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -288,7 +293,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
