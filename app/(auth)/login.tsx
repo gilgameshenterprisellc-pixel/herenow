@@ -6,7 +6,6 @@ import {
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
-import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { supabase } from '@/lib/supabase'
 
 type Mode = 'person' | 'venue'
