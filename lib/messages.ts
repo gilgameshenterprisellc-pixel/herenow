@@ -21,7 +21,7 @@ export interface DmThread {
   last_message_at: string | null
   last_sender_id: string | null
   unread_count: number
-  expires_at: string
+  expires_at: string | null  // NULL = locked until checkout
   zone_name: string | null
 }
 
