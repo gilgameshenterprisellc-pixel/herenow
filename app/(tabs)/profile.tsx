@@ -7,6 +7,8 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { fetchUserBadges } from '@/lib/badges'
+import AvatarImage from '@/components/AvatarImage'
+import { TAB_SAFE_BOTTOM } from './_layout'
 
 interface Profile {
   id: string
@@ -16,6 +18,7 @@ interface Profile {
   age_range: string | null
   interest_tags: string[]
   kickoffs: string[]
+  avatar_url: string | null
 }
 
 const NAV_ITEMS = [
@@ -73,11 +76,12 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       {/* Avatar + name */}
       <View style={styles.profileHead}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {profile?.display_name?.[0]?.toUpperCase() ?? '?'}
-          </Text>
-        </View>
+        <TouchableOpacity onPress={() => router.push('/profile/edit')} style={styles.avatarWrap}>
+          <AvatarImage uri={profile?.avatar_url} name={profile?.display_name ?? '?'} size={88} />
+          <View style={styles.cameraOverlay}>
+            <Text style={styles.cameraIcon}>📷</Text>
+          </View>
+        </TouchableOpacity>
         <Text style={styles.displayName}>{profile?.display_name}</Text>
         <Text style={styles.username}>@{profile?.username}</Text>
         {profile?.bio && <Text style={styles.bio}>{profile.bio}</Text>}
@@ -162,7 +166,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
   center: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
-  content: { paddingBottom: 60, gap: 16 },
+  content: { paddingBottom: TAB_SAFE_BOTTOM, gap: 16 },
   profileHead: {
     alignItems: 'center',
     paddingTop: 64,
@@ -170,16 +174,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 6,
   },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#29B6F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
+  avatarWrap: { position: 'relative', marginBottom: 10 },
+  cameraOverlay: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: '#0D1B2E', borderWidth: 2, borderColor: '#050A15',
+    alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontSize: 36, fontWeight: '800', color: '#050A15' },
+  cameraIcon: { fontSize: 13 },
   displayName: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
   username: { fontSize: 14, color: '#7A93AC' },
   bio: { fontSize: 14, color: '#8EADC7', textAlign: 'center', lineHeight: 20, marginTop: 4 },
