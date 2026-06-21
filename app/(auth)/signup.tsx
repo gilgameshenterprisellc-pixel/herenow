@@ -13,7 +13,7 @@ type Mode = 'person' | 'venue'
 const VENUE_TYPES = ['Bar', 'Restaurant', 'Coffee Shop', 'Venue / Event Space', 'Gym', 'Other']
 
 export default function SignupScreen() {
-  const [mode, setMode]               = useState<Mode>('person')
+  const [mode, setMode]             = useState<Mode>('person')
   const [displayName, setDisplayName] = useState('')
   const [username, setUsername]       = useState('')
   const [email, setEmail]             = useState('')
@@ -141,6 +141,54 @@ export default function SignupScreen() {
       {/* Top-center subtle */}
       <Animated.View style={[styles.orb, { width: 280, height: 280, backgroundColor: '#0A3A80', top: -40, left: '30%', opacity: o4o, transform: [{ scale: o4s }] }]} />
 
+      {/* ── Electric background ── */}
+
+      {/* Top-left cluster */}
+      <Animated.View style={[styles.orb, {
+        width: 380, height: 380,
+        backgroundColor: '#0A4DCA',
+        top: -120, left: -130,
+        opacity: o1o, transform: [{ scale: o1s }],
+      }]} />
+      <Animated.View style={[styles.orb, {
+        width: 150, height: 150,
+        backgroundColor: '#29B6F6',
+        top: -30, left: -20,
+        opacity: orb1.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }),
+        transform: [{ scale: orb1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }],
+      }]} />
+
+      {/* Bottom-right cluster */}
+      <Animated.View style={[styles.orb, {
+        width: 360, height: 360,
+        backgroundColor: '#003FA0',
+        bottom: -100, right: -110,
+        opacity: o2o, transform: [{ scale: o2s }],
+      }]} />
+      <Animated.View style={[styles.orb, {
+        width: 130, height: 130,
+        backgroundColor: '#1E90FF',
+        bottom: -15, right: 0,
+        opacity: orb2.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.72] }),
+      }]} />
+
+      {/* Right center accent */}
+      <Animated.View style={[styles.orb, {
+        width: 220, height: 220,
+        backgroundColor: '#006699',
+        top: '30%', right: -70,
+        opacity: o3o, transform: [{ scale: o3s }],
+      }]} />
+
+      {/* Top-center subtle */}
+      <Animated.View style={[styles.orb, {
+        width: 280, height: 280,
+        backgroundColor: '#0A3A80',
+        top: -40, left: '30%',
+        opacity: o4o, transform: [{ scale: o4s }],
+      }]} />
+
+      {/* ── Card ── */}
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}

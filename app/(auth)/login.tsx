@@ -17,6 +17,7 @@ export default function LoginScreen() {
   const [loading, setLoading]   = useState(false)
   const [toggleWidth, setToggleWidth] = useState(0)
 
+  // Sliding pill
   const pillAnim = useRef(new Animated.Value(0)).current
   const orb1     = useRef(new Animated.Value(0)).current
   const orb2     = useRef(new Animated.Value(0)).current
