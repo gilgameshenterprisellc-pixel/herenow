@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { sendPushToUser } from './push'
 
 export interface Notification {
   id: string
@@ -59,4 +60,23 @@ export async function getUnreadCount(): Promise<number> {
     .eq('is_read', false)
 
   return count ?? 0
+}
+
+// Unified helper: inserts in-app row + fires push (best-effort)
+export async function sendNotification(params: {
+  userId: string
+  type: string
+  title: string
+  body: string
+  data?: Record<string, unknown>
+}): Promise<void> {
+  await supabase.from('notifications').insert({
+    user_id: params.userId,
+    type:    params.type,
+    title:   params.title,
+    body:    params.body,
+    data:    params.data ?? {},
+  })
+
+  sendPushToUser(params.userId, params.title, params.body, params.data).catch(() => {})
 }
