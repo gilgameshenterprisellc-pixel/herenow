@@ -47,7 +47,7 @@ export function useGeofenceTask() {
 
       const { data: memberships } = await supabase
         .from('zone_members')
-        .select('zone_id, zones(id, radius_meters)')
+        .select('zone_id')
         .eq('user_id', user.id)
 
       if (!memberships?.length) return
@@ -55,11 +55,19 @@ export function useGeofenceTask() {
       const zoneIds = memberships.map((m: any) => m.zone_id)
       const { data: zones } = await supabase
         .from('zones')
-        .select('id, radius_meters')
+        .select('id, center_lat, center_lng, radius_meters')
         .in('id', zoneIds)
 
       if (!zones?.length) return
 
+      const regions = zones.map((z: any) => ({
+        identifier: z.id,
+        latitude: z.center_lat,
+        longitude: z.center_lng,
+        radius: z.radius_meters,
+      }))
+
+      await Location.startGeofencingAsync(GEOFENCE_TASK, regions)
       console.log('[geofence] task registered for', zones.length, 'zones')
     }
 

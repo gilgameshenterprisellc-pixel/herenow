@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform, Animated, Alert,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 
@@ -22,6 +23,7 @@ interface AggregateStats {
 }
 
 export default function VenueDashboard() {
+  const insets = useSafeAreaInsets()
   const [loading, setLoading]       = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [venue, setVenue]           = useState<VenueZone | null>(null)
@@ -41,45 +43,46 @@ export default function VenueDashboard() {
   }, [])
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.replace('/(auth)/login'); return }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.replace('/(auth)/login'); return }
 
-    const [{ data: profile }, { data: zones }] = await Promise.all([
-      supabase.from('profiles').select('display_name').eq('id', user.id).single(),
-      supabase.from('zones').select('*').eq('owner_id', user.id).limit(1),
-    ])
+      const [{ data: profile }, { data: zones }] = await Promise.all([
+        supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle(),
+        supabase.from('zones').select('*').eq('owner_id', user.id).limit(1),
+      ])
 
-    setOwnerName(profile?.display_name ?? '')
-    const z = zones?.[0] ?? null
-    setVenue(z)
+      setOwnerName(profile?.display_name ?? '')
+      const z = zones?.[0] ?? null
+      setVenue(z)
 
-    if (z) {
-      // Pull active sessions for this zone to build aggregate stats
-      const { data: sessions } = await supabase
-        .from('sessions')
-        .select('profiles(age_range, interest_tags)')
-        .eq('zone_id', z.id)
-        .is('checked_out_at', null)
+      if (z) {
+        const { data: sessions } = await supabase
+          .from('sessions')
+          .select('profiles(age_range, interest_tags)')
+          .eq('zone_id', z.id)
+          .is('checked_out_at', null)
 
-      const ageRanges: Record<string, number> = {}
-      const interests: Record<string, number> = {}
-      let total = 0
+        const ageRanges: Record<string, number> = {}
+        const interests: Record<string, number> = {}
+        let total = 0
 
-      for (const s of (sessions ?? []) as any[]) {
-        const p = s.profiles
-        if (!p) continue
-        total++
-        if (p.age_range) ageRanges[p.age_range] = (ageRanges[p.age_range] ?? 0) + 1
-        for (const tag of (p.interest_tags ?? [])) {
-          interests[tag] = (interests[tag] ?? 0) + 1
+        for (const s of (sessions ?? []) as any[]) {
+          const p = s.profiles
+          if (!p) continue
+          total++
+          if (p.age_range) ageRanges[p.age_range] = (ageRanges[p.age_range] ?? 0) + 1
+          for (const tag of (p.interest_tags ?? [])) {
+            interests[tag] = (interests[tag] ?? 0) + 1
+          }
         }
+
+        setStats({ total, ageRanges, interests })
       }
-
-      setStats({ total, ageRanges, interests })
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
     }
-
-    setLoading(false)
-    setRefreshing(false)
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -116,7 +119,7 @@ export default function VenueDashboard() {
       <View style={[styles.glow, styles.glowTop]} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerGreeting}>Hey, {ownerName || 'there'} 👋</Text>
           <Text style={styles.headerVenue}>{venue?.name ?? 'Your Venue'}</Text>
@@ -259,7 +262,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,

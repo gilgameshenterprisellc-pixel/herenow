@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
@@ -35,6 +36,7 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
 
 export default function ZoneScreen() {
   const { id }                     = useLocalSearchParams<{ id: string }>()
+  const insets                     = useSafeAreaInsets()
   const { activeSession, checkOut } = useSessionContext()
   const [userId, setUserId]         = useState<string | null>(null)
   const [zone, setZone]             = useState<any>(null)
@@ -73,7 +75,12 @@ export default function ZoneScreen() {
         .from('zones')
         .select('id, name, description, radius_meters, member_count, post_count')
         .eq('id', id)
-        .single()
+        .maybeSingle()
+
+      if (!z) {
+        setLoading(false)
+        return
+      }
       setZone(z)
       setLoading(false)
 
@@ -241,10 +248,10 @@ export default function ZoneScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -271,7 +278,7 @@ export default function ZoneScreen() {
       {/* Heat bar — only when checked in */}
       {isCheckedIn && (
         <View style={styles.heatBarWrap}>
-          <HeatBar count={people.length || activeSession ? 1 : 0} />
+          <HeatBar count={people.length + (activeSession ? 1 : 0)} />
         </View>
       )}
 
@@ -368,7 +375,7 @@ export default function ZoneScreen() {
                   ))}
                 </ScrollView>
               )}
-              <View style={styles.pulseRow}>
+              <View style={[styles.pulseRow, { paddingBottom: insets.bottom + 10 }]}>
                 <TouchableOpacity
                   style={styles.vibeToggle}
                   onPress={() => setShowVibePicker(!showVibePicker)}
@@ -422,7 +429,7 @@ export default function ZoneScreen() {
           />
 
           {isCheckedIn && (
-            <View style={styles.chatCompose}>
+            <View style={[styles.chatCompose, { paddingBottom: insets.bottom + 10 }]}>
               <TextInput
                 style={styles.chatInput}
                 placeholder="Say something..."
@@ -495,7 +502,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
@@ -549,7 +555,6 @@ const styles = StyleSheet.create({
   pulseCompose: {
     borderTopWidth: 1,
     borderTopColor: '#0D1B2E',
-    paddingBottom: Platform.OS === 'ios' ? 32 : 12,
     gap: 0,
   },
   vibeScroll: { maxHeight: 44 },
@@ -611,7 +616,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#0D1B2E',
     gap: 8,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 10,
   },
   chatInput: {
     flex: 1,
