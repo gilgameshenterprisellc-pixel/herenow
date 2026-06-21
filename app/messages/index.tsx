@@ -3,11 +3,13 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   ActivityIndicator,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useDmThreads } from '@/hooks/useMessages'
 import { supabase } from '@/lib/supabase'
 
 export default function MessagesScreen() {
+  const insets = useSafeAreaInsets()
   const [userId, setUserId] = useState<string | null>(null)
   const { threads, loading, refresh } = useDmThreads(userId ?? '')
 
@@ -35,8 +37,8 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Messages 💌</Text>
@@ -136,7 +138,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,

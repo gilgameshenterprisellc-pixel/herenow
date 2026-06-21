@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   ActivityIndicator,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchAllBadges, fetchUserBadges } from '@/lib/badges'
@@ -19,6 +20,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 }
 
 export default function BadgesScreen() {
+  const insets = useSafeAreaInsets()
   const [allBadges, setAllBadges]   = useState<Badge[]>([])
   const [earnedMap, setEarnedMap]   = useState<Map<string, string>>() // badge_id → earned_at
   const [loading, setLoading]       = useState(true)
@@ -59,8 +61,8 @@ export default function BadgesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerInfo}>
@@ -129,7 +131,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
