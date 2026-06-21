@@ -1,29 +1,51 @@
 ﻿import { useEffect, useState } from 'react'
 import { Tabs } from 'expo-router'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet, Platform } from 'react-native'
 import { getUnreadCount } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import OnboardingModal from '@/components/OnboardingModal'
 
-// supabase is kept for the realtime notification subscription
+/** Bottom inset that all tab screens need to add so content clears the floating bar */
+export const TAB_SAFE_BOTTOM = 108
 
 function TabIcon({ emoji, label, focused, badge }: {
   emoji: string; label: string; focused: boolean; badge?: number
 }) {
   return (
-    <View style={styles.tabItem}>
-      <View style={styles.emojiWrap}>
-        <Text style={[styles.emoji, focused && styles.emojiFocused]}>{emoji}</Text>
-        {badge && badge > 0 ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
-          </View>
-        ) : null}
-      </View>
-      <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
+    <View style={[ti.wrap, focused && ti.wrapFocused]}>
+      <Text style={[ti.emoji, focused && ti.emojiFocused]}>{emoji}</Text>
+      {badge && badge > 0 ? (
+        <View style={ti.badge}>
+          <Text style={ti.badgeText}>{badge > 9 ? '9+' : badge}</Text>
+        </View>
+      ) : null}
+      {focused && <View style={ti.activeDot} />}
     </View>
   )
 }
+
+const ti = StyleSheet.create({
+  wrap: {
+    width: 52, height: 44,
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 22, position: 'relative', gap: 2,
+  },
+  wrapFocused: { backgroundColor: '#29B6F610' },
+  emoji: { fontSize: 22, opacity: 0.4 },
+  emojiFocused: { opacity: 1 },
+  badge: {
+    position: 'absolute', top: 2, right: 4,
+    backgroundColor: '#29B6F6', borderRadius: 8,
+    minWidth: 16, height: 16,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+    borderWidth: 1.5, borderColor: '#050A15',
+  },
+  badgeText: { fontSize: 9, fontWeight: '800', color: '#050A15' },
+  activeDot: {
+    width: 4, height: 4, borderRadius: 2,
+    backgroundColor: '#29B6F6', position: 'absolute', bottom: 2,
+  },
+})
 
 export default function TabsLayout() {
   const [unread, setUnread] = useState(0)
@@ -59,11 +81,11 @@ export default function TabsLayout() {
       <OnboardingModal onDone={() => {}} />
       <Tabs
         screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarShowLabel: false,
-      }}
-    >
+          headerShown: false,
+          tabBarStyle: styles.tabBar,
+          tabBarShowLabel: false,
+        }}
+      >
       <Tabs.Screen
         name="index"
         options={{
@@ -103,32 +125,28 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#050A15',
-    borderTopColor: '#0D1B2E',
-    borderTopWidth: 1,
-    height: 80,
-    paddingBottom: 16,
-    paddingTop: 8,
-  },
-  tabItem: { alignItems: 'center', gap: 2 },
-  emojiWrap: { position: 'relative' },
-  emoji: { fontSize: 22, opacity: 0.5 },
-  emojiFocused: { opacity: 1 },
-  label: { fontSize: 10, color: '#7A93AC' },
-  labelFocused: { color: '#29B6F6' },
-  badge: {
     position: 'absolute',
-    top: -4,
-    right: -8,
-    backgroundColor: '#29B6F6',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: '#050A15',
+    bottom: 20,
+    left: 16,
+    right: 16,
+    borderRadius: 36,
+    height: 66,
+    paddingBottom: 0,
+    paddingTop: 0,
+    backgroundColor: '#07101F',
+    borderWidth: 1,
+    borderColor: '#1E3A5F',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(41,182,246,0.07)',
+      } as any,
+      default: {
+        shadowColor: '#29B6F6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 24,
+        elevation: 20,
+      },
+    }),
   },
-  badgeText: { fontSize: 9, fontWeight: '800', color: '#050A15' },
 })

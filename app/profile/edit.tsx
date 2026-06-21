@@ -5,6 +5,8 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import AvatarImage from '@/components/AvatarImage'
+import { uploadAvatarWeb } from '@/lib/uploadAvatar'
 
 const AGE_RANGES = ['18–22', '23–27', '28–34', '35–45', '45+', 'Prefer not to say']
 
@@ -24,22 +26,26 @@ const KICKOFF_PROMPTS = [
 ]
 
 export default function EditProfileScreen() {
-  const [loading, setLoading]       = useState(true)
-  const [saving, setSaving]         = useState(false)
+  const [loading, setLoading]         = useState(true)
+  const [saving, setSaving]           = useState(false)
+  const [uploading, setUploading]     = useState(false)
+  const [userId, setUserId]           = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl]     = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
-  const [bio, setBio]               = useState('')
-  const [ageRange, setAgeRange]     = useState('')
-  const [interests, setInterests]   = useState<string[]>([])
-  const [kickoff, setKickoff]       = useState('')
+  const [bio, setBio]                 = useState('')
+  const [ageRange, setAgeRange]       = useState('')
+  const [interests, setInterests]     = useState<string[]>([])
+  const [kickoff, setKickoff]         = useState('')
   const [kickoffTemplate, setKickoffTemplate] = useState('')
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+      setUserId(user.id)
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, bio, age_range, interest_tags, kickoffs')
+        .select('display_name, bio, age_range, interest_tags, kickoffs, avatar_url')
         .eq('id', user.id)
         .single()
       if (data) {
@@ -48,11 +54,23 @@ export default function EditProfileScreen() {
         setAgeRange(data.age_range ?? '')
         setInterests(data.interest_tags ?? [])
         setKickoff(data.kickoffs?.[0] ?? '')
+        setAvatarUrl(data.avatar_url ?? null)
       }
       setLoading(false)
     }
     load()
   }, [])
+
+  const handlePhotoUpload = async () => {
+    if (!userId) return
+    setUploading(true)
+    const url = await uploadAvatarWeb(userId)
+    if (url) {
+      await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
+      setAvatarUrl(url)
+    }
+    setUploading(false)
+  }
 
   const toggleInterest = (tag: string) => {
     setInterests((prev) =>
@@ -123,6 +141,31 @@ export default function EditProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Photo */}
+        <View style={styles.photoSection}>
+          <TouchableOpacity
+            style={styles.photoWrap}
+            onPress={handlePhotoUpload}
+            disabled={uploading || Platform.OS !== 'web'}
+          >
+            <AvatarImage uri={avatarUrl} name={displayName || '?'} size={80} />
+            <View style={styles.photoOverlay}>
+              {uploading
+                ? <ActivityIndicator color="#f8fafc" size="small" />
+                : <Text style={styles.photoOverlayText}>{avatarUrl ? '✏️' : '📷'}</Text>
+              }
+            </View>
+          </TouchableOpacity>
+          <View style={styles.photoMeta}>
+            <Text style={styles.photoTitle}>Profile Photo</Text>
+            <Text style={styles.photoHint}>
+              {Platform.OS === 'web'
+                ? 'Tap to upload · JPG, PNG, or WebP · max 5MB'
+                : 'Open on web to upload a photo'}
+            </Text>
+          </View>
+        </View>
+
         {/* Display name */}
         <View style={styles.field}>
           <Text style={styles.label}>Display Name *</Text>
@@ -267,6 +310,18 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#050A15', fontWeight: '800', fontSize: 14 },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 24, paddingBottom: 60 },
+  photoSection: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 4 },
+  photoWrap: { position: 'relative', flexShrink: 0 },
+  photoOverlay: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#29B6F6', borderWidth: 2, borderColor: '#050A15',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  photoOverlayText: { fontSize: 12 },
+  photoMeta: { flex: 1, gap: 4 },
+  photoTitle: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
+  photoHint: { fontSize: 12, color: '#4A6580', lineHeight: 16 },
   field: { gap: 8 },
   label: { fontSize: 13, fontWeight: '700', color: '#8EADC7', textTransform: 'uppercase', letterSpacing: 0.5 },
   hint: { fontSize: 12, color: '#4A6580', lineHeight: 16 },

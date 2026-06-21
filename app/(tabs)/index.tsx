@@ -7,11 +7,13 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import { router } from 'expo-router'
 import { useLocation } from '@/hooks/useLocation'
 import { fetchNearbyZones } from '@/lib/zones'
 import ZoneCard from '@/components/ZoneCard'
 import NearbyMap from '@/components/NearbyMap'
+import { TAB_SAFE_BOTTOM } from './_layout'
 import type { Zone } from '@/lib/zones'
 
 export default function NearbyScreen() {
@@ -102,12 +104,14 @@ export default function NearbyScreen() {
           keyExtractor={(z) => z.id}
           contentContainerStyle={styles.list}
           onScrollToIndexFailed={() => {}}
-          renderItem={({ item }) => (
-            <ZoneCard
-              zone={item}
-              selected={selectedId === item.id}
-              onPress={() => handleCardPress(item)}
-            />
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(index * 70).springify().damping(16)}>
+              <ZoneCard
+                zone={item}
+                selected={selectedId === item.id}
+                onPress={() => handleCardPress(item)}
+              />
+            </Animated.View>
           )}
           ListHeaderComponent={
             zones.length > 0 ? (
@@ -133,7 +137,7 @@ const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: '#050A15' },
   center:     { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center', gap: 12 },
   listLoader: { paddingTop: 24, alignItems: 'center' },
-  list:       { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 24, gap: 10 },
+  list:       { paddingHorizontal: 14, paddingTop: 8, paddingBottom: TAB_SAFE_BOTTOM, gap: 10 },
   listLabel:  { fontSize: 12, color: '#4A6580', fontWeight: '600', paddingBottom: 8, paddingHorizontal: 2 },
   empty:      { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyEmoji: { fontSize: 36 },

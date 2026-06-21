@@ -6,6 +6,7 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native'
+import { TAB_SAFE_BOTTOM } from './_layout'
 import { supabase } from '@/lib/supabase'
 import { fetchLikedPostIds } from '@/lib/posts'
 import PostCard from '@/components/PostCard'
@@ -76,7 +77,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
   headerTitle: { fontSize: 28, fontWeight: '800', color: '#f8fafc' },
   headerSub: { fontSize: 13, color: '#7A93AC', marginTop: 2 },
-  list: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
+  list: { paddingHorizontal: 16, paddingBottom: TAB_SAFE_BOTTOM, gap: 12 },
   empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#f8fafc' },
