@@ -6,6 +6,7 @@ import {
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
+import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { supabase } from '@/lib/supabase'
 
 type Mode = 'person' | 'venue'
@@ -68,6 +69,7 @@ export default function SignupScreen() {
         return
       }
     }
+    if (mode === 'venue' && !venueName) { Alert.alert('Missing fields', 'Enter your venue name.'); return }
 
     setLoading(true)
     const { data, error } = await supabase.auth.signUp({

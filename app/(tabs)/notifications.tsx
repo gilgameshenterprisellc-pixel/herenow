@@ -2,6 +2,7 @@
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native'
+import { TAB_SAFE_BOTTOM } from './_layout'
 import { router } from 'expo-router'
 import { useNotifications } from '@/hooks/useNotifications'
 import { markOneRead, markAllRead } from '@/lib/notifications'
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
   markAllText: { fontSize: 13, color: '#29B6F6', fontWeight: '600' },
-  list: { padding: 14, gap: 2 },
+  list: { padding: 14, paddingBottom: TAB_SAFE_BOTTOM, gap: 2 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

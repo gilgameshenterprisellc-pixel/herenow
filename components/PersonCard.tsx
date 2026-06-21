@@ -1,7 +1,9 @@
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { useRef } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated, Platform } from 'react-native'
 import type { ActivePerson } from '@/lib/sessions'
 import SocialModeBadge from './SocialModeBadge'
 import MoodBadge from './MoodBadge'
+import AvatarImage from './AvatarImage'
 
 interface Props {
   person: ActivePerson
@@ -16,7 +18,10 @@ interface Props {
 export default function PersonCard({ person, currentUserId, zoneId, currentSessionId, onWeMet, onReport, onBlock }: Props) {
   const isMe = person.user_id === currentUserId
   const isNotToday = person.mood_mode === 'not_today'
-  const initial = person.display_name[0]?.toUpperCase() ?? '?'
+  const wemetScale = useRef(new Animated.Value(1)).current
+
+  const onWemetIn  = () => Animated.spring(wemetScale, { toValue: 0.95, useNativeDriver: true, speed: 40, bounciness: 0 }).start()
+  const onWemetOut = () => Animated.spring(wemetScale, { toValue: 1,    useNativeDriver: true, speed: 40, bounciness: 6 }).start()
 
   const showMoreMenu = () => {
     Alert.alert(
@@ -40,9 +45,7 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
   return (
     <View style={[styles.card, isNotToday && styles.cardMuted]}>
       <View style={styles.top}>
-        <View style={[styles.avatar, isNotToday && styles.avatarMuted]}>
-          <Text style={styles.avatarText}>{initial}</Text>
-        </View>
+        <AvatarImage uri={person.avatar_url} name={person.display_name} size={50} muted={isNotToday} />
 
         <View style={styles.info}>
           <View style={styles.nameRow}>
@@ -85,11 +88,14 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
 
       {!isMe && !isNotToday && onWeMet && (
         <TouchableOpacity
-          style={styles.wemetBtn}
+          activeOpacity={1}
           onPress={() => onWeMet(person)}
-          activeOpacity={0.8}
+          onPressIn={onWemetIn}
+          onPressOut={onWemetOut}
         >
-          <Text style={styles.wemetBtnText}>🤝 We Met</Text>
+          <Animated.View style={[styles.wemetBtn, { transform: [{ scale: wemetScale }] }]}>
+            <Text style={styles.wemetBtnText}>🤝 We Met</Text>
+          </Animated.View>
         </TouchableOpacity>
       )}
 
@@ -104,26 +110,19 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0D1B2E',
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: '#0B1828',
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#1A2E4A',
-    gap: 10,
+    gap: 12,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 16px rgba(0,0,0,0.3)' } as any,
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
+    }),
   },
-  cardMuted: { opacity: 0.6 },
+  cardMuted: { opacity: 0.55 },
   top: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#29B6F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  avatarMuted: { backgroundColor: '#1A2E4A' },
-  avatarText: { fontSize: 18, fontWeight: '800', color: '#050A15' },
   info: { flex: 1, gap: 6 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: { fontSize: 15, fontWeight: '700', color: '#f8fafc' },
@@ -164,11 +163,15 @@ const styles = StyleSheet.create({
   kickoffText: { fontSize: 13, color: '#B8D4E8', fontStyle: 'italic', lineHeight: 18 },
   wemetBtn: {
     backgroundColor: '#29B6F6',
-    borderRadius: 10,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 4px 16px rgba(41,182,246,0.35)' } as any,
+      default: { shadowColor: '#29B6F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
+    }),
   },
-  wemetBtnText: { color: '#050A15', fontWeight: '700', fontSize: 14 },
+  wemetBtnText: { color: '#050A15', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
   notTodayRow: { alignItems: 'center' },
   notTodayText: { fontSize: 12, color: '#7A93AC' },
 })
