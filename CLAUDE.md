@@ -101,7 +101,7 @@ Supabase project: `https://orxtyreipavkrdiycpht.supabase.co`
 | `app/badges.tsx` | Badges collection screen |
 | `app/venue/dashboard.tsx` | Venue owner dashboard — live check-in counter (pulsing dot), aggregate age range bars, top interest tags, quick actions (Edit / Add Event / Share QR / Analytics), edit button → `/venue/edit` |
 | `app/venue/edit.tsx` | Venue setup/edit — GPS "Use My Location" button (web geolocation API, PostgREST WKT format `POINT(lng lat)`), radius picker (Small 80m / Medium 150m / Large 300m), venue name + description, handles both INSERT (new) and UPDATE (existing) zone |
-| `app/index.tsx` | **Landing page (web)** — animated orb hero, "Be Here." headline, dot-grid texture, 3-section layout (hero / how it works / venue CTA), footer. On native: redirects to `/(auth)/login` or `/(tabs)` based on auth state. |
+| `app/index.tsx` | **Landing page (web)** — animated orb hero, **"HereNow" neon sign** (cyan, layered textShadow glow), dot-grid texture, 3-section layout (hero / how it works / venue CTA), footer. On native: redirects to `/(auth)/login` or `/(tabs)` based on auth state. |
 | `app/_layout.tsx` | Root layout — SessionProvider, StatusBar, full Stack with all routes registered |
 | `app/(auth)/_layout.tsx` | Auth group layout |
 | `app/(tabs)/_layout.tsx` | Floating tab bar layout |
@@ -240,6 +240,9 @@ Both login and signup use the same electric premium design:
 | #13 | fix/web-layout-and-venue-gating | (merged together with #12 — see git log) |
 | #14 | fix/web-header-alignment | Page headers (Nearby, Feed, Notifications) were hard-left on desktop. Added `maxWidth: 680, alignSelf: center` to all three `header` styles. NearbyMap: dark background `wrap` spans full width, inner content `inner` is constrained. Feed + Notifications: header style objects updated. |
 | #15 | feat/landing-animated-bg | **Landing page** (`app/index.tsx` — web only, native redirects). 5 animated orbs (cyan/blue/purple/teal), dot-grid texture, "Be Here." hero, staggered `FadeInDown` entrance animations, bouncing scroll caret, 3-section layout. **`AnimatedBackground` component** added to all 4 tab screens — subtle backdrop orbs. **Ionicons** replace all emoji in empty states (Nearby 🌐→globe-outline, Feed 📡→radio-outline, Notifications 🔔→notifications-outline). Notification row icons replaced: TYPE_META now uses Ionicon names + colors instead of emoji strings — colored icon boxes with subtle border per type. |
+| #16 | fix/web-signout | Sign out Platform split — `Alert.alert` uses `window.confirm` on web which silently drops multi-button callbacks. Added `Platform.OS !== 'web'` guard. Web path used `router.replace('/')` (superseded by #18 which fixes the stale-session root cause). |
+| #17 | fix/full-sweep → feat/landing-animated-bg | Full visual sweep — applied to feat branch before it merged to main, so changes never reached production. Superseded by #18. |
+| #18 | fix/neon-sweep-main | **"HereNow" neon sign** — "Be Here." replaced with "HereNow" in cyan with layered `textShadow` glow (4 rings 12px–96px). Orbs 15–20% bigger, opacity peaks doubled, 40% faster. **Branded tab headers** — 2px cyan neon accent stripe + `HERENOW` brand label in small-caps above each page title (Nearby / Feed / Notifications). **Sign out root fix** — `window.location.replace('/')` for full page reload so JS auth cache clears; `router.replace('/')` left the Supabase session in memory causing redirect to tabs instead of landing page. |
 
 ---
 
@@ -355,7 +358,9 @@ UPDATE profiles SET venue_status = 'approved', is_venue_owner = true WHERE id = 
 ```
 The `+ Venue` zone-create button is hidden from users where `is_venue_owner = false`. Venue owners see it regardless of `venue_status`.
 
-**Landing page (`app/index.tsx`).** On web: shows the full marketing landing page (no auth required). On native: redirects to `/(auth)/login` or `/(tabs)` depending on session. The landing page has its own orb animations (5 orbs, more dramatic than the tab screen version), a dot-grid CSS texture (`backgroundImage` via `as any` cast), `FadeInDown` staggered entrance animations, and a bouncing scroll caret. Three sections: hero / how it works / venue CTA.
+**Landing page (`app/index.tsx`).** On web: shows the full marketing landing page (no auth required). On native: redirects to `/(auth)/login` or `/(tabs)` depending on session. The landing page has its own orb animations (5 orbs, larger + faster than tab version), a dot-grid CSS texture (`backgroundImage` via `as any` cast), `FadeInDown` staggered entrance animations, and a bouncing scroll caret. Hero shows "HereNow" as a neon sign (cyan `color: #29B6F6`, layered CSS `textShadow` with 4 glow rings). Three sections: hero / how it works / venue CTA.
+
+**Sign out on web.** `handleSignOut` in `app/(tabs)/profile.tsx` uses `window.location.replace('/')` on web (full page reload). `router.replace('/')` left the Supabase JS session in memory — on reload `WebLanding` still saw the session and redirected back to `/(tabs)`. Full reload clears all JS state so the landing page renders correctly.
 
 ---
 
