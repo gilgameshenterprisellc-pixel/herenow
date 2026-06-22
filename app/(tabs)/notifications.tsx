@@ -53,16 +53,19 @@ export default function NotificationsScreen() {
     <View style={styles.container}>
       <AnimatedBackground />
 
-      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Notifications</Text>
-          <Ionicons name="notifications-outline" size={20} color="#8EADC7" style={{ marginLeft: 8 }} />
+      <View style={styles.headerWrap}>
+        <View style={styles.accentLine} />
+        <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 20 }]}>
+          <Text style={styles.brand}>HERENOW</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Notifications</Text>
+            {unread > 0 && (
+              <TouchableOpacity onPress={() => { markAllRead().then(refresh) }} style={styles.markAllBtn}>
+                <Text style={styles.markAllText}>Clear all</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-        {unread > 0 && (
-          <TouchableOpacity onPress={() => { markAllRead().then(refresh) }}>
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {loading ? (
@@ -114,25 +117,41 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050A15' },
-  center:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container:  { flex: 1, backgroundColor: '#050A15' },
+  center:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  headerWrap: { backgroundColor: '#060D1A', borderBottomWidth: 1, borderBottomColor: '#0D1B2E' },
+  accentLine: {
+    height: 2,
+    backgroundColor: '#29B6F6',
+    ...Platform.select({
+      web: { boxShadow: '0 0 12px rgba(41,182,246,0.8), 0 0 24px rgba(41,182,246,0.4)' } as any,
+      default: {},
+    }),
+  },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 0,
     paddingHorizontal: 16,
     paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#0D1B2E',
+    gap: 6,
     ...Platform.select({
       web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
       default: {},
     }),
   },
-  titleRow:    { flexDirection: 'row', alignItems: 'center' },
-  title:       { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
-  markAllText: { fontSize: 13, color: '#29B6F6', fontWeight: '600' },
+  brand: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#29B6F6',
+    letterSpacing: 3,
+    marginBottom: 2,
+    ...Platform.select({
+      web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any,
+      default: {},
+    }),
+  },
+  titleRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title:       { fontSize: 26, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
+  markAllBtn:  { backgroundColor: '#29B6F610', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#29B6F630' },
+  markAllText: { fontSize: 12, color: '#29B6F6', fontWeight: '700' },
   list: {
     padding: 14,
     paddingBottom: TAB_SAFE_BOTTOM,

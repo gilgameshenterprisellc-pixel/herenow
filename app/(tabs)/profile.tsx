@@ -58,17 +58,24 @@ export default function ProfileScreen() {
   useEffect(() => { load() }, [])
 
   const handleSignOut = async () => {
-    Alert.alert('Sign out', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.auth.signOut()
-          router.replace('/(auth)/login')
+    if (Platform.OS !== 'web') {
+      Alert.alert('Sign out', 'Are you sure?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.auth.signOut()
+            router.replace('/(auth)/login')
+          },
         },
-      },
-    ])
+      ])
+    } else {
+      // Full page reload clears the JS auth cache completely.
+      // router.replace('/') leaves stale session in memory → lands on tabs, not landing page.
+      await supabase.auth.signOut()
+      ;(window as any).location.replace('/')
+    }
   }
 
   if (loading) {

@@ -51,9 +51,13 @@ export default function FeedScreen() {
   return (
     <View style={styles.container}>
       <AnimatedBackground />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Feed</Text>
-        <Text style={styles.headerSub}>Posts from your zones</Text>
+      <View style={styles.headerWrap}>
+        <View style={styles.accentLine} />
+        <View style={styles.header}>
+          <Text style={styles.brand}>HERENOW</Text>
+          <Text style={styles.headerTitle}>Feed</Text>
+          <Text style={styles.headerSub}>What's happening right now</Text>
+        </View>
       </View>
 
       <FlatList
@@ -80,16 +84,37 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
+  headerWrap: { backgroundColor: '#060D1A', borderBottomWidth: 1, borderBottomColor: '#0D1B2E' },
+  accentLine: {
+    height: 2,
+    backgroundColor: '#29B6F6',
+    ...Platform.select({
+      web: { boxShadow: '0 0 12px rgba(41,182,246,0.8), 0 0 24px rgba(41,182,246,0.4)' } as any,
+      default: {},
+    }),
+  },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 16,
+    gap: 2,
     ...Platform.select({
       web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
       default: {},
     }),
   },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: '#f8fafc' },
+  brand: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#29B6F6',
+    letterSpacing: 3,
+    marginBottom: 4,
+    ...Platform.select({
+      web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any,
+      default: {},
+    }),
+  },
+  headerTitle: { fontSize: 26, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
   headerSub: { fontSize: 13, color: '#7A93AC', marginTop: 2 },
   list: {
     paddingHorizontal: 16,
