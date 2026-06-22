@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView,
+  Alert, ActivityIndicator, ScrollView, Platform,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -205,7 +205,13 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
   center: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
-  content: { gap: 12 },
+  content: {
+    gap: 12,
+    ...Platform.select({
+      web: { maxWidth: 640, alignSelf: 'center' as const, width: '100%' as any } as any,
+      default: {},
+    }),
+  },
   profileHead: {
     alignItems: 'center',
     paddingBottom: 24,

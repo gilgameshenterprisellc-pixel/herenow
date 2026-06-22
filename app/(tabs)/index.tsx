@@ -11,6 +11,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated'
 import { router } from 'expo-router'
 import { useLocation } from '@/hooks/useLocation'
 import { fetchNearbyZones } from '@/lib/zones'
+import { supabase } from '@/lib/supabase'
 import ZoneCard from '@/components/ZoneCard'
 import NearbyMap from '@/components/NearbyMap'
 import { TAB_SAFE_BOTTOM } from './_layout'
@@ -18,12 +19,24 @@ import type { Zone } from '@/lib/zones'
 
 export default function NearbyScreen() {
   const { location, loading: locLoading, error: locError } = useLocation()
-  const [zones, setZones] = useState<Zone[]>([])
-  const [loading, setLoading] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [zones, setZones]             = useState<Zone[]>([])
+  const [loading, setLoading]         = useState(false)
+  const [selectedId, setSelectedId]   = useState<string | null>(null)
+  const [isVenueOwner, setIsVenueOwner] = useState(false)
   // mapRef only used on native — MapView type is only available there
-  const mapRef = useRef<any>(null)
+  const mapRef  = useRef<any>(null)
   const listRef = useRef<FlatList>(null)
+
+  // Fetch venue-owner status once on mount so we can gate the "+ Venue" button
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('is_venue_owner').eq('id', user.id)
+        .maybeSingle().then(({ data }) => {
+          setIsVenueOwner(data?.is_venue_owner ?? false)
+        })
+    })
+  }, [])
 
   const load = async (coords?: { latitude: number; longitude: number }) => {
     const pos = coords ?? location
@@ -91,6 +104,7 @@ export default function NearbyScreen() {
         selectedId={selectedId}
         onPinPress={handlePinPress}
         mapRef={mapRef}
+        isVenueOwner={isVenueOwner}
       />
 
       {loading ? (
@@ -137,7 +151,16 @@ const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: '#050A15' },
   center:     { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center', gap: 12 },
   listLoader: { paddingTop: 24, alignItems: 'center' },
-  list:       { paddingHorizontal: 14, paddingTop: 8, paddingBottom: TAB_SAFE_BOTTOM, gap: 10 },
+  list: {
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: TAB_SAFE_BOTTOM,
+    gap: 10,
+    ...Platform.select({
+      web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
+      default: {},
+    }),
+  },
   listLabel:  { fontSize: 12, color: '#4A6580', fontWeight: '600', paddingBottom: 8, paddingHorizontal: 2 },
   empty:      { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyEmoji: { fontSize: 36 },

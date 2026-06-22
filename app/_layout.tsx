@@ -12,9 +12,8 @@ export default function RootLayout() {
   useGeofenceTask()
 
   useEffect(() => {
-    // Dark background behind the centered mobile shell on web
     if (Platform.OS === 'web') {
-      document.body.style.background = '#020810'
+      document.body.style.background = '#050A15'
       document.body.style.margin = '0'
     }
   }, [])
@@ -58,16 +57,8 @@ export default function RootLayout() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const webShell = Platform.OS === 'web' ? {
-    maxWidth: 430,
-    alignSelf: 'center' as const,
-    width: '100%' as any,
-    flex: 1,
-    overflow: 'hidden' as const,
-  } : {}
-
   return (
-    <View style={[{ flex: 1 }, webShell]}>
+    <View style={{ flex: 1 }}>
     <SessionProvider>
       <StatusBar style="light" />
       <AnalyticsProvider />

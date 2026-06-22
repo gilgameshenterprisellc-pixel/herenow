@@ -8,11 +8,12 @@ interface Props {
   selectedId: string | null
   onPinPress: (zone: Zone) => void
   mapRef?: any
+  isVenueOwner?: boolean
 }
 
 export const MAP_HEIGHT = 120
 
-export default function NearbyMap({ zones, location }: Props) {
+export default function NearbyMap({ zones, location, isVenueOwner }: Props) {
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
@@ -24,9 +25,11 @@ export default function NearbyMap({ zones, location }: Props) {
               : 'Waiting for location…'}
           </Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/zone/create')}>
-          <Text style={styles.addBtnText}>+ Venue</Text>
-        </TouchableOpacity>
+        {isVenueOwner && (
+          <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/zone/create')}>
+            <Text style={styles.addBtnText}>+ Venue</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {location && (

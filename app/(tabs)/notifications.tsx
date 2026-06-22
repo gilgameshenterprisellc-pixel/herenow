@@ -1,6 +1,6 @@
 ﻿import { useEffect } from 'react'
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
+  View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TAB_SAFE_BOTTOM } from './_layout'
@@ -117,7 +117,15 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
   markAllText: { fontSize: 13, color: '#29B6F6', fontWeight: '600' },
-  list: { padding: 14, paddingBottom: TAB_SAFE_BOTTOM, gap: 2 },
+  list: {
+    padding: 14,
+    paddingBottom: TAB_SAFE_BOTTOM,
+    gap: 2,
+    ...Platform.select({
+      web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
+      default: {},
+    }),
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
