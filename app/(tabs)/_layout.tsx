@@ -1,6 +1,7 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet, Platform } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { getUnreadCount } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import OnboardingModal from '@/components/OnboardingModal'
@@ -8,12 +9,21 @@ import OnboardingModal from '@/components/OnboardingModal'
 /** Bottom inset that all tab screens need to add so content clears the floating bar */
 export const TAB_SAFE_BOTTOM = 108
 
-function TabIcon({ emoji, label, focused, badge }: {
-  emoji: string; label: string; focused: boolean; badge?: number
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
+
+function TabIcon({ name, nameFocused, focused, badge }: {
+  name: IoniconsName
+  nameFocused: IoniconsName
+  focused: boolean
+  badge?: number
 }) {
   return (
     <View style={[ti.wrap, focused && ti.wrapFocused]}>
-      <Text style={[ti.emoji, focused && ti.emojiFocused]}>{emoji}</Text>
+      <Ionicons
+        name={focused ? nameFocused : name}
+        size={24}
+        color={focused ? '#29B6F6' : '#4A6580'}
+      />
       {badge && badge > 0 ? (
         <View style={ti.badge}>
           <Text style={ti.badgeText}>{badge > 9 ? '9+' : badge}</Text>
@@ -28,11 +38,9 @@ const ti = StyleSheet.create({
   wrap: {
     width: 52, height: 44,
     alignItems: 'center', justifyContent: 'center',
-    borderRadius: 22, position: 'relative', gap: 2,
+    borderRadius: 22, position: 'relative',
   },
   wrapFocused: { backgroundColor: '#29B6F610' },
-  emoji: { fontSize: 22, opacity: 0.4 },
-  emojiFocused: { opacity: 1 },
   badge: {
     position: 'absolute', top: 2, right: 4,
     backgroundColor: '#29B6F6', borderRadius: 8,
@@ -57,10 +65,8 @@ export default function TabsLayout() {
     }
 
     fetchUnread()
-    // Poll every 30 seconds for new notifications
     const interval = setInterval(fetchUnread, 30_000)
 
-    // Also refresh on realtime notification inserts
     const sub = supabase
       .channel('notif-badge')
       .on('postgres_changes', {
@@ -86,38 +92,38 @@ export default function TabsLayout() {
           tabBarShowLabel: false,
         }}
       >
-      <Tabs.Screen
-        name="index"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🗺️" label="Nearby" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="feed"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="📡" label="Feed" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🔔" label="Alerts" focused={focused} badge={unread} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="👤" label="You" focused={focused} />
-          ),
-        }}
-      />
+        <Tabs.Screen
+          name="index"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon name="map-outline" nameFocused="map" focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="feed"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon name="compass-outline" nameFocused="compass" focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon name="notifications-outline" nameFocused="notifications" focused={focused} badge={unread} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon name="person-circle-outline" nameFocused="person-circle" focused={focused} />
+            ),
+          }}
+        />
       </Tabs>
     </>
   )

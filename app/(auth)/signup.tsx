@@ -89,6 +89,7 @@ export default function SignupScreen() {
       display_name: isVenue ? venueName.trim() : displayName.trim(),
       username: cleanUsername,
       is_venue_owner: isVenue,
+      venue_status: isVenue ? 'pending' : 'none',
     })
 
     if (profileError) {

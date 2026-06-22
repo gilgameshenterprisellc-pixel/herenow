@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Platform } from 'react-native'
+import { Platform, View } from 'react-native'
 import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useGeofenceTask } from '@/hooks/useGeofenceTask'
@@ -9,6 +9,14 @@ import { registerPushToken } from '@/lib/push'
 
 export default function RootLayout() {
   useGeofenceTask()
+
+  useEffect(() => {
+    // Dark background behind the centered mobile shell on web
+    if (Platform.OS === 'web') {
+      document.body.style.background = '#020810'
+      document.body.style.margin = '0'
+    }
+  }, [])
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -37,6 +45,7 @@ export default function RootLayout() {
             display_name:   displayName,
             username,
             is_venue_owner: isVenueOwner ?? false,
+            venue_status:   isVenueOwner ? 'pending' : 'none',
           })
         } catch {}
       }
@@ -48,7 +57,16 @@ export default function RootLayout() {
     return () => subscription.unsubscribe()
   }, [])
 
+  const webShell = Platform.OS === 'web' ? {
+    maxWidth: 430,
+    alignSelf: 'center' as const,
+    width: '100%' as any,
+    flex: 1,
+    overflow: 'hidden' as const,
+  } : {}
+
   return (
+    <View style={[{ flex: 1 }, webShell]}>
     <SessionProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
@@ -68,5 +86,6 @@ export default function RootLayout() {
         <Stack.Screen name="venue/edit" />
       </Stack>
     </SessionProvider>
+    </View>
   )
 }

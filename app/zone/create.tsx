@@ -1,11 +1,15 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   ScrollView, Alert, ActivityIndicator,
 } from 'react-native'
+import Reanimated, { FadeInDown } from 'react-native-reanimated'
+import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import * as Location from 'expo-location'
 import { supabase } from '@/lib/supabase'
+
+type AccessState = 'loading' | 'denied' | 'pending' | 'granted'
 
 const VENUE_TYPES = [
   { id: 'bar',        emoji: '🍺', label: 'Bar' },
@@ -20,16 +24,39 @@ const VENUE_TYPES = [
 ]
 
 export default function CreateZoneScreen() {
-  const [name, setName]       = useState('')
-  const [desc, setDesc]       = useState('')
-  const [type, setType]       = useState('')
-  const [radius, setRadius]   = useState('50')
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [locLoading, setLocLoading] = useState(false)
-  const [creating, setCreating] = useState(false)
+  const [access, setAccess]           = useState<AccessState>('loading')
+  const [name, setName]               = useState('')
+  const [desc, setDesc]               = useState('')
+  const [type, setType]               = useState('')
+  const [radius, setRadius]           = useState('50')
+  const [location, setLocation]       = useState<{ lat: number; lng: number } | null>(null)
+  const [locLoading, setLocLoading]   = useState(false)
+  const [creating, setCreating]       = useState(false)
 
   useEffect(() => {
-    fetchLocation()
+    const checkAccess = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.replace('/(auth)/login'); return }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_venue_owner, venue_status')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!profile?.is_venue_owner) {
+        // Regular user — silently send them home
+        router.replace('/(tabs)')
+        return
+      }
+      if (profile.venue_status !== 'approved') {
+        setAccess('pending')
+      } else {
+        setAccess('granted')
+        fetchLocation()
+      }
+    }
+    checkAccess()
   }, [])
 
   const fetchLocation = async () => {
@@ -46,14 +73,8 @@ export default function CreateZoneScreen() {
   }
 
   const handleCreate = async () => {
-    if (!name.trim()) {
-      Alert.alert('Name required', 'Give this venue a name.')
-      return
-    }
-    if (!location) {
-      Alert.alert('Location required', 'Tap "Use my location" to set the zone center.')
-      return
-    }
+    if (!name.trim()) { Alert.alert('Name required', 'Give this venue a name.'); return }
+    if (!location) { Alert.alert('Location required', 'Tap "Use my location" to set the zone center.'); return }
 
     const radiusNum = parseInt(radius, 10)
     if (isNaN(radiusNum) || radiusNum < 10 || radiusNum > 500) {
@@ -88,11 +109,52 @@ export default function CreateZoneScreen() {
     router.replace(`/zone/${data.id}`)
   }
 
+  if (access === 'loading') {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color="#29B6F6" size="large" />
+      </View>
+    )
+  }
+
+  if (access === 'pending') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.pendingGlow} />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={22} color="#f8fafc" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Venue Application</Text>
+        </View>
+        <Reanimated.View entering={FadeInDown.delay(100).duration(500)} style={styles.pendingCard}>
+          <View style={styles.pendingIconWrap}>
+            <Ionicons name="time-outline" size={48} color="#f59e0b" />
+          </View>
+          <Text style={styles.pendingTitle}>Under Review</Text>
+          <Text style={styles.pendingSub}>
+            Your venue application is being reviewed by the HereNow team. We'll notify you as soon as you're approved — usually within 24–48 hours.
+          </Text>
+          <View style={styles.pendingDivider} />
+          <Text style={styles.pendingHint}>
+            Questions? Reach out at{' '}
+            <Text style={styles.pendingEmail}>support@herenow.app</Text>
+          </Text>
+        </Reanimated.View>
+        <Reanimated.View entering={FadeInDown.delay(250).duration(500)}>
+          <TouchableOpacity style={styles.backHome} onPress={() => router.replace('/(tabs)')}>
+            <Text style={styles.backHomeText}>Back to Home</Text>
+          </TouchableOpacity>
+        </Reanimated.View>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={22} color="#f8fafc" />
         </TouchableOpacity>
         <Text style={styles.title}>Add a Venue</Text>
       </View>
@@ -122,7 +184,8 @@ export default function CreateZoneScreen() {
             </View>
           ) : (
             <TouchableOpacity style={styles.locBtn} onPress={fetchLocation}>
-              <Text style={styles.locBtnText}>📍 Use my location</Text>
+              <Ionicons name="location-outline" size={18} color="#29B6F6" />
+              <Text style={styles.locBtnText}>Use my location</Text>
             </TouchableOpacity>
           )}
           <Text style={styles.hint}>The zone center is set to your current GPS position.</Text>
@@ -188,7 +251,7 @@ export default function CreateZoneScreen() {
             maxLength={3}
           />
           <Text style={styles.hint}>
-            How far from the center should count as "inside"? Small venue: 25–50m. Park/open space: 100–200m.
+            Small venue: 25–50m. Park/open space: 100–200m.
           </Text>
         </View>
 
@@ -199,7 +262,12 @@ export default function CreateZoneScreen() {
         >
           {creating
             ? <ActivityIndicator color="#050A15" />
-            : <Text style={styles.createBtnText}>Create Venue Zone 📍</Text>
+            : (
+              <>
+                <Ionicons name="location" size={18} color="#050A15" />
+                <Text style={styles.createBtnText}>Create Venue Zone</Text>
+              </>
+            )
           }
         </TouchableOpacity>
       </ScrollView>
@@ -209,6 +277,12 @@ export default function CreateZoneScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
+  center: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
+  pendingGlow: {
+    position: 'absolute', top: -80, left: -60,
+    width: 340, height: 340, borderRadius: 170,
+    backgroundColor: '#f59e0b', opacity: 0.04,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -220,7 +294,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: { padding: 8 },
-  backText: { fontSize: 22, color: '#f8fafc' },
   title: { fontSize: 20, fontWeight: '800', color: '#f8fafc' },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 22, paddingBottom: 60 },
@@ -256,7 +329,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D1B2E',
     borderRadius: 10,
     padding: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     borderWidth: 1,
     borderColor: '#1A2E4A',
   },
@@ -281,8 +357,45 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     marginTop: 8,
   },
   createBtnDisabled: { opacity: 0.4 },
   createBtnText: { color: '#050A15', fontWeight: '800', fontSize: 16 },
+
+  // Pending state
+  pendingCard: {
+    margin: 24,
+    marginTop: 40,
+    backgroundColor: '#0D1B2E',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#f59e0b22',
+  },
+  pendingIconWrap: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: '#f59e0b10',
+    borderWidth: 1, borderColor: '#f59e0b30',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 8,
+  },
+  pendingTitle: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
+  pendingSub: { fontSize: 14, color: '#7A93AC', textAlign: 'center', lineHeight: 22, marginTop: 4 },
+  pendingDivider: { width: 48, height: 1, backgroundColor: '#1A2E4A', marginVertical: 4 },
+  pendingHint: { fontSize: 13, color: '#4A6580', textAlign: 'center' },
+  pendingEmail: { color: '#29B6F6', fontWeight: '600' },
+  backHome: {
+    marginHorizontal: 24,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+  },
+  backHomeText: { color: '#7A93AC', fontWeight: '700', fontSize: 15 },
 })
