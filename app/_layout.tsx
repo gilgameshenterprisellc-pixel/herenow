@@ -6,6 +6,7 @@ import { useGeofenceTask } from '@/hooks/useGeofenceTask'
 import { SessionProvider } from '@/contexts/SessionContext'
 import { supabase } from '@/lib/supabase'
 import { registerPushToken } from '@/lib/push'
+import { AnalyticsProvider } from '@/components/AnalyticsProvider'
 
 export default function RootLayout() {
   useGeofenceTask()
@@ -69,6 +70,7 @@ export default function RootLayout() {
     <View style={[{ flex: 1 }, webShell]}>
     <SessionProvider>
       <StatusBar style="light" />
+      <AnalyticsProvider />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
