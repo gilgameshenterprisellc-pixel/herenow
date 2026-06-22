@@ -16,9 +16,13 @@ export const MAP_HEIGHT = 120
 export default function NearbyMap({ zones, location, isVenueOwner }: Props) {
   return (
     <View style={styles.wrap}>
+      {/* Neon brand accent line */}
+      <View style={styles.accentLine} />
+
       <View style={styles.inner}>
         <View style={styles.row}>
-          <View>
+          <View style={{ gap: 2 }}>
+            <Text style={styles.brand}>HERENOW</Text>
             <Text style={styles.title}>Nearby</Text>
             <Text style={styles.sub}>
               {location
@@ -49,12 +53,20 @@ export default function NearbyMap({ zones, location, isVenueOwner }: Props) {
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: '#0D1B2E',
+    backgroundColor: '#060D1A',
     borderBottomWidth: 1,
-    borderBottomColor: '#1A2E4A',
+    borderBottomColor: '#0D1B2E',
+  },
+  accentLine: {
+    height: 2,
+    backgroundColor: '#29B6F6',
+    ...Platform.select({
+      web: { boxShadow: '0 0 12px rgba(41,182,246,0.8), 0 0 24px rgba(41,182,246,0.4)' } as any,
+      default: {},
+    }),
   },
   inner: {
-    paddingTop: 56,
+    paddingTop: 20,
     paddingHorizontal: 20,
     paddingBottom: 16,
     gap: 10,
@@ -68,15 +80,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  title: { fontSize: 24, fontWeight: '800', color: '#f8fafc' },
+  brand: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#29B6F6',
+    letterSpacing: 3,
+    marginBottom: 4,
+    ...Platform.select({
+      web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any,
+      default: {},
+    }),
+  },
+  title: { fontSize: 26, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
   sub:   { fontSize: 13, color: '#7A93AC', marginTop: 2 },
   addBtn: {
-    backgroundColor: '#050A15',
+    backgroundColor: '#29B6F610',
     borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#29B6F644',
+    borderColor: '#29B6F640',
   },
   addBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 13 },
   locRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
