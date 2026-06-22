@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HereNow — Product Overview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #050A15;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  /* ── Animated orbs ── */
+  .orb-field { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(90px);
+    animation: breathe var(--dur, 4s) ease-in-out var(--delay, 0s) infinite alternate;
+  }
+  @keyframes breathe {
+    from { opacity: var(--lo, 0.06); transform: translateY(0); }
+    to   { opacity: var(--hi, 0.18); transform: translateY(var(--drift, -28px)); }
+  }
+  .o1 { width:700px; height:700px; background:#29B6F6; top:-220px; right:-180px; --lo:.08; --hi:.22; --dur:3.2s; --drift:-36px; }
+  .o2 { width:560px; height:560px; background:#1E40AF; top:-100px; left:-200px; --lo:.07; --hi:.17; --dur:4.4s; --delay:.6s; --drift:24px; }
+  .o3 { width:440px; height:440px; background:#7C3AED; top:44%; right:-130px; --lo:.05; --hi:.14; --dur:2.8s; --delay:1.2s; --drift:-20px; }
+  .o4 { width:340px; height:340px; background:#0891B2; top:58%; left:-100px; --lo:.05; --hi:.13; --dur:3.8s; --delay:.9s; --drift:18px; }
+
+  /* ── Layout ── */
+  .page { position: relative; z-index: 1; max-width: 840px; margin: 0 auto; padding: 56px 32px 100px; }
+  @media (max-width: 600px) { .page { padding: 40px 20px 80px; } }
+
+  /* ── Cover ── */
+  .cover { text-align: center; padding: 72px 0 64px; border-bottom: 1px solid #0D1B2E; margin-bottom: 60px; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #0D1B2E; border: 1px solid #1A2E4A;
+    border-radius: 99px; padding: 6px 18px;
+    font-size: 11px; color: #5A7A9A; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 36px;
+  }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+    animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+
+  .cover h1 {
+    font-size: 80px; font-weight: 900; letter-spacing: -4px; line-height: 1;
+    color: #29B6F6;
+    text-shadow: 0 0 12px rgba(41,182,246,1), 0 0 28px rgba(41,182,246,.7), 0 0 56px rgba(41,182,246,.35), 0 0 100px rgba(41,182,246,.15);
+    margin-bottom: 22px;
+  }
+  @media (max-width: 600px) { .cover h1 { font-size: 56px; letter-spacing: -2px; } }
+
+  .cover-line { font-size: 19px; color: #7A93AC; font-weight: 400; max-width: 480px; margin: 0 auto; line-height: 1.5; }
+  .cover-meta {
+    display: flex; justify-content: center; gap: 40px; margin-top: 44px; flex-wrap: wrap;
+  }
+  .meta-item .label { font-size: 10px; color: #2A4055; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; }
+  .meta-item .value { font-size: 14px; color: #7A93AC; font-weight: 600; }
+  .meta-item .value a { color: #29B6F6; text-decoration: none; }
+
+  /* ── Section titles ── */
+  h2 {
+    font-size: 10px; font-weight: 800; color: #29B6F6;
+    letter-spacing: 3.5px; text-transform: uppercase;
+    border-bottom: 1px solid #0D1B2E; padding-bottom: 12px; margin-bottom: 28px; margin-top: 60px;
+    text-shadow: 0 0 10px rgba(41,182,246,.5);
+  }
+  h2:first-of-type { margin-top: 0; }
+  h3 { font-size: 16px; font-weight: 800; color: #f8fafc; margin: 0 0 8px; }
+
+  /* ── Cards ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 580px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card {
+    background: #07101F; border: 1px solid #0D1B2E; border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .card.lit { border-color: rgba(41,182,246,.18); }
+  .card-tag { font-size: 10px; font-weight: 800; color: #29B6F6; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+  .card p { font-size: 13px; color: #7A93AC; line-height: 1.6; margin: 0; }
+
+  /* ── Tags ── */
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .tag { background: #0D1B2E; border: 1px solid #1A2E4A; border-radius: 99px; padding: 5px 13px; font-size: 12px; color: #7A93AC; font-weight: 500; }
+  .tag.hi { border-color: rgba(41,182,246,.3); color: #29B6F6; background: rgba(41,182,246,.06); }
+  .tag.gr { border-color: rgba(34,197,94,.3); color: #22c55e; background: rgba(34,197,94,.06); }
+
+  /* ── Divider ── */
+  .div { height: 1px; background: #0D1B2E; margin: 52px 0; }
+
+  /* ── Steps (flow) ── */
+  .flow { display: flex; flex-direction: column; }
+  .step { display: flex; gap: 18px; }
+  .step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .step-num {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(41,182,246,.1); border: 1px solid rgba(41,182,246,.35);
+    color: #29B6F6; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step-line { width: 1px; background: #0D1B2E; flex: 1; min-height: 16px; margin-top: 4px; }
+  .step-body { padding: 3px 0 28px; flex: 1; }
+  .step-body strong { display: block; font-size: 15px; font-weight: 800; color: #f8fafc; margin-bottom: 5px; }
+  .step-body p { font-size: 13px; color: #7A93AC; line-height: 1.6; margin: 0; }
+  .step-body .note {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(34,197,94,.07); border: 1px solid rgba(34,197,94,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #22c55e; font-weight: 600;
+    margin-top: 8px;
+  }
+  .step-body .warn {
+    display: flex; align-items: flex-start; gap: 8px;
+    background: rgba(245,158,11,.07); border: 1px solid rgba(245,158,11,.25);
+    border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #f59e0b; font-weight: 600;
+    margin-top: 8px; line-height: 1.5;
+  }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .stat-card {
+    flex: 1; min-width: 140px;
+    background: #07101F; border: 1px solid #0D1B2E; border-radius: 14px;
+    padding: 20px 22px; text-align: center;
+  }
+  .stat-card .num { font-size: 36px; font-weight: 900; color: #29B6F6; letter-spacing: -1px;
+    text-shadow: 0 0 20px rgba(41,182,246,.4); }
+  .stat-card .lbl { font-size: 11px; color: #4A6580; font-weight: 700; letter-spacing: .5px; margin-top: 4px; }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 72px; padding-top: 28px; border-top: 1px solid #0D1B2E;
+    text-align: center; font-size: 12px; color: #2A3F55;
+  }
+  .footer a { color: #29B6F6; text-decoration: none; }
+  .footer strong { color: #4A6580; }
+
+  p { color: #8EADC7; margin-bottom: 12px; }
+  ul { padding-left: 18px; color: #8EADC7; }
+  ul li { margin-bottom: 7px; font-size: 13px; line-height: 1.55; }
+  a { color: #29B6F6; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="orb-field">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+  <div class="orb o4"></div>
+</div>
+
+<div class="page">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="status-pill"><div class="pulse"></div>In Development &middot; Early Preview</div>
+    <h1>HereNow</h1>
+    <p class="cover-line">An IRL social layer for the real world.<br>Not a dating app. Not a feed. A presence layer.</p>
+    <div class="cover-meta">
+      <div class="meta-item">
+        <div class="label">Owners</div>
+        <div class="value">Jacob &amp; Jamie</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Developer</div>
+        <div class="value">Joshua Bostic</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Live Preview</div>
+        <div class="value"><a href="https://herenow-pi.vercel.app" target="_blank">herenow-pi.vercel.app &nearr;</a></div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Document</div>
+        <div class="value">June 2026</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- WHAT IT IS -->
+  <h2>What HereNow Is</h2>
+
+  <div class="grid-2">
+    <div class="card lit">
+      <div class="card-tag">The idea</div>
+      <h3>IRL presence layer</h3>
+      <p>Users check into a venue — a bar, coffee shop, event space — and see who else is there right now. They set a Social Mode and a Mood, and if something real happens, they tap "We Met." That unlocks a 72-hour message window after they both leave.</p>
+    </div>
+    <div class="card lit">
+      <div class="card-tag">What sets it apart</div>
+      <h3>No algorithms. No followers.</h3>
+      <p>HereNow is entirely in-the-moment. There are no public feeds to game, no follower counts to chase. Everything expires. The app exists to make things happen IRL — not to keep you scrolling.</p>
+    </div>
+  </div>
+
+  <div class="div"></div>
+
+
+  <!-- CURRENT BUILD -->
+  <h2>Current Build</h2>
+
+  <div class="stat-row" style="margin-bottom: 28px;">
+    <div class="stat-card"><div class="num">19</div><div class="lbl">Screens built</div></div>
+    <div class="stat-card"><div class="num">18</div><div class="lbl">Pull requests merged</div></div>
+    <div class="stat-card"><div class="num">Live</div><div class="lbl">Preview on Vercel</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-tag">Auth</div>
+      <h3>Login &amp; Signup</h3>
+      <p>Premium animated UI with a Person and Venue toggle. Each path leads to a distinct onboarding experience tailored to the user type.</p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Main app — 4 tabs</div>
+      <h3>Nearby &middot; Feed &middot; Notifications &middot; Profile</h3>
+      <p>The core experience once signed in. Nearby shows venues around you. Feed is global. Notifications handles We Met requests, messages, and events.</p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Inside a venue</div>
+      <h3>People &middot; Pulse &middot; Chat &middot; Events</h3>
+      <p>Four tabs inside every zone. See who's checked in, drop ephemeral Pulse posts (12h expiry), join live venue chat, and browse upcoming events.</p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Connection flow</div>
+      <h3>We Met &rarr; 72h DM window</h3>
+      <p>Both people tap We Met at the venue. Messages stay locked while they're present. When they leave, the DM window opens for 72 hours — then it closes.</p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Afterglow</div>
+      <h3>Post-checkout recap</h3>
+      <p>When a user checks out, they see an auto-generated recap: how long they were there, how many people they were around, and how many connections they made.</p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Venue owners</div>
+      <h3>Live dashboard</h3>
+      <p>Venue owners get their own home: a live check-in counter, demographic breakdowns, top interest tags, and quick actions to manage their space and events.</p>
+    </div>
+  </div>
+
+  <div class="div"></div>
+
+
+  <!-- PERSON SIGNUP FLOW -->
+  <h2>Person Signup &mdash; Step by Step</h2>
+  <p style="margin-bottom: 28px;">This is the exact experience a new user has from first open to being inside a venue.</p>
+
+  <div class="flow">
+    <div class="step">
+      <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Landing page</strong>
+        <p>Opening the app on web shows the HereNow landing page — animated background, neon wordmark, and a brief explanation of what the app is. Two CTAs: "Get Started" and "I own a venue."</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Sign up</strong>
+        <p>The signup screen shows a Person / Venue toggle at the top. Person is the default. The user enters a display name, username, email, and password, then taps "Create Account."</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Profile setup</strong>
+        <p>After account creation, the user lands on their profile editor. They add a bio, choose an age range, pick up to 16 interest tags from a grid, and write a kickoff prompt — a one-liner about why they're out tonight. Avatar upload is available on web.</p>
+        <div class="note">&rarr; Tapping "Save &amp; Continue" moves them into the main app.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Onboarding tour (first launch only)</strong>
+        <p>A 5-slide modal walks through the core concepts: Social Mode, Mood Mode, how We Met works, and what Afterglow is. It only appears once and never shows again on future opens.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Nearby tab</strong>
+        <p>The user lands on the Nearby screen and sees venues around their current location. Tapping a venue card opens the zone detail where they can read about it and check in.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Check in</strong>
+        <p>The user taps "Check In" from the zone detail. They choose their Social Mode (Dating / Friends / Networking / Just Vibes) and their Mood (Open / Selective / Not Today). These are visible to other people checked in — they signal intent without a word.</p>
+        <div class="note">&rarr; They are now inside the venue.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Inside the venue</strong>
+        <p>Four tabs become available: People (everyone checked in right now), Pulse (ephemeral posts, 12h), Chat (live group chat for that venue), and Events. Users can browse who else is there and see their modes and interest tags.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>We Met</strong>
+        <p>If the user wants to connect with someone, they tap "We Met" on that person's card. The other person gets a notification and taps to confirm. While both are still at the venue, messages stay locked — that's intentional. It keeps the focus on the real-life moment, not the phone.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Checkout &rarr; Afterglow &rarr; DMs open</strong>
+        <p>When the user checks out, the Afterglow screen shows: time spent, how many people they crossed paths with, and how many We Met connections they made. Any confirmed We Mets unlock a 72-hour DM window — which then closes.</p>
+        <div class="note">&rarr; Messages are now available in the Messages tab.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="div"></div>
+
+
+  <!-- VENUE SIGNUP FLOW -->
+  <h2>Venue Signup &mdash; What a Venue Experiences</h2>
+  <p style="margin-bottom: 28px;">Venue sign-ups go through a review process before their space goes live on the map.</p>
+
+  <div class="flow">
+    <div class="step">
+      <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Venue toggle on signup</strong>
+        <p>On the signup screen, the venue owner taps the "Venue" toggle. The form switches to venue-specific fields: venue name, venue type (Bar / Coffee Shop / Restaurant / Event Space / Music Venue / Gym / Co-working / Other), email, and password.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Account created &mdash; pending review</strong>
+        <p>After tapping "Create Account," the venue owner is routed to their dashboard. Their account is created immediately, but their space is not yet visible on the map to users.</p>
+        <div class="warn">&#9201; Their dashboard shows a pending state: "Thank you for your interest in HereNow — your venue is under review. We'll be in touch shortly."</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Review &amp; approval</strong>
+        <p>A HereNow admin reviews the submission and approves the venue. The venue owner is notified. Their space is now cleared to go live.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+      <div class="step-body">
+        <strong>Venue goes live</strong>
+        <p>The owner opens their Edit Venue screen, taps "Use My Current Location" while standing at their space, selects a radius that fits the venue size, and saves. Their venue is now visible to nearby users and ready to receive check-ins.</p>
+        <div class="note">&rarr; The live dashboard now shows real-time check-in counts and stats.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="div"></div>
+
+
+  <!-- TECH (light touch) -->
+  <h2>Under the Hood</h2>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-tag">Platform</div>
+      <h3>Web &amp; Native Mobile</h3>
+      <p>HereNow runs on web today for rapid preview and testing. The same codebase compiles to a native iOS and Android app when ready for app store submission — no rebuild required.</p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Real-time</div>
+      <h3>Live updates everywhere</h3>
+      <p>Venue chat, Pulse posts, check-in counts, and We Met notifications all update in real time. Nothing requires a manual refresh.</p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Location</div>
+      <h3>GPS geofencing</h3>
+      <p>Background geofencing means when a user enters a venue's radius, they get a prompt to check in automatically. Venue owners set their own location in one tap from inside the app — no coordinates needed.</p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Privacy by design</div>
+      <h3>Everything expires</h3>
+      <p>Pulse posts expire in 12 hours. Venue chat clears in 24 hours. We Met DMs close after 72 hours. The app is designed to be ephemeral — not to archive your social life.</p>
+    </div>
+  </div>
+
+  <div class="div"></div>
+
+
+  <!-- WHERE WE ARE -->
+  <h2>Where We Are</h2>
+  <p>The core product — signup, check-in, We Met, messaging, venue dashboard, Afterglow — is fully built and running at the preview URL. The current priority is validating the experience through Jacob's practice venue before locking in the full MVP scope. That scope is a conversation we're having together.</p>
+  <div class="tags" style="margin-top: 18px;">
+    <span class="tag gr">Auth fully working</span>
+    <span class="tag gr">Check-in flow complete</span>
+    <span class="tag gr">We Met + messaging live</span>
+    <span class="tag gr">Venue dashboard live</span>
+    <span class="tag gr">Afterglow live</span>
+    <span class="tag gr">Web preview live</span>
+    <span class="tag">MVP scope &mdash; in discussion</span>
+    <span class="tag">Native app store &mdash; next phase</span>
+  </div>
+
+  <div class="footer">
+    Developed by <strong>Joshua Bostic</strong> for Jacob &amp; Jamie &nbsp;&middot;&nbsp; June 2026<br>
+    <a href="https://herenow-pi.vercel.app" target="_blank">herenow-pi.vercel.app</a>
+  </div>
+
+</div>
+</body>
+</html>
