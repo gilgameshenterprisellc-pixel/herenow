@@ -114,6 +114,10 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#0D1B2E',
+    ...Platform.select({
+      web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
+      default: {},
+    }),
   },
   title: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
   markAllText: { fontSize: 13, color: '#29B6F6', fontWeight: '600' },

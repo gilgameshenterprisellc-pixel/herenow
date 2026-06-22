@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
 import type { Zone } from '@/lib/zones'
 
@@ -16,31 +16,33 @@ export const MAP_HEIGHT = 120
 export default function NearbyMap({ zones, location, isVenueOwner }: Props) {
   return (
     <View style={styles.wrap}>
-      <View style={styles.row}>
-        <View>
-          <Text style={styles.title}>Nearby</Text>
-          <Text style={styles.sub}>
-            {location
-              ? `${zones.length} venue${zones.length !== 1 ? 's' : ''} within 50km`
-              : 'Waiting for location…'}
-          </Text>
+      <View style={styles.inner}>
+        <View style={styles.row}>
+          <View>
+            <Text style={styles.title}>Nearby</Text>
+            <Text style={styles.sub}>
+              {location
+                ? `${zones.length} venue${zones.length !== 1 ? 's' : ''} within 50km`
+                : 'Waiting for location…'}
+            </Text>
+          </View>
+          {isVenueOwner && (
+            <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/zone/create')}>
+              <Text style={styles.addBtnText}>+ Venue</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        {isVenueOwner && (
-          <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/zone/create')}>
-            <Text style={styles.addBtnText}>+ Venue</Text>
-          </TouchableOpacity>
+
+        {location && (
+          <View style={styles.locRow}>
+            <View style={styles.dot} />
+            <Text style={styles.locText}>
+              {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+            </Text>
+            <Text style={styles.locNote}>  Live location active</Text>
+          </View>
         )}
       </View>
-
-      {location && (
-        <View style={styles.locRow}>
-          <View style={styles.dot} />
-          <Text style={styles.locText}>
-            {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
-          </Text>
-          <Text style={styles.locNote}>  Live location active</Text>
-        </View>
-      )}
     </View>
   )
 }
@@ -48,12 +50,18 @@ export default function NearbyMap({ zones, location, isVenueOwner }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: '#0D1B2E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A2E4A',
+  },
+  inner: {
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A2E4A',
     gap: 10,
+    ...Platform.select({
+      web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
+      default: {},
+    }),
   },
   row: {
     flexDirection: 'row',
