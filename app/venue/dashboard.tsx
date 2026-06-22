@@ -3,6 +3,8 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform, Animated, Alert,
 } from 'react-native'
+import Reanimated, { FadeInDown } from 'react-native-reanimated'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -24,11 +26,12 @@ interface AggregateStats {
 
 export default function VenueDashboard() {
   const insets = useSafeAreaInsets()
-  const [loading, setLoading]       = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [venue, setVenue]           = useState<VenueZone | null>(null)
-  const [stats, setStats]           = useState<AggregateStats>({ total: 0, ageRanges: {}, interests: {} })
-  const [ownerName, setOwnerName]   = useState('')
+  const [loading, setLoading]         = useState(true)
+  const [refreshing, setRefreshing]   = useState(false)
+  const [venue, setVenue]             = useState<VenueZone | null>(null)
+  const [stats, setStats]             = useState<AggregateStats>({ total: 0, ageRanges: {}, interests: {} })
+  const [ownerName, setOwnerName]     = useState('')
+  const [venueStatus, setVenueStatus] = useState<string | null>(null)
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -48,10 +51,11 @@ export default function VenueDashboard() {
       if (!user) { router.replace('/(auth)/login'); return }
 
       const [{ data: profile }, { data: zones }] = await Promise.all([
-        supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle(),
+        supabase.from('profiles').select('display_name, venue_status').eq('id', user.id).maybeSingle(),
         supabase.from('zones').select('*').eq('owner_id', user.id).limit(1),
       ])
 
+      setVenueStatus(profile?.venue_status ?? null)
       setOwnerName(profile?.display_name ?? '')
       const z = zones?.[0] ?? null
       setVenue(z)
@@ -109,6 +113,36 @@ export default function VenueDashboard() {
     return (
       <View style={styles.center}>
         <ActivityIndicator color="#29B6F6" size="large" />
+      </View>
+    )
+  }
+
+  if (venueStatus !== 'approved') {
+    return (
+      <View style={[styles.center, { paddingHorizontal: 24 }]}>
+        <View style={styles.pendingGlow} />
+        <Reanimated.View entering={FadeInDown.delay(60).duration(500)} style={styles.pendingCard}>
+          <View style={styles.pendingIconWrap}>
+            <Ionicons name="time-outline" size={52} color="#f59e0b" />
+          </View>
+          <Text style={styles.pendingTitle}>Application Under Review</Text>
+          <Text style={styles.pendingSub}>
+            Your venue is in our review queue. We'll notify you as soon as it's approved — usually within 24–48 hours.
+          </Text>
+          <View style={styles.pendingDivider} />
+          <Text style={styles.pendingHint}>
+            Questions? Email{' '}
+            <Text style={styles.pendingEmail}>support@herenow.app</Text>
+          </Text>
+        </Reanimated.View>
+        <Reanimated.View entering={FadeInDown.delay(220).duration(500)} style={{ width: '100%' }}>
+          <TouchableOpacity
+            style={styles.backHomeBtn}
+            onPress={() => router.replace('/(tabs)')}
+          >
+            <Text style={styles.backHomeBtnText}>Back to Home</Text>
+          </TouchableOpacity>
+        </Reanimated.View>
       </View>
     )
   }
@@ -363,4 +397,40 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 13, fontWeight: '700', color: '#8EADC7' },
 
   privacyNote: { fontSize: 11, color: '#2A3F55', textAlign: 'center', lineHeight: 16, paddingHorizontal: 8 },
+
+  // Pending approval styles
+  pendingGlow: {
+    position: 'absolute', top: -100, right: -80,
+    width: 320, height: 320, borderRadius: 160,
+    backgroundColor: '#f59e0b', opacity: 0.05,
+  },
+  pendingCard: {
+    backgroundColor: '#0D1B2E',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#f59e0b22',
+    width: '100%',
+    marginBottom: 16,
+  },
+  pendingIconWrap: {
+    width: 96, height: 96, borderRadius: 48,
+    backgroundColor: '#f59e0b0D',
+    borderWidth: 1, borderColor: '#f59e0b30',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 8,
+  },
+  pendingTitle: { fontSize: 22, fontWeight: '900', color: '#f8fafc', textAlign: 'center' },
+  pendingSub: { fontSize: 14, color: '#7A93AC', textAlign: 'center', lineHeight: 22 },
+  pendingDivider: { width: 48, height: 1, backgroundColor: '#1A2E4A', marginVertical: 4 },
+  pendingHint: { fontSize: 13, color: '#4A6580', textAlign: 'center' },
+  pendingEmail: { color: '#29B6F6', fontWeight: '600' },
+  backHomeBtn: {
+    borderWidth: 1, borderColor: '#1A2E4A',
+    borderRadius: 14, padding: 16,
+    alignItems: 'center',
+  },
+  backHomeBtnText: { color: '#7A93AC', fontWeight: '700', fontSize: 15 },
 })

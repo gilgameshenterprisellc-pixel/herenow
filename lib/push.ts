@@ -28,8 +28,8 @@ export async function registerPushToken(): Promise<void> {
     Constants.expoConfig?.extra?.eas?.projectId ??
     (Constants as any).easConfig?.projectId
 
-  if (!projectId) {
-    console.warn('[push] No EAS projectId in app.json — push tokens disabled. In-app notifications still work.')
+  if (!projectId || projectId === 'YOUR_EXPO_PROJECT_ID') {
+    console.warn('[push] Run `npx eas init` in the project root to enable push tokens. In-app notifications still work.')
     return
   }
 
