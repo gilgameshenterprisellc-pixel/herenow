@@ -101,14 +101,17 @@ Supabase project: `https://orxtyreipavkrdiycpht.supabase.co`
 | `app/badges.tsx` | Badges collection screen |
 | `app/venue/dashboard.tsx` | Venue owner dashboard — live check-in counter (pulsing dot), aggregate age range bars, top interest tags, quick actions (Edit / Add Event / Share QR / Analytics), edit button → `/venue/edit` |
 | `app/venue/edit.tsx` | Venue setup/edit — GPS "Use My Location" button (web geolocation API, PostgREST WKT format `POINT(lng lat)`), radius picker (Small 80m / Medium 150m / Large 300m), venue name + description, handles both INSERT (new) and UPDATE (existing) zone |
-| `app/index.tsx` | Root redirect |
+| `app/index.tsx` | **Landing page (web)** — animated orb hero, "Be Here." headline, dot-grid texture, 3-section layout (hero / how it works / venue CTA), footer. On native: redirects to `/(auth)/login` or `/(tabs)` based on auth state. |
 | `app/_layout.tsx` | Root layout — SessionProvider, StatusBar, full Stack with all routes registered |
 | `app/(auth)/_layout.tsx` | Auth group layout |
 | `app/(tabs)/_layout.tsx` | Floating tab bar layout |
 
-### Components (14)
+### Components (16)
 
-`ZoneCard`, `PersonCard`, `PostCard`, `PulsePostCard`, `ChatMessage`, `DmBubble`, `WemetCard`, `EventCard`, `BadgeCard`, `MoodBadge`, `SocialModeBadge`, `HeatBar`, `ExpiryLabel`, `OnboardingModal`, `NearbyMap`, `AvatarImage`
+`ZoneCard`, `PersonCard`, `PostCard`, `PulsePostCard`, `ChatMessage`, `DmBubble`, `WemetCard`, `EventCard`, `BadgeCard`, `MoodBadge`, `SocialModeBadge`, `HeatBar`, `ExpiryLabel`, `OnboardingModal`, `NearbyMap`, `AvatarImage`, `AnimatedBackground`, `AnalyticsProvider`
+
+- **`AnimatedBackground`** — 3 neon orbs (cyan/blue/teal) with independent breathing + float using `Animated.loop`. Used on all 4 main tab screens as an `absoluteFill` backdrop. Same engine as auth screens. `pointerEvents="none"` so it never blocks interaction.
+- **`AnalyticsProvider`** — web-only. Injects `/_vercel/insights/script.js` via `useEffect` + `document.createElement`. Native stub exports the same name and renders null. Split via platform extensions (`AnalyticsProvider.web.tsx` / `AnalyticsProvider.tsx`).
 
 ### Lib / Data Layer (12)
 
@@ -232,6 +235,11 @@ Both login and signup use the same electric premium design:
 | #8 | fix/bug-mobile-sweep | Safe-area insets, canGoBack() guards, .maybeSingle() fixes, KAV behavior, venue owner post-signup route |
 | #9 | fix/dm-timing-and-docs | DM timing fix (DMs locked until checkout, 72h starts on checkout), signup flow docs, CLAUDE.md updated |
 | #10 | feat/push-notifications | Push notification infrastructure complete — placeholder projectId guard, SQL + eas init instructions |
+| #11 | fix/vercel-analytics-build | Fixed `@vercel/analytics/react` Metro resolution failure — package wasn't installed; Metro can't resolve subpath exports anyway. Replaced import with `useEffect` script injection (`/_vercel/insights/script.js`). Split into `AnalyticsProvider.web.tsx` (script tag) + `AnalyticsProvider.tsx` (native stub). Build went from failing to zero errors. |
+| #12 | fix/web-layout-and-venue-gating | Removed `maxWidth: 430` webShell that made web look like a phone in a browser. Tab bar now uses CSS `position: fixed + margin: auto` centering on web. `+ Venue` button hidden from non-venue-owners (fetches `is_venue_owner` from profiles). Venue signup: `venue_status` column (`none / pending / approved / rejected`) — pending approval workflow via SQL. Profile + 4 main tab content constrained to `maxWidth: 680, alignSelf: center` on web. |
+| #13 | fix/web-layout-and-venue-gating | (merged together with #12 — see git log) |
+| #14 | fix/web-header-alignment | Page headers (Nearby, Feed, Notifications) were hard-left on desktop. Added `maxWidth: 680, alignSelf: center` to all three `header` styles. NearbyMap: dark background `wrap` spans full width, inner content `inner` is constrained. Feed + Notifications: header style objects updated. |
+| #15 | feat/landing-animated-bg | **Landing page** (`app/index.tsx` — web only, native redirects). 5 animated orbs (cyan/blue/purple/teal), dot-grid texture, "Be Here." hero, staggered `FadeInDown` entrance animations, bouncing scroll caret, 3-section layout. **`AnimatedBackground` component** added to all 4 tab screens — subtle backdrop orbs. **Ionicons** replace all emoji in empty states (Nearby 🌐→globe-outline, Feed 📡→radio-outline, Notifications 🔔→notifications-outline). Notification row icons replaced: TYPE_META now uses Ionicon names + colors instead of emoji strings — colored icon boxes with subtle border per type. |
 
 ---
 
@@ -321,6 +329,33 @@ VALUES (
 - **Session privacy levels** — "ghost mode" (visible to We Met connections only)
 - **Content DNA / Pulse templates** — suggested pulse posts based on venue type
 - **Venue QR code** — scannable code that deep-links directly to check-in flow
+
+---
+
+## Web Layout Decisions (do not revert these)
+
+**No phone shell.** The old `maxWidth: 430, alignSelf: 'center'` webShell in `_layout.tsx` was removed in PR #12. Web is full-width. Content is constrained per-section via `maxWidth: 680, alignSelf: 'center'` inside ScrollView contentContainerStyle and FlatList contentContainerStyle.
+
+**Tab bar centering on web.** `(tabs)/_layout.tsx` uses `Platform.select` to apply CSS-only properties on web: `position: 'fixed', left: 0, right: 0, bottom: 20, maxWidth: 480, width: 'calc(100% - 32px)', marginLeft: 'auto', marginRight: 'auto'`. On native it uses the standard `position: 'absolute', left: 16, right: 16, bottom: 20`.
+
+**`maxWidth` pattern.** All tab screens (Nearby, Feed, Notifications, Profile) constrain their list and header content to 680px centered using:
+```tsx
+...Platform.select({
+  web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
+  default: {},
+}),
+```
+Profile uses 640px. Never add date filters to calendar queries (they silently drop SOMA posts with null `created_at`).
+
+**`AnimatedBackground` on all tab screens.** All 4 tabs render `<AnimatedBackground />` as the first child of their container View. It uses `StyleSheet.absoluteFill` + `pointerEvents="none"` — it never affects layout or touches.
+
+**Venue self-signup flow.** Venue owners sign up normally (toggle → Venue). Their `profiles.venue_status` starts as `'pending'`. Joshua manually approves:
+```sql
+UPDATE profiles SET venue_status = 'approved', is_venue_owner = true WHERE id = '<user_id>';
+```
+The `+ Venue` zone-create button is hidden from users where `is_venue_owner = false`. Venue owners see it regardless of `venue_status`.
+
+**Landing page (`app/index.tsx`).** On web: shows the full marketing landing page (no auth required). On native: redirects to `/(auth)/login` or `/(tabs)` depending on session. The landing page has its own orb animations (5 orbs, more dramatic than the tab screen version), a dot-grid CSS texture (`backgroundImage` via `as any` cast), `FadeInDown` staggered entrance animations, and a bouncing scroll caret. Three sections: hero / how it works / venue CTA.
 
 ---
 
