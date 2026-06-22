@@ -58,24 +58,17 @@ export default function ProfileScreen() {
   useEffect(() => { load() }, [])
 
   const handleSignOut = async () => {
-    if (Platform.OS !== 'web') {
-      Alert.alert('Sign out', 'Are you sure?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign out',
-          style: 'destructive',
-          onPress: async () => {
-            await supabase.auth.signOut()
-            router.replace('/(auth)/login')
-          },
+    Alert.alert('Sign out', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.auth.signOut()
+          router.replace('/(auth)/login')
         },
-      ])
-    } else {
-      // Alert.alert uses window.confirm on web — unreliable for multi-button dialogs.
-      // Button is already clearly labelled; sign out directly.
-      await supabase.auth.signOut()
-      router.replace('/')
-    }
+      },
+    ])
   }
 
   if (loading) {
