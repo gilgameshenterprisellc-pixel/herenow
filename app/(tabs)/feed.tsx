@@ -5,6 +5,7 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
+  Platform,
 } from 'react-native'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { supabase } from '@/lib/supabase'
@@ -77,7 +78,15 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
   headerTitle: { fontSize: 28, fontWeight: '800', color: '#f8fafc' },
   headerSub: { fontSize: 13, color: '#7A93AC', marginTop: 2 },
-  list: { paddingHorizontal: 16, paddingBottom: TAB_SAFE_BOTTOM, gap: 12 },
+  list: {
+    paddingHorizontal: 16,
+    paddingBottom: TAB_SAFE_BOTTOM,
+    gap: 12,
+    ...Platform.select({
+      web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
+      default: {},
+    }),
+  },
   empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#f8fafc' },

@@ -131,10 +131,6 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: 'absolute',
-    bottom: 20,
-    left: 16,
-    right: 16,
     borderRadius: 36,
     height: 66,
     paddingBottom: 0,
@@ -144,9 +140,22 @@ const styles = StyleSheet.create({
     borderColor: '#1E3A5F',
     ...Platform.select({
       web: {
+        // Fixed centered pill on web — works for any viewport width
+        position: 'fixed' as any,
+        left: 0,
+        right: 0,
+        bottom: 20,
+        maxWidth: 480,
+        width: 'calc(100% - 32px)' as any,
+        marginLeft: 'auto' as any,
+        marginRight: 'auto' as any,
         boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(41,182,246,0.07)',
       } as any,
       default: {
+        position: 'absolute',
+        bottom: 20,
+        left: 16,
+        right: 16,
         shadowColor: '#29B6F6',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
