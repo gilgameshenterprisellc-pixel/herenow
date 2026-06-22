@@ -1,20 +1,24 @@
-﻿import { useEffect } from 'react'
+import { useEffect } from 'react'
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { router } from 'expo-router'
 import { useNotifications } from '@/hooks/useNotifications'
 import { markOneRead, markAllRead } from '@/lib/notifications'
+import AnimatedBackground from '@/components/AnimatedBackground'
 
-const TYPE_META: Record<string, { emoji: string; color: string }> = {
-  wemet_request:   { emoji: '🤝', color: '#29B6F6' },
-  wemet_confirmed: { emoji: '✅', color: '#22c55e' },
-  message:         { emoji: '💌', color: '#3b82f6' },
-  event_rsvp:      { emoji: '📅', color: '#a855f7' },
-  badge_earned:    { emoji: '🏅', color: '#29B6F6' },
-  system:          { emoji: '📡', color: '#7A93AC' },
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
+
+const TYPE_META: Record<string, { icon: IoniconsName; color: string }> = {
+  wemet_request:   { icon: 'people-outline',           color: '#29B6F6' },
+  wemet_confirmed: { icon: 'checkmark-circle-outline', color: '#22c55e' },
+  message:         { icon: 'mail-outline',             color: '#3b82f6' },
+  event_rsvp:      { icon: 'calendar-outline',         color: '#a855f7' },
+  badge_earned:    { icon: 'ribbon-outline',           color: '#f59e0b' },
+  system:          { icon: 'radio-outline',            color: '#7A93AC' },
 }
 
 function timeAgo(iso: string): string {
@@ -47,8 +51,13 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
+      <AnimatedBackground />
+
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <Text style={styles.title}>Notifications 🔔</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Notifications</Text>
+          <Ionicons name="notifications-outline" size={20} color="#8EADC7" style={{ marginLeft: 8 }} />
+        </View>
         {unread > 0 && (
           <TouchableOpacity onPress={() => { markAllRead().then(refresh) }}>
             <Text style={styles.markAllText}>Mark all read</Text>
@@ -75,8 +84,8 @@ export default function NotificationsScreen() {
                 onPress={() => handlePress(n)}
                 activeOpacity={0.8}
               >
-                <View style={[styles.iconBox, { backgroundColor: meta.color + '18' }]}>
-                  <Text style={styles.icon}>{meta.emoji}</Text>
+                <View style={[styles.iconBox, { backgroundColor: meta.color + '18', borderColor: meta.color + '25', borderWidth: 1 }]}>
+                  <Ionicons name={meta.icon} size={20} color={meta.color} />
                 </View>
                 <View style={styles.info}>
                   <Text style={styles.notifTitle}>{n.title}</Text>
@@ -89,7 +98,9 @@ export default function NotificationsScreen() {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🔔</Text>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="notifications-outline" size={32} color="#29B6F6" />
+              </View>
               <Text style={styles.emptyTitle}>All caught up</Text>
               <Text style={styles.emptySub}>
                 Check in to a venue to start getting We Met requests, messages, and event updates.
@@ -119,7 +130,8 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  title: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
+  titleRow:    { flexDirection: 'row', alignItems: 'center' },
+  title:       { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
   markAllText: { fontSize: 13, color: '#29B6F6', fontWeight: '600' },
   list: {
     padding: 14,
@@ -152,14 +164,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  icon: { fontSize: 20 },
-  info: { flex: 1, gap: 2 },
+  info:       { flex: 1, gap: 2 },
   notifTitle: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
-  notifBody: { fontSize: 12, color: '#8EADC7', lineHeight: 16 },
-  time: { fontSize: 11, color: '#4A6580' },
-  dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  empty: { alignItems: 'center', paddingTop: 80, gap: 10, paddingHorizontal: 40 },
-  emptyEmoji: { fontSize: 44 },
+  notifBody:  { fontSize: 12, color: '#8EADC7', lineHeight: 16 },
+  time:       { fontSize: 11, color: '#4A6580' },
+  dot:        { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  empty:      { alignItems: 'center', paddingTop: 80, gap: 12, paddingHorizontal: 40 },
+  emptyIcon:  { width: 64, height: 64, borderRadius: 20, backgroundColor: '#29B6F610', borderWidth: 1, borderColor: '#29B6F620', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: '#f8fafc' },
-  emptySub: { fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 },
+  emptySub:   { fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 },
 })

@@ -7,10 +7,12 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { supabase } from '@/lib/supabase'
 import { fetchLikedPostIds } from '@/lib/posts'
 import PostCard from '@/components/PostCard'
+import AnimatedBackground from '@/components/AnimatedBackground'
 import type { Post } from '@/components/PostCard'
 
 export default function FeedScreen() {
@@ -48,6 +50,7 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
+      <AnimatedBackground />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Feed</Text>
         <Text style={styles.headerSub}>Posts from your zones</Text>
@@ -63,7 +66,9 @@ export default function FeedScreen() {
         renderItem={({ item }) => <PostCard post={item} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📡</Text>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="radio-outline" size={32} color="#29B6F6" />
+            </View>
             <Text style={styles.emptyTitle}>No posts yet</Text>
             <Text style={styles.emptySub}>Join a zone to see posts from people nearby.</Text>
           </View>
@@ -95,8 +100,8 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
-  emptyEmoji: { fontSize: 40 },
+  empty:     { alignItems: 'center', paddingTop: 80, gap: 12 },
+  emptyIcon: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#29B6F610', borderWidth: 1, borderColor: '#29B6F620', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#f8fafc' },
-  emptySub: { fontSize: 14, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32 },
+  emptySub:   { fontSize: 14, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32 },
 })

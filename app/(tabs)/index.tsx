@@ -8,12 +8,14 @@ import {
   Platform,
 } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
+import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useLocation } from '@/hooks/useLocation'
 import { fetchNearbyZones } from '@/lib/zones'
 import { supabase } from '@/lib/supabase'
 import ZoneCard from '@/components/ZoneCard'
 import NearbyMap from '@/components/NearbyMap'
+import AnimatedBackground from '@/components/AnimatedBackground'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import type { Zone } from '@/lib/zones'
 
@@ -84,7 +86,9 @@ export default function NearbyScreen() {
   if (locError) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorEmoji}>📍</Text>
+        <View style={styles.emptyIcon}>
+          <Ionicons name="location-outline" size={32} color="#29B6F6" />
+        </View>
         <Text style={styles.errorTitle}>Location required</Text>
         <Text style={styles.errorSub}>
           HereNow needs your location to show nearby venues.{'\n'}
@@ -98,6 +102,7 @@ export default function NearbyScreen() {
 
   return (
     <View style={styles.container}>
+      <AnimatedBackground />
       <NearbyMap
         zones={zones}
         location={location}
@@ -136,7 +141,9 @@ export default function NearbyScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🌐</Text>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="globe-outline" size={32} color="#29B6F6" />
+              </View>
               <Text style={styles.emptyTitle}>No venues nearby yet</Text>
               <Text style={styles.emptySub}>Be the first to create one.</Text>
             </View>
@@ -162,12 +169,11 @@ const styles = StyleSheet.create({
     }),
   },
   listLabel:  { fontSize: 12, color: '#4A6580', fontWeight: '600', paddingBottom: 8, paddingHorizontal: 2 },
-  empty:      { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyEmoji: { fontSize: 36 },
+  empty:      { alignItems: 'center', paddingTop: 60, gap: 10 },
+  emptyIcon:  { width: 64, height: 64, borderRadius: 20, backgroundColor: '#29B6F610', borderWidth: 1, borderColor: '#29B6F620', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#f8fafc' },
   emptySub:   { fontSize: 13, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32 },
   statusText: { color: '#7A93AC', fontSize: 14, marginTop: 8 },
-  errorEmoji: { fontSize: 40 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: '#f8fafc' },
   errorSub:   { fontSize: 14, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32, lineHeight: 22 },
 })
