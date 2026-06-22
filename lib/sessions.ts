@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { unlockWeMetsOnCheckout } from './weMet'
 
 export type SocialMode = 'dating' | 'friends' | 'networking' | 'just_vibes'
 export type MoodMode   = 'open' | 'selective' | 'not_today'
@@ -93,6 +94,9 @@ export async function checkOut(sessionId: string): Promise<void> {
     .update({ is_active: false, checked_out_at: checkedOutAt })
     .eq('id', sessionId)
     .eq('user_id', user.id)
+
+  // Unlock DM windows for all confirmed We Mets from this session
+  await unlockWeMetsOnCheckout(sessionId)
 
   // Mark not present in zone_members
   await supabase

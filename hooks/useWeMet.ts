@@ -21,9 +21,12 @@ export function useWeMet() {
   useEffect(() => {
     refresh()
 
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_, sess) => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_, sess) => {
       if (!sess) return
-      const channel = supabase
+      if (channel) return // already subscribed
+      channel = supabase
         .channel('we_met_realtime')
         .on(
           'postgres_changes',
@@ -31,11 +34,12 @@ export function useWeMet() {
           () => refresh()
         )
         .subscribe()
-
-      return () => { supabase.removeChannel(channel) }
     })
 
-    return () => authSub.unsubscribe()
+    return () => {
+      authSub.unsubscribe()
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [refresh])
 
   return { pending, confirmed, loading, refresh }

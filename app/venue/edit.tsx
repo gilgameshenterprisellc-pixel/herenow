@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert, Platform,
+  ScrollView, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import * as Location from 'expo-location'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 
@@ -22,6 +24,7 @@ interface VenueZone {
 }
 
 export default function VenueEditScreen() {
+  const insets = useSafeAreaInsets()
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
   const [locating, setLocating]   = useState(false)
@@ -43,7 +46,7 @@ export default function VenueEditScreen() {
       const { data: zones } = await supabase
         .from('zones')
         .select('id, name, description, center_lat, center_lng, radius_meters')
-        .or(`owner_id.eq.${user.id},created_by.eq.${user.id}`)
+        .eq('owner_id', user.id)
         .limit(1)
 
       const z = zones?.[0] ?? null
@@ -60,7 +63,7 @@ export default function VenueEditScreen() {
           .from('profiles')
           .select('display_name')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
         setName(profile?.display_name ?? '')
       }
 
@@ -69,27 +72,39 @@ export default function VenueEditScreen() {
     load()
   }, [])
 
-  const grabLocation = () => {
-    if (Platform.OS === 'web') {
-      if (!navigator.geolocation) {
-        Alert.alert('Not supported', 'Geolocation is not available in this browser.')
-        return
+  const grabLocation = async () => {
+    setLocating(true)
+    try {
+      if (Platform.OS === 'web') {
+        if (!navigator.geolocation) {
+          Alert.alert('Not supported', 'Geolocation is not available in this browser.')
+          return
+        }
+        await new Promise<void>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              setLat(pos.coords.latitude)
+              setLng(pos.coords.longitude)
+              resolve()
+            },
+            (err) => reject(new Error(err.message ?? 'Could not get location.')),
+            { enableHighAccuracy: true, timeout: 10000 }
+          )
+        })
+      } else {
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status !== 'granted') {
+          Alert.alert('Permission denied', 'Location access is needed to pin your venue.')
+          return
+        }
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
+        setLat(pos.coords.latitude)
+        setLng(pos.coords.longitude)
       }
-      setLocating(true)
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLat(pos.coords.latitude)
-          setLng(pos.coords.longitude)
-          setLocating(false)
-        },
-        (err) => {
-          setLocating(false)
-          Alert.alert('Location error', err.message ?? 'Could not get location. Make sure location access is allowed.')
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      )
-    } else {
-      Alert.alert('Use web', 'Open this page in a browser to set your venue location.')
+    } catch (err: any) {
+      Alert.alert('Location error', err?.message ?? 'Could not get location. Make sure location access is allowed.')
+    } finally {
+      setLocating(false)
     }
   }
 
@@ -154,8 +169,11 @@ export default function VenueEditScreen() {
   const hasLocation = lat !== null && lng !== null
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity
           onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)}
           style={styles.backBtn}
@@ -270,7 +288,7 @@ export default function VenueEditScreen() {
           </Text>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -281,7 +299,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,

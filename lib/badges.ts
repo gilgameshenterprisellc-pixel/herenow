@@ -57,7 +57,7 @@ export async function awardBadge(slug: string): Promise<void> {
     .from('badges')
     .select('id')
     .eq('slug', slug)
-    .single()
+    .maybeSingle()
 
   if (!badge) return
 
