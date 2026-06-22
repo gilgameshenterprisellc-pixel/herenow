@@ -75,7 +75,15 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
-  header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 16,
+    ...Platform.select({
+      web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
+      default: {},
+    }),
+  },
   headerTitle: { fontSize: 28, fontWeight: '800', color: '#f8fafc' },
   headerSub: { fontSize: 13, color: '#7A93AC', marginTop: 2 },
   list: {
