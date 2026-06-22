@@ -71,10 +71,10 @@ export default function ProfileScreen() {
         },
       ])
     } else {
-      // Alert.alert uses window.confirm on web — unreliable for multi-button dialogs.
-      // Sign out directly; button is already clearly labelled.
+      // Full page reload clears the JS auth cache completely.
+      // router.replace('/') leaves stale session in memory → lands on tabs, not landing page.
       await supabase.auth.signOut()
-      router.replace('/')
+      ;(window as any).location.replace('/')
     }
   }
 

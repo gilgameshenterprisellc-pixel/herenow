@@ -28,11 +28,11 @@ function LandingOrbs() {
     )
 
   useEffect(() => {
-    breathe(o1, 5000).start()
-    breathe(o2, 7200, 800).start()
-    breathe(o3, 4800, 1600).start()
-    breathe(o4, 6000, 400).start()
-    breathe(o5, 5400, 2200).start()
+    breathe(o1, 3200).start()
+    breathe(o2, 4400, 600).start()
+    breathe(o3, 2800, 1200).start()
+    breathe(o4, 3800, 900).start()
+    breathe(o5, 3500, 400).start()
 
     return () => { [o1, o2, o3, o4, o5].forEach((v) => v.stopAnimation()) }
   }, [])
@@ -41,42 +41,42 @@ function LandingOrbs() {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {/* Cyan — large, top right */}
       <Animated.View style={[s.orb, {
-        width: 620, height: 620, backgroundColor: '#29B6F6',
-        top: -220, right: -200,
-        opacity: o1.interpolate({ inputRange: [0, 1], outputRange: [0.07, 0.17] }),
-        transform: [{ translateY: o1.interpolate({ inputRange: [0, 1], outputRange: [0, -32] }) }],
+        width: 700, height: 700, backgroundColor: '#29B6F6',
+        top: -260, right: -220,
+        opacity: o1.interpolate({ inputRange: [0, 1], outputRange: [0.10, 0.28] }),
+        transform: [{ translateY: o1.interpolate({ inputRange: [0, 1], outputRange: [0, -40] }) }],
       }]} />
 
       {/* Blue — large, top left */}
       <Animated.View style={[s.orb, {
-        width: 520, height: 520, backgroundColor: '#1E40AF',
-        top: -120, left: -180,
-        opacity: o2.interpolate({ inputRange: [0, 1], outputRange: [0.06, 0.13] }),
-        transform: [{ translateY: o2.interpolate({ inputRange: [0, 1], outputRange: [0, 24] }) }],
+        width: 580, height: 580, backgroundColor: '#1E40AF',
+        top: -140, left: -200,
+        opacity: o2.interpolate({ inputRange: [0, 1], outputRange: [0.09, 0.22] }),
+        transform: [{ translateY: o2.interpolate({ inputRange: [0, 1], outputRange: [0, 28] }) }],
       }]} />
 
       {/* Purple — mid right */}
       <Animated.View style={[s.orb, {
-        width: 380, height: 380, backgroundColor: '#7C3AED',
-        top: 260, right: -130,
-        opacity: o3.interpolate({ inputRange: [0, 1], outputRange: [0.05, 0.12] }),
-        transform: [{ translateY: o3.interpolate({ inputRange: [0, 1], outputRange: [0, -22] }) }],
+        width: 440, height: 440, backgroundColor: '#7C3AED',
+        top: 260, right: -140,
+        opacity: o3.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.20] }),
+        transform: [{ translateY: o3.interpolate({ inputRange: [0, 1], outputRange: [0, -26] }) }],
       }]} />
 
       {/* Teal — mid left */}
       <Animated.View style={[s.orb, {
-        width: 320, height: 320, backgroundColor: '#0891B2',
-        top: 380, left: -110,
-        opacity: o4.interpolate({ inputRange: [0, 1], outputRange: [0.05, 0.11] }),
-        transform: [{ translateY: o4.interpolate({ inputRange: [0, 1], outputRange: [0, 18] }) }],
+        width: 360, height: 360, backgroundColor: '#0891B2',
+        top: 380, left: -120,
+        opacity: o4.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.18] }),
+        transform: [{ translateY: o4.interpolate({ inputRange: [0, 1], outputRange: [0, 22] }) }],
       }]} />
 
-      {/* Cyan — small, bottom right */}
+      {/* Cyan — bottom right accent */}
       <Animated.View style={[s.orb, {
-        width: 240, height: 240, backgroundColor: '#29B6F6',
-        bottom: 80, right: -60,
-        opacity: o5.interpolate({ inputRange: [0, 1], outputRange: [0.05, 0.13] }),
-        transform: [{ translateY: o5.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }],
+        width: 300, height: 300, backgroundColor: '#29B6F6',
+        bottom: 60, right: -80,
+        opacity: o5.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.24] }),
+        transform: [{ translateY: o5.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }) }],
       }]} />
     </View>
   )
@@ -181,7 +181,16 @@ function WebLanding() {
           </Reanimated.View>
 
           <Reanimated.View entering={FadeInDown.delay(120).duration(800)}>
-            <Text style={s.headline}>Be Here.</Text>
+            <Text
+              style={[
+                s.headline,
+                Platform.OS === 'web' ? ({
+                  textShadow: '0 0 12px rgba(41,182,246,1), 0 0 24px rgba(41,182,246,0.8), 0 0 48px rgba(41,182,246,0.5), 0 0 96px rgba(41,182,246,0.25)',
+                }) as any : null,
+              ]}
+            >
+              HereNow
+            </Text>
           </Reanimated.View>
 
           <Reanimated.View entering={FadeInDown.delay(260).duration(800)}>
@@ -306,8 +315,8 @@ const s = StyleSheet.create({
   badgeText:    { fontSize: 13, color: '#8EADC7', fontWeight: '500' },
 
   // headline + sub
-  headline:     { fontSize: 80, fontWeight: '900', color: '#f8fafc', textAlign: 'center', letterSpacing: -3, lineHeight: 84 },
-  sub:          { fontSize: 19, color: '#8EADC7', textAlign: 'center', lineHeight: 28, fontWeight: '400' },
+  headline:     { fontSize: 88, fontWeight: '900', color: '#29B6F6', textAlign: 'center', letterSpacing: -4, lineHeight: 90 },
+  sub:          { fontSize: 19, color: '#7A93AC', textAlign: 'center', lineHeight: 28, fontWeight: '400' },
 
   // CTAs
   ctaRow:           { flexDirection: 'row', gap: 12, justifyContent: 'center', flexWrap: 'wrap' },
