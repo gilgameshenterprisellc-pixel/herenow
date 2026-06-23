@@ -15,6 +15,9 @@ export default function RootLayout() {
     if (Platform.OS === 'web') {
       document.body.style.background = '#050A15'
       document.body.style.margin = '0'
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {})
+      }
     }
   }, [])
 
@@ -77,6 +80,10 @@ export default function RootLayout() {
         <Stack.Screen name="profile/edit" />
         <Stack.Screen name="venue/dashboard" />
         <Stack.Screen name="venue/edit" />
+        <Stack.Screen name="venue/highlights" />
+        <Stack.Screen name="venue/promotions" />
+        <Stack.Screen name="venue/announcements" />
+        <Stack.Screen name="admin" />
       </Stack>
     </SessionProvider>
     </View>

@@ -19,3 +19,23 @@ export async function reportUser(params: {
     note: params.note ?? null,
   })
 }
+
+export type ContentReportReason = 'spam' | 'harassment' | 'inappropriate' | 'misinformation' | 'other'
+
+export async function reportContent(params: {
+  contentType: 'pulse_post' | 'chat_message'
+  contentId: string
+  zoneId: string
+  reason: ContentReportReason
+}): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase.from('content_reports').insert({
+    reporter_id:  user.id,
+    zone_id:      params.zoneId,
+    content_type: params.contentType,
+    content_id:   params.contentId,
+    reason:       params.reason,
+  })
+}

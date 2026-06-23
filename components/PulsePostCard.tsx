@@ -15,9 +15,10 @@ interface Props {
   post: PulsePost
   currentUserId: string
   onDeleted?: () => void
+  onReport?: (postId: string) => void
 }
 
-export default function PulsePostCard({ post, currentUserId, onDeleted }: Props) {
+export default function PulsePostCard({ post, currentUserId, onDeleted, onReport }: Props) {
   const profile = post.profiles
   const initial = profile?.display_name?.[0]?.toUpperCase() ?? '?'
   const isOwn = post.user_id === currentUserId
@@ -47,11 +48,15 @@ export default function PulsePostCard({ post, currentUserId, onDeleted }: Props)
           <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
         </View>
         <ExpiryLabel expiresAt={post.expires_at} />
-        {isOwn && (
+        {isOwn ? (
           <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
             <Text style={styles.deleteText}>✕</Text>
           </TouchableOpacity>
-        )}
+        ) : onReport ? (
+          <TouchableOpacity onPress={() => onReport(post.id)} style={styles.deleteBtn}>
+            <Text style={styles.flagText}>🚩</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {post.vibe_tag && (
@@ -92,6 +97,7 @@ const styles = StyleSheet.create({
   time: { fontSize: 11, color: '#7A93AC' },
   deleteBtn: { padding: 4 },
   deleteText: { fontSize: 13, color: '#7A93AC' },
+  flagText: { fontSize: 14 },
   vibeTag: {
     backgroundColor: '#a855f718',
     borderRadius: 8,
