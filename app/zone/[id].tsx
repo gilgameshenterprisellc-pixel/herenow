@@ -15,6 +15,8 @@ import { createPulsePost, VIBE_TAGS } from '@/lib/pulse'
 import { sendChatMessage } from '@/lib/chat'
 import { sendWeMet, existingWeMet } from '@/lib/weMet'
 import { fetchEvents, toggleRsvp } from '@/lib/events'
+import { fetchPromotions, type Promotion } from '@/lib/promotions'
+import { fetchAnnouncements, type Announcement } from '@/lib/announcements'
 import { checkAndAwardBadges } from '@/lib/badges'
 import { reportUser, type ReportReason } from '@/lib/reports'
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
@@ -25,13 +27,14 @@ import EventCard from '@/components/EventCard'
 import HeatBar from '@/components/HeatBar'
 import type { VenueEvent } from '@/lib/events'
 
-type Tab = 'people' | 'pulse' | 'chat' | 'events'
+type Tab = 'people' | 'pulse' | 'chat' | 'events' | 'promotions'
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
-  { id: 'people', label: 'People',  emoji: '👥' },
-  { id: 'pulse',  label: 'Pulse',   emoji: '✨' },
-  { id: 'chat',   label: 'Chat',    emoji: '💬' },
-  { id: 'events', label: 'Events',  emoji: '📅' },
+  { id: 'people',     label: 'People',  emoji: '👥' },
+  { id: 'pulse',      label: 'Pulse',   emoji: '✨' },
+  { id: 'chat',       label: 'Chat',    emoji: '💬' },
+  { id: 'events',     label: 'Events',  emoji: '📅' },
+  { id: 'promotions', label: 'Deals',   emoji: '🏷️' },
 ]
 
 export default function ZoneScreen() {
@@ -64,6 +67,14 @@ export default function ZoneScreen() {
   const [events, setEvents]         = useState<VenueEvent[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
 
+  // Promotions
+  const [promotions, setPromotions]             = useState<Promotion[]>([])
+  const [promotionsLoading, setPromotionsLoading] = useState(false)
+
+  // Announcements
+  const [announcements, setAnnouncements]       = useState<Announcement[]>([])
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false)
+
   const isCheckedIn = activeSession?.zone_id === id
 
   useEffect(() => {
@@ -84,19 +95,22 @@ export default function ZoneScreen() {
       setZone(z)
       setLoading(false)
 
-      // Join as member if not already
+      // Join as member if not already, then fetch announcements
       if (user) {
         await supabase
           .from('zone_members')
           .upsert({ zone_id: id, user_id: user.id, is_present: false }, { onConflict: 'zone_id,user_id' })
+        const ann = await fetchAnnouncements(id)
+        setAnnouncements(ann)
       }
     }
     init()
   }, [id])
 
   useEffect(() => {
-    if (tab === 'people') loadPeople()
-    if (tab === 'events') loadEvents()
+    if (tab === 'people')     loadPeople()
+    if (tab === 'events')     loadEvents()
+    if (tab === 'promotions') loadPromotions()
   }, [tab, id])
 
   const loadPeople = async () => {
@@ -115,6 +129,23 @@ export default function ZoneScreen() {
     const data = await fetchEvents(id)
     setEvents(data)
     setEventsLoading(false)
+  }
+
+  const loadPromotions = async () => {
+    setPromotionsLoading(true)
+    const data = await fetchPromotions(id)
+    setPromotions(data)
+    setPromotionsLoading(false)
+  }
+
+  function promoTimeLabel(p: Promotion): string {
+    if (!p.ends_at) return 'Running all night'
+    const ms = new Date(p.ends_at).getTime() - Date.now()
+    if (ms <= 0) return 'Ended'
+    const h = Math.floor(ms / 3600000)
+    const m = Math.floor((ms % 3600000) / 60000)
+    if (h > 0) return `Ends in ${h}h ${m}m`
+    return `Ends in ${m}m`
   }
 
   const handleWeMet = async (person: ActivePerson) => {
@@ -279,6 +310,22 @@ export default function ZoneScreen() {
       {isCheckedIn && (
         <View style={styles.heatBarWrap}>
           <HeatBar count={people.length + (activeSession ? 1 : 0)} />
+        </View>
+      )}
+
+      {/* Venue announcement banner */}
+      {isCheckedIn && announcements.length > 0 && !announcementDismissed && (
+        <View style={styles.announcementBanner}>
+          <Text style={styles.announcementIcon}>📣</Text>
+          <Text style={styles.announcementText} numberOfLines={2}>
+            {announcements[0].message}
+          </Text>
+          <TouchableOpacity
+            style={styles.announcementDismiss}
+            onPress={() => setAnnouncementDismissed(true)}
+          >
+            <Text style={styles.announcementDismissText}>✕</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -491,6 +538,38 @@ export default function ZoneScreen() {
           }
         />
       )}
+
+      {tab === 'promotions' && (
+        <FlatList
+          data={promotions}
+          keyExtractor={(p) => p.id}
+          contentContainerStyle={styles.list}
+          onRefresh={loadPromotions}
+          refreshing={promotionsLoading}
+          renderItem={({ item }) => (
+            <View style={styles.promoCard}>
+              <View style={styles.promoHeader}>
+                <Text style={styles.promoTitle}>{item.title}</Text>
+                <View style={styles.promoTimePill}>
+                  <Text style={styles.promoTimeText}>{promoTimeLabel(item)}</Text>
+                </View>
+              </View>
+              {item.description && (
+                <Text style={styles.promoDesc}>{item.description}</Text>
+              )}
+            </View>
+          )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>🏷️</Text>
+              <Text style={styles.emptyTitle}>No deals right now</Text>
+              <Text style={styles.emptySub}>
+                Check back later — the venue may post specials soon.
+              </Text>
+            </View>
+          }
+        />
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -648,4 +727,42 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   createEventText: { color: '#29B6F6', fontWeight: '700', fontSize: 14 },
+
+  // Announcement banner
+  announcementBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#29B6F615',
+    borderBottomWidth: 1,
+    borderBottomColor: '#29B6F630',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  announcementIcon: { fontSize: 16 },
+  announcementText: { flex: 1, fontSize: 13, color: '#f8fafc', lineHeight: 17 },
+  announcementDismiss: { padding: 4 },
+  announcementDismissText: { fontSize: 14, color: '#4A6580' },
+
+  // Promo cards
+  promoCard: {
+    backgroundColor: '#0D1B2E',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    gap: 8,
+  },
+  promoHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  promoTitle:  { flex: 1, fontSize: 16, fontWeight: '800', color: '#f8fafc' },
+  promoTimePill: {
+    backgroundColor: '#29B6F615',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#29B6F630',
+  },
+  promoTimeText: { fontSize: 11, color: '#29B6F6', fontWeight: '700' },
+  promoDesc:     { fontSize: 13, color: '#7A93AC', lineHeight: 18 },
 })

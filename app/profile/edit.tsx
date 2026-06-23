@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import {
-  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  View, Text, TextInput, StyleSheet, TouchableOpacity, Switch,
   ScrollView, Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import { uploadAvatarWeb } from '@/lib/uploadAvatar'
+import AnimatedBackground from '@/components/AnimatedBackground'
 
 const AGE_RANGES = ['18–22', '23–27', '28–34', '35–45', '45+', 'Prefer not to say']
 
@@ -39,6 +40,7 @@ export default function EditProfileScreen() {
   const [interests, setInterests]     = useState<string[]>([])
   const [kickoff, setKickoff]         = useState('')
   const [kickoffTemplate, setKickoffTemplate] = useState('')
+  const [ghostMode, setGhostMode]             = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -47,7 +49,7 @@ export default function EditProfileScreen() {
       setUserId(user.id)
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, bio, age_range, interest_tags, kickoffs, avatar_url')
+        .select('display_name, bio, age_range, interest_tags, kickoffs, avatar_url, ghost_mode')
         .eq('id', user.id)
         .maybeSingle()
       if (data) {
@@ -57,6 +59,7 @@ export default function EditProfileScreen() {
         setInterests(data.interest_tags ?? [])
         setKickoff(data.kickoffs?.[0] ?? '')
         setAvatarUrl(data.avatar_url ?? null)
+        setGhostMode(data.ghost_mode ?? false)
       }
       setLoading(false)
     }
@@ -102,6 +105,7 @@ export default function EditProfileScreen() {
         age_range:     ageRange || null,
         interest_tags: interests,
         kickoffs:      kickoff.trim() ? [kickoff.trim()] : [],
+        ghost_mode:    ghostMode,
       })
       .eq('id', user.id)
 
@@ -123,6 +127,7 @@ export default function EditProfileScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <AnimatedBackground />
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
@@ -275,6 +280,23 @@ export default function EditProfileScreen() {
           <Text style={styles.charCount}>{kickoff.length}/120</Text>
         </View>
 
+        {/* Ghost Mode */}
+        <View style={styles.ghostRow}>
+          <View style={styles.ghostInfo}>
+            <Text style={styles.ghostTitle}>Ghost Mode</Text>
+            <Text style={styles.ghostHint}>
+              Stay checked in but invisible on the People list. You can still see others and use all features.
+            </Text>
+          </View>
+          <Switch
+            value={ghostMode}
+            onValueChange={setGhostMode}
+            trackColor={{ false: '#1A2E4A', true: '#29B6F640' }}
+            thumbColor={ghostMode ? '#29B6F6' : '#4A6580'}
+            ios_backgroundColor="#1A2E4A"
+          />
+        </View>
+
         {/* Privacy note */}
         <View style={styles.privacyNote}>
           <Text style={styles.privacyText}>
@@ -313,7 +335,15 @@ const styles = StyleSheet.create({
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#050A15', fontWeight: '800', fontSize: 14 },
   scroll: { flex: 1 },
-  content: { padding: 16, gap: 24, paddingBottom: 60 },
+  content: {
+    padding: 16,
+    gap: 24,
+    paddingBottom: 60,
+    ...Platform.select({
+      web: { maxWidth: 560, alignSelf: 'center' as const, width: '100%' as any } as any,
+      default: {},
+    }),
+  },
   photoSection: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 4 },
   photoWrap: { position: 'relative', flexShrink: 0 },
   photoOverlay: {
@@ -365,6 +395,19 @@ const styles = StyleSheet.create({
   interestTagActive: { backgroundColor: '#29B6F618', borderColor: '#29B6F6' },
   interestText: { fontSize: 13, color: '#8EADC7' },
   interestTextActive: { color: '#29B6F6', fontWeight: '700' },
+  ghostRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0D1B2E',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    gap: 12,
+  },
+  ghostInfo:  { flex: 1, gap: 4 },
+  ghostTitle: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
+  ghostHint:  { fontSize: 12, color: '#4A6580', lineHeight: 16 },
   privacyNote: {
     backgroundColor: '#0D1B2E',
     borderRadius: 12,

@@ -262,17 +262,20 @@ export default function VenueDashboard() {
             <Text style={styles.actionEmoji}>✏️</Text>
             <Text style={styles.actionLabel}>Edit Venue</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={() => Alert.alert('Coming soon', 'Event creation is coming in the next update.')}>
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => venue && router.push(`/zone/event/create?zoneId=${venue.id}` as any)}
+          >
             <Text style={styles.actionEmoji}>📅</Text>
             <Text style={styles.actionLabel}>Add Event</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={() => Alert.alert('Coming soon', 'QR code sharing is coming in the next update.')}>
-            <Text style={styles.actionEmoji}>📲</Text>
-            <Text style={styles.actionLabel}>Share QR</Text>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/promotions' as any)}>
+            <Text style={styles.actionEmoji}>🏷️</Text>
+            <Text style={styles.actionLabel}>Promotions</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={() => Alert.alert('Coming soon', 'Analytics are coming in the next update.')}>
-            <Text style={styles.actionEmoji}>📊</Text>
-            <Text style={styles.actionLabel}>Analytics</Text>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/announcements' as any)}>
+            <Text style={styles.actionEmoji}>📣</Text>
+            <Text style={styles.actionLabel}>Announce</Text>
           </TouchableOpacity>
         </View>
 
