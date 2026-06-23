@@ -16,8 +16,9 @@ import { sendChatMessage } from '@/lib/chat'
 import { sendWeMet, existingWeMet } from '@/lib/weMet'
 import { fetchEvents, toggleRsvp } from '@/lib/events'
 import { checkAndAwardBadges } from '@/lib/badges'
-import { reportUser, type ReportReason } from '@/lib/reports'
+import { reportUser, reportContent, type ReportReason, type ContentReportReason } from '@/lib/reports'
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
+import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
 import ChatMessage from '@/components/ChatMessage'
@@ -64,6 +65,9 @@ export default function ZoneScreen() {
   const [events, setEvents]         = useState<VenueEvent[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
 
+  // Highlights
+  const [highlights, setHighlights] = useState<VenueHighlight[]>([])
+
   const isCheckedIn = activeSession?.zone_id === id
 
   useEffect(() => {
@@ -83,6 +87,10 @@ export default function ZoneScreen() {
       }
       setZone(z)
       setLoading(false)
+
+      // Load highlights (visible to all)
+      const hl = await fetchHighlights(id)
+      setHighlights(hl)
 
       // Join as member if not already
       if (user) {
@@ -223,6 +231,24 @@ export default function ZoneScreen() {
     setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 100)
   }
 
+  const handleReportPost = (postId: string) => {
+    Alert.alert(
+      'Report this post',
+      'What\'s wrong with it?',
+      [
+        { text: 'Spam', onPress: () => submitContentReport(postId, 'spam') },
+        { text: 'Harassment', onPress: () => submitContentReport(postId, 'harassment') },
+        { text: 'Inappropriate', onPress: () => submitContentReport(postId, 'inappropriate') },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    )
+  }
+
+  const submitContentReport = async (postId: string, reason: ContentReportReason) => {
+    await reportContent({ contentType: 'pulse_post', contentId: postId, zoneId: id, reason })
+    Alert.alert('Reported', 'Thanks for keeping the space safe. We\'ll review this.')
+  }
+
   const handleCheckOut = () => {
     Alert.alert('Check out', 'Leave this venue and end your session?', [
       { text: 'Stay', style: 'cancel' },
@@ -279,6 +305,25 @@ export default function ZoneScreen() {
       {isCheckedIn && (
         <View style={styles.heatBarWrap}>
           <HeatBar count={people.length + (activeSession ? 1 : 0)} />
+        </View>
+      )}
+
+      {/* Venue Highlights — visible to all */}
+      {highlights.length > 0 && (
+        <View style={styles.highlightsWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.highlightsList}
+          >
+            {highlights.map((h) => (
+              <View key={h.id} style={styles.highlightCard}>
+                <Text style={styles.highlightEmoji}>{h.emoji ?? '⭐'}</Text>
+                <Text style={styles.highlightTitle} numberOfLines={1}>{h.title}</Text>
+                {h.body ? <Text style={styles.highlightBody} numberOfLines={2}>{h.body}</Text> : null}
+              </View>
+            ))}
+          </ScrollView>
         </View>
       )}
 
@@ -342,6 +387,7 @@ export default function ZoneScreen() {
                 post={item}
                 currentUserId={userId ?? ''}
                 onDeleted={refreshPulse}
+                onReport={handleReportPost}
               />
             )}
             ListEmptyComponent={
@@ -648,4 +694,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   createEventText: { color: '#29B6F6', fontWeight: '700', fontSize: 14 },
+  highlightsWrap: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#0D1B2E',
+    paddingVertical: 10,
+  },
+  highlightsList: { paddingHorizontal: 14, gap: 10, flexDirection: 'row' },
+  highlightCard: {
+    backgroundColor: '#0D1B2E',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    width: 150,
+    gap: 4,
+  },
+  highlightEmoji: { fontSize: 20 },
+  highlightTitle: { fontSize: 13, fontWeight: '700', color: '#f8fafc' },
+  highlightBody:  { fontSize: 12, color: '#8EADC7', lineHeight: 16 },
 })
