@@ -26,6 +26,7 @@ interface Profile {
   avatar_url: string | null
   is_venue_owner: boolean
   venue_status: string | null
+  is_admin: boolean | null
 }
 
 interface NavItem {
@@ -102,7 +103,15 @@ export default function ProfileScreen() {
       }
     : null
 
-  const navItems: NavItem[] = venueNav ? [...baseNav, venueNav] : baseNav
+  const adminNav: NavItem | null = profile?.is_admin
+    ? { label: 'Admin Panel', route: '/admin', icon: 'shield-checkmark-outline' }
+    : null
+
+  const navItems: NavItem[] = [
+    ...baseNav,
+    ...(venueNav ? [venueNav] : []),
+    ...(adminNav ? [adminNav] : []),
+  ]
 
   return (
     <ScrollView
