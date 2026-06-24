@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HereNow — Master Document · June 2026</title>
+<style>
+  :root {
+    --bg: #050A15;
+    --surface: #0D1B2E;
+    --border: #1A2E4A;
+    --cyan: #29B6F6;
+    --text: #f8fafc;
+    --muted: #7A93AC;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --purple: #a78bfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 0 0 80px;
+  }
+
+  @media print {
+    body { background: #fff; color: #111; font-size: 12px; }
+    header { background: #fff; border-bottom: 2px solid #29B6F6; box-shadow: none; }
+    header h1, header .eyebrow { color: #111; }
+    header p { color: #555; }
+    .surface, .feature-card, .step-num, table { background: #f8f8f8 !important; border-color: #ddd !important; }
+    td, th, p, .step-body, .desc, .note { color: #333 !important; }
+    .badge-live { background: #d1fae5 !important; color: #065f46 !important; }
+    .badge-new { background: #dbeafe !important; color: #1e40af !important; }
+    .badge-pending { background: #fef3c7 !important; color: #92400e !important; }
+    .badge-done { background: #dcfce7 !important; color: #166534 !important; }
+    a { color: #1d4ed8; }
+    .no-print { display: none; }
+  }
+
+  header {
+    background: #060D1A;
+    border-bottom: 2px solid var(--cyan);
+    padding: 40px 48px 32px;
+    box-shadow: 0 0 40px rgba(41,182,246,0.08);
+  }
+
+  header .eyebrow {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  header h1 {
+    font-size: 34px;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  header p { color: var(--muted); font-size: 14px; }
+
+  .print-btn {
+    display: inline-block;
+    margin-top: 16px;
+    background: var(--cyan);
+    color: #050A15;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 0 48px; }
+
+  section { margin-top: 52px; }
+
+  h2 {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h3 { font-size: 17px; font-weight: 800; color: var(--text); margin: 24px 0 8px; }
+  h3:first-of-type { margin-top: 0; }
+
+  p { color: #8EADC7; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--text); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+
+  .card .label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .card .value {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--cyan);
+    margin-bottom: 4px;
+  }
+
+  .card .sub { font-size: 12px; color: var(--muted); }
+
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .badge-live    { background: rgba(34,197,94,0.15);  color: var(--green);  border: 1px solid rgba(34,197,94,0.3); }
+  .badge-new     { background: rgba(41,182,246,0.15); color: var(--cyan);   border: 1px solid rgba(41,182,246,0.3); }
+  .badge-pending { background: rgba(245,158,11,0.15); color: var(--amber);  border: 1px solid rgba(245,158,11,0.3); }
+  .badge-done    { background: rgba(34,197,94,0.12);  color: var(--green);  border: 1px solid rgba(34,197,94,0.25); }
+
+  .feature-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .feature-row .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .feature-row .name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .feature-row .desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  .journey { display: flex; flex-direction: column; }
+
+  .step { display: flex; gap: 18px; position: relative; }
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 17px;
+    top: 40px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+
+  .step-num {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--cyan);
+    color: var(--cyan);
+    font-size: 14px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step-content { padding: 6px 0 26px; flex: 1; }
+  .step-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 5px; }
+  .step-body { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .step-body ul { padding-left: 18px; margin-top: 5px; }
+  .step-body li { margin-bottom: 3px; }
+
+  .note {
+    background: rgba(41,182,246,0.06);
+    border: 1px solid rgba(41,182,246,0.2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #8EADC7;
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+  .note strong { color: var(--cyan); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(26,46,74,0.5);
+    font-size: 13px;
+    color: #8EADC7;
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--text); font-weight: 600; }
+
+  .q-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .q-list li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #8EADC7;
+    line-height: 1.5;
+    display: flex;
+    gap: 12px;
+  }
+  .q-list .qn {
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--cyan);
+    flex-shrink: 0;
+    width: 22px;
+    padding-top: 1px;
+  }
+
+  .divider { margin: 48px 0 0; height: 1px; background: var(--border); }
+  .footer-note { margin-top: 28px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">HereNow — Confidential</div>
+  <h1>Master Document</h1>
+  <p>Prepared for: Jacob Hillenbrand &amp; Joshua Bostic &nbsp;·&nbsp; June 2026 &nbsp;·&nbsp; Version 1.0</p>
+  <button class="print-btn no-print" onclick="window.print()">Download as PDF (Print → Save as PDF)</button>
+</header>
+
+<div class="container">
+
+  <!-- ── WHAT HERENOW IS ── -->
+  <section>
+    <h2>What HereNow Is</h2>
+    <p>HereNow is a <strong>location-aware social layer for the real world.</strong> Not a dating app. Not a feed app. An IRL presence layer that answers one question: <em>who's here right now, and why?</em></p>
+    <p>Users check into venues (zones), set their Social Mode and Mood, see who else is there in real time, and connect IRL via the We Met handshake — which unlocks a 72-hour DM window. Venues can follow along in a live dashboard, post promotions to their followers, and send announcements directly to anyone who's subscribed.</p>
+
+    <div class="three-col" style="margin-top: 20px;">
+      <div class="card">
+        <div class="label">Live at</div>
+        <div class="value" style="font-size: 15px;">herenow-pi.vercel.app</div>
+        <div class="sub">Expo Go — scan QR to test on device</div>
+      </div>
+      <div class="card">
+        <div class="label">Screens built</div>
+        <div class="value">25+</div>
+        <div class="sub">Full app + venue owner portal</div>
+      </div>
+      <div class="card">
+        <div class="label">Status</div>
+        <div class="value" style="font-size: 15px;">MVP Ready</div>
+        <div class="sub">Awaiting real-device test run</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CORE CONCEPTS ── -->
+  <section>
+    <h2>Core Concepts</h2>
+    <div class="feature-row">
+      <div class="icon">📍</div>
+      <div><div class="name">Zone</div><div class="desc">A venue — bar, coffee shop, gym, event space — with a GPS center and a geofence radius. Users enter a zone when they step inside the radius.</div></div>
+    </div>
+    <div class="feature-row">
+      <div class="icon">🎭</div>
+      <div><div class="name">Social Mode</div><div class="desc">Why you're out: Dating / Friends / Networking / Just Vibes. Set at check-in. Visible to others in the zone so intent is clear from the start.</div></div>
+    </div>
+    <div class="feature-row">
+      <div class="icon">🟢</div>
+      <div><div class="name">Mood Mode</div><div class="desc">How approachable you are: Open (come say hi) / Selective (quality over quantity) / Not Today (hard boundary — no approach). Shown on your People card.</div></div>
+    </div>
+    <div class="feature-row">
+      <div class="icon">🤝</div>
+      <div><div class="name">We Met</div><div class="desc">Mutual IRL confirmation. Both people tap "We Met" on each other's card. DMs stay LOCKED while both are at the venue. When you check out, the 72-hour DM window opens. Pending requests expire 4 hours after your session ends.</div></div>
+    </div>
+    <div class="feature-row">
+      <div class="icon">💌</div>
+      <div><div class="name">Direct Messages</div><div class="desc">72-hour window, unlocked on checkout. The time pressure is intentional — it mirrors the natural social context of having just met someone. Premium tier can extend this (planned).</div></div>
+    </div>
+    <div class="feature-row">
+      <div class="icon">📡</div>
+      <div><div class="name">Pulse</div><div class="desc">Ephemeral in-venue social feed. Posts visible only to people checked in at the same zone, right now. Posts expire in 12 hours. A moment, not a record.</div></div>
+    </div>
+    <div class="feature-row">
+      <div class="icon">💬</div>
+      <div><div class="name">Venue Chat</div><div class="desc">Real-time group chat for everyone currently checked in. 24-hour expiry. No archive, no screenshots encouraged — what happens at the venue stays at the venue.</div></div>
+    </div>
+    <div class="feature-row">
+      <div class="icon">✨</div>
+      <div><div class="name">Afterglow</div><div class="desc">Auto-generated session recap when you check out. Duration, people count, connections made, badges earned.</div></div>
+    </div>
+  </section>
+
+  <!-- ── WHAT'S BUILT ── -->
+  <section>
+    <h2>What's Built — Full Feature Status</h2>
+
+    <h3>User Features</h3>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Signup &amp; Login <span class="badge badge-live">Live</span></div><div class="desc">Person and Venue owner flows. Premium animated auth UI. Email + password. Profile created on first sign-in.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Profile Setup <span class="badge badge-live">Live</span></div><div class="desc">Display name, bio, age range, up to 16 interest tags, kickoff prompt ("ask me about..."), avatar upload.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Check-In Flow <span class="badge badge-live">Live</span></div><div class="desc">Social Mode + Mood Mode selection. GPS-based zone detection. Session created in Supabase. Appears in venue's People tab instantly.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">People Tab <span class="badge badge-live">Live</span></div><div class="desc">Live list of who's checked into the same zone. Shows name, age range, interests, kickoff, Social Mode/Mood. Respects check-in privacy setting.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">We Met <span class="badge badge-live">Live</span></div><div class="desc">Mutual tap to confirm you actually met. Pending/Confirmed states. DMs locked until checkout.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Direct Messages <span class="badge badge-live">Live</span></div><div class="desc">72-hour thread, unlocked after checkout. Thread list shows last message, time, unread count, expiry status.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Pulse Feed <span class="badge badge-live">Live</span></div><div class="desc">In-venue post feed. Text posts, 12h expiry. Admin-hidden posts filtered at query level.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Venue Chat <span class="badge badge-live">Live</span></div><div class="desc">Real-time group chat via Supabase Realtime. Admin-hidden messages filtered. 24h expiry.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Afterglow <span class="badge badge-live">Live</span></div><div class="desc">Auto-shown after checkout: duration, people present, We Met count, reflection copy, go-to-messages CTA.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Badges <span class="badge badge-live">Live</span></div><div class="desc">Achievement badges for first check-in, streaks, connections. Shown on profile.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Push Notifications <span class="badge badge-live">Live</span></div><div class="desc">We Met requests, DM pings, venue promo alerts. EAS project ID wired June 23. Tokens register on every sign-in.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Universal Feed <span class="badge badge-live">Live</span></div><div class="desc">Discovery feed across all zones. Includes MY VENUES chip row and FROM YOUR VENUES promo/announcement section for followed venues.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Venue Follow / Subscribe <span class="badge badge-new">New</span></div><div class="desc">+ Follow button on any zone page. Subscribers see venue's promotions and announcements in their feed. Unfollow anytime from My Venues.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">My Venues <span class="badge badge-new">New</span></div><div class="desc">Profile nav item listing all followed venues. Tap to visit, swipe to unfollow.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Check-In Privacy <span class="badge badge-new">New</span></div><div class="desc">Toggle in Edit Profile: Full (name + interests + age + kickoff visible) vs Minimal (name only). Saved per user.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Onboarding <span class="badge badge-live">Live</span></div><div class="desc">5-slide modal on first launch (Welcome / Social Mode / Mood Mode / We Met / Afterglow). Shown once, gated by device storage.</div></div></div>
+
+    <h3 style="margin-top: 28px;">Venue Owner Features</h3>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Venue Signup &amp; Approval <span class="badge badge-live">Live</span></div><div class="desc">Venue toggle on signup. Pending state until admin approves. Dashboard locked during review.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Venue Dashboard <span class="badge badge-live">Live</span></div><div class="desc">Live check-in counter (pulsing dot), subscriber count, age range bars, top interest tags. Quick actions to all venue tools.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Venue Setup / Edit <span class="badge badge-live">Live</span></div><div class="desc">"Use My Location" GPS pin drop. Radius picker (Small 80m / Medium 150m / Large 300m). Name + description. Insert or update.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Venue Highlights <span class="badge badge-live">Live</span></div><div class="desc">Pin up to 5 items at the top of the zone page — featured items, specials, events, photos.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Promotions <span class="badge badge-new">New</span></div><div class="desc">Create deals with title, discount label (e.g. "30% off drinks"), description. Toggle to post to universal feed. Delete anytime.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Announcements <span class="badge badge-new">New</span></div><div class="desc">280-char messages pushed directly to followers. Toggle to post to universal feed. History shown, delete anytime.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Events <span class="badge badge-live">Live</span></div><div class="desc">Create timed events (trivia night, DJ, happy hour) visible on the zone's Events tab.</div></div></div>
+
+    <h3 style="margin-top: 28px;">Admin Features</h3>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Admin Panel <span class="badge badge-live">Live</span></div><div class="desc">User list, venue approval queue, content reports. Actions use server-side RPCs with is_admin double-check.</div></div></div>
+    <div class="feature-row"><div class="icon">✅</div><div><div class="name">Content Moderation <span class="badge badge-live">Live</span></div><div class="desc">Admins can hide pulse posts and chat messages. Hidden content filtered at query level — never reaches clients.</div></div></div>
+  </section>
+
+  <!-- ── WHAT'S NEXT ── -->
+  <section>
+    <h2>What's Next — After First Test Run</h2>
+    <table>
+      <thead><tr><th>Item</th><th>What it is</th><th>Priority</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Privacy RPC enforcement</td>
+          <td>Update <code>active_sessions_in_zone</code> RPC to null-out interests/age/kickoff when user has Minimal privacy set. SQL-only fix.</td>
+          <td><span class="badge badge-pending">High</span></td>
+        </tr>
+        <tr>
+          <td>Promo push delivery</td>
+          <td>When a venue sends a promotion or announcement, followers get a real-time push notification — not just a feed update. Makes venue marketing feel like a broadcast, not passive content.</td>
+          <td><span class="badge badge-pending">High</span></td>
+        </tr>
+        <tr>
+          <td>Auto-subscribe on check-in</td>
+          <td>One-tap "Follow this venue?" prompt when user checks in. Removes friction. Dramatically increases subscription rate.</td>
+          <td><span class="badge badge-pending">Medium</span></td>
+        </tr>
+        <tr>
+          <td>Venue analytics</td>
+          <td>Real analytics dashboard — check-ins over time, peak hours, social mode breakdown, follower growth.</td>
+          <td><span class="badge badge-pending">Medium</span></td>
+        </tr>
+        <tr>
+          <td>QR code check-in</td>
+          <td>Scannable QR at venue entrance → deep-links to check-in screen. Removes dependency on GPS radius for exact-location venues.</td>
+          <td><span class="badge badge-pending">Medium</span></td>
+        </tr>
+        <tr>
+          <td>App store build (EAS)</td>
+          <td>SDK upgrade + EAS Build → signed APK for Google Play, IPA for Apple App Store.</td>
+          <td><span class="badge badge-pending">Post-test</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── LONGER ROADMAP ── -->
+  <section>
+    <h2>V2+ Roadmap</h2>
+    <div class="two-col">
+      <div class="card"><div class="label">Premium Venue Tiers</div><p>Analytics dashboard, branded check-in pages, promoted events, priority placement in discovery feed. Stripe integration for venue subscriptions.</p></div>
+      <div class="card"><div class="label">Group We Met</div><p>Multiple people in a group connect at once — for when you meet a table, not just one person.</p></div>
+      <div class="card"><div class="label">Ghost Mode</div><p>Invisible to the People list but still able to see others. For users who want to observe before engaging.</p></div>
+      <div class="card"><div class="label">Venue Claiming</div><p>Non-owner venues (seeded from maps data) can be claimed by real owners with verification step.</p></div>
+      <div class="card"><div class="label">Pulse Templates</div><p>Suggested post prompts based on venue type — "How's the service tonight?" at a restaurant, "What are you drinking?" at a bar.</p></div>
+      <div class="card"><div class="label">Extended DM Windows</div><p>Premium users get longer DM windows (7 days, 14 days). Incentivizes upgrade while keeping free tier experiential.</p></div>
+    </div>
+  </section>
+
+  <!-- ── USER JOURNEY ── -->
+  <section>
+    <h2>Regular User — Step by Step</h2>
+    <div class="journey">
+      <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Sign up</div><div class="step-body">Email + password + display name + username. Select "Person" toggle. Email confirmation required.</div></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Build profile</div><div class="step-body">Age range, up to 16 interest tags (Music, Gaming, Art, etc.), conversation kickoff ("ask me about..."), optional avatar. Check-in privacy toggle: Full or Minimal.</div></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Open the map</div><div class="step-body">Nearby tab shows venues on a dark map with geofence circles and live check-in counts. Feed tab shows discovery posts and followed-venue updates.</div></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Arrive at a venue</div><div class="step-body">Zone page: who's here, Pulse feed, Chat, Events. + Follow button to subscribe to venue promos. Venue highlights pinned at top.</div></div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-content"><div class="step-title">Check in</div><div class="step-body">Choose Social Mode (why you're here) + Mood Mode (how approachable). Appears in People list for others. Privacy setting controls what's visible.</div></div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-content"><div class="step-title">Connect</div><div class="step-body">Tap someone's card → view profile → tap We Met. They get a push notification. Both confirm → DMs locked until checkout.</div></div></div>
+      <div class="step"><div class="step-num">7</div><div class="step-content"><div class="step-title">Check out → Afterglow</div><div class="step-body">72-hour DM window opens. Afterglow shows duration, people present, connections made, badges earned.</div></div></div>
+    </div>
+  </section>
+
+  <!-- ── VENUE JOURNEY ── -->
+  <section>
+    <h2>Venue Owner — Step by Step</h2>
+    <div class="journey">
+      <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Sign up as a venue</div><div class="step-body">Toggle to "Venue" on signup. Enter venue name, type (Bar / Coffee Shop / Restaurant / Event Space / etc.), email, password. Profile created with <code>venue_status = pending</code>.</div></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Pending review</div><div class="step-body">Dashboard shows "Under Review" state. Admin approves via admin panel. Usually within 24-48 hours.</div></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Set venue location</div><div class="step-body">Edit Venue → "Use My Location" → choose radius (Small 80m / Medium 150m / Large 300m) → Save. Geofencing goes live immediately. No manual lat/lng needed.</div></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Dashboard goes live</div><div class="step-body">Live check-in counter, subscriber count, age range bars, interest tag cloud. Quick actions to all tools.</div></div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-content"><div class="step-title">Market to followers</div><div class="step-body">Promotions: title + discount label + description + optional universal feed post. Announcements: 280-char direct to subscribers. Both appear in followers' feed instantly.</div></div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-content"><div class="step-title">Manage appearance</div><div class="step-body">Highlights: pin up to 5 items on zone page. Events: create trivia nights, DJ sets, happy hours. All visible to users on the zone's Events tab.</div></div></div>
+    </div>
+  </section>
+
+  <!-- ── QUESTIONS FOR JACOB ── -->
+  <section>
+    <h2>Questions for Jacob — Shaping the Vision</h2>
+    <p>These questions are here to make sure every decision we make builds toward what you actually need. No wrong answers — the more detail, the better the product.</p>
+    <ul class="q-list">
+      <li><span class="qn">1</span>When you picture a perfect night at your venue using HereNow — what does it look like? Walk us through it from the moment someone walks in.</li>
+      <li><span class="qn">2</span>What's the main thing you want from a venue owner perspective — more foot traffic, better customer relationships, or something else?</li>
+      <li><span class="qn">3</span>When you send an announcement to followers, what would a real example look like? (e.g. "DJ starts at 10, free entry before 9" — or something totally different?)</li>
+      <li><span class="qn">4</span>How often would you realistically send a promotion or announcement? Daily? Weekly? Only for special events?</li>
+      <li><span class="qn">5</span>Right now users have to manually tap Follow on a venue. Would you prefer they get auto-subscribed when they check in, or should it stay opt-in?</li>
+      <li><span class="qn">6</span>How do you feel about users seeing each other's age range and interests at your venue? Is that a feature or a concern for your crowd?</li>
+      <li><span class="qn">7</span>The DM window closes 72 hours after checkout. Does that feel right to you, or would you want it longer or shorter?</li>
+      <li><span class="qn">8</span>What types of venues do you see HereNow being most powerful in — bars, restaurants, gyms, events, co-working spaces, something else?</li>
+      <li><span class="qn">9</span>Is there a type of venue where you think HereNow would NOT work, and why?</li>
+      <li><span class="qn">10</span>How important is the "anonymous" or privacy angle to users at your venue? Do people want to be seen, or do they want control?</li>
+      <li><span class="qn">11</span>What would make you recommend HereNow to another venue owner? What's the "aha" moment you'd tell them about?</li>
+      <li><span class="qn">12</span>If you could add ONE thing to the venue dashboard that isn't there yet, what would it be?</li>
+      <li><span class="qn">13</span>Would you want to be able to respond to or interact with users' Pulse posts as the venue? (e.g. pin a post, react to it, reply officially)</li>
+      <li><span class="qn">14</span>How do you feel about the venue chat — do you want to be able to jump in as the venue, or should it stay user-only?</li>
+      <li><span class="qn">15</span>On the user side — would you (or people you know) actually use the We Met feature? Does the concept of in-person confirmation before DMs feel right?</li>
+      <li><span class="qn">16</span>Are there safety or moderation concerns you're thinking about as a venue owner? What would make you feel confident running this at your spot?</li>
+      <li><span class="qn">17</span>Would you want a QR code at the door that sends people straight to check-in? Or does the GPS auto-detection feel like enough?</li>
+      <li><span class="qn">18</span>Do you see HereNow as something your regulars use, new visitors, or both?</li>
+      <li><span class="qn">19</span>If we built a premium venue tier with deeper analytics and featured placement — what would it be worth to you per month?</li>
+      <li><span class="qn">20</span>What would have to be true for HereNow to be a tool you open every single night you're running the venue?</li>
+    </ul>
+  </section>
+
+  <div class="divider"></div>
+  <p class="footer-note">
+    HereNow — Confidential &nbsp;·&nbsp; Prepared June 2026 &nbsp;·&nbsp; Joshua Bostic, Gilgamesh Enterprise LLC &nbsp;·&nbsp; repo: gilgameshenterprisellc-pixel/herenow
+  </p>
+
+</div>
+</body>
+</html>
