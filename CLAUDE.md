@@ -240,6 +240,9 @@ Both login and signup use the same electric premium design:
 | #13 | fix/web-layout-and-venue-gating | (merged together with #12 — see git log) |
 | #14 | fix/web-header-alignment | Page headers (Nearby, Feed, Notifications) were hard-left on desktop. Added `maxWidth: 680, alignSelf: center` to all three `header` styles. NearbyMap: dark background `wrap` spans full width, inner content `inner` is constrained. Feed + Notifications: header style objects updated. |
 | #15 | feat/landing-animated-bg | **Landing page** (`app/index.tsx` — web only, native redirects). 5 animated orbs (cyan/blue/purple/teal), dot-grid texture, "Be Here." hero, staggered `FadeInDown` entrance animations, bouncing scroll caret, 3-section layout. **`AnimatedBackground` component** added to all 4 tab screens — subtle backdrop orbs. **Ionicons** replace all emoji in empty states (Nearby 🌐→globe-outline, Feed 📡→radio-outline, Notifications 🔔→notifications-outline). Notification row icons replaced: TYPE_META now uses Ionicon names + colors instead of emoji strings — colored icon boxes with subtle border per type. |
+| #16–#20 | feat/pwa-highlights-admin-moderation | PWA manifest + service worker, venue highlights (pin up to 5 items on zone page), admin panel (user list, venue approval queue, content reports), content moderation (hide pulse posts + chat messages at query level), full mobile sweep (safe-area, KAV, .maybeSingle fixes). |
+| #21 | feat/venue-subs-privacy-feed-sweep | **Venue subscriptions** — users follow venues, get promos/announcements in feed. **MY VENUES** chip row + **FROM YOUR VENUES** feed section. **Venue promotions** (`/venue/promotions`) — title, discount label, description, feed toggle, delete. **Venue announcements** (`/venue/announcements`) — 280-char, feed toggle, history. **My Venues screen** (`/my-venues`). **Check-in privacy toggle** (Full vs Minimal, saved to `checkin_visibility` on profiles). **Venue dashboard subscriber count**. Content moderation wired into `fetchPulse` + `fetchChat`. Login Enter key fix. 4 screens safe-area fixed. 2 screens KAV added. `.maybeSingle()` on afterglow + check-in. Messages list bottom padding. 2 redundant `getUser()` calls removed. `docs/herenow-scope-june2026.html` scope document added. |
+| #22 | chore/eas-push-claudemd-update | EAS project ID wired into `app.json` (ID: `961a1251-c044-441c-802e-1e3f7711bcf4`, project: `@gilgameshenterprisellc/jbost` on expo.dev). `push_token TEXT` column added to profiles (SQL applied June 23). Push notifications now fully active — tokens register on every sign-in. CLAUDE.md updated. Master doc updated. |
 
 ---
 
@@ -277,40 +280,29 @@ VALUES (
 
 ### Before Jacob's Test Run
 
-1. ✅ All PRs merged (#1–#9)
-2. ✅ SQL schema applied (confirmed — `we_met`, `profiles`, etc. all exist)
+1. ✅ All PRs merged (#1–#21)
+2. ✅ SQL schema applied (confirmed — `we_met`, `profiles`, `venue_subscriptions`, `venue_promotions`, `venue_announcements`, `checkin_visibility` column all exist)
 3. ✅ Jacob's venue — he sets his own location via `/venue/edit` (no manual seed needed)
+4. ✅ Push notifications fully active — EAS project ID `961a1251-c044-441c-802e-1e3f7711bcf4` in `app.json`. `push_token` column on profiles (SQL applied June 23). Tokens register on every sign-in.
+5. ✅ Jacob admin access — run after he signs up with `hillenbrand.jacob@gmail.com`: `INSERT INTO profiles (id, display_name, username, is_admin, venue_status) SELECT id, 'Jacob', 'jacob_h', true, 'none' FROM auth.users WHERE email = 'hillenbrand.jacob@gmail.com' ON CONFLICT (id) DO UPDATE SET is_admin = true;`
 
-4. **Push notifications — one manual step remaining:**
-   The push code is fully built (`lib/push.ts`, wired in `_layout.tsx`, fires via `sendNotification()`).
-   Two things needed to activate it:
+6. **Real device testing** — both Joshua and Jacob scan `herenow-pi.vercel.app` QR in Expo Go. GPS, geofencing, and KAV behavior must be validated on real hardware — not simulators or browser.
 
-   **Step A — SQL (run once in Supabase):**
-   ```sql
-   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_token TEXT DEFAULT NULL;
-   ```
+### Near-Term Feature Gaps (post-Jacob-test-run)
 
-   **Step B — EAS project ID (run once in terminal):**
-   ```bash
-   npx eas login          # log in to your Expo account (expo.dev)
-   npx eas init           # links this project, auto-updates app.json with real projectId
-   ```
-   After running `eas init`, commit the updated `app.json` — that's the only file that changes.
-   Once that's done, push tokens register on every sign-in and Expo Push Service delivers notifications.
+7. **`active_sessions_in_zone` RPC — privacy enforcement** — `checkin_visibility` column exists and saves correctly, but the RPC still returns full data regardless of setting. Needs SQL update to null-out `interest_tags`, `kickoffs`, `age_range` when `checkin_visibility = 'minimal'`. SQL-only fix, no code change needed.
 
-5. **Real device testing** — both Joshua and Jacob scan `herenow-pi.vercel.app` QR in Expo Go. GPS, geofencing, and KAV behavior must be validated on real hardware — not simulators or browser.
+8. **Push delivery for venue promos/announcements** — followers see promos in their feed but don't get a real-time push notification when a venue sends one. This is the difference between marketing and passive content. Build after Jacob's test run confirms the feed flow works.
 
-### Near-Term Feature Gaps
+9. **Auto-subscribe on check-in** — currently manual only (Follow button on zone page). Jacob's vision includes auto or manual. A one-tap "Follow this venue?" prompt at check-in moment would dramatically increase subscription rates.
 
-6. **`/venue/dashboard` — Events tab and QR share** — "Add Event" and "Share QR" quick actions currently show `Alert('Coming soon')`. Build these when venue testing validates the core flow.
+10. **`/venue/dashboard` — Events tab and QR share** — "Add Event" and "Share QR" quick actions currently show `Alert('Coming soon')`. Build these when venue testing validates the core flow.
 
-7. **Analytics for venue owners** — `/venue/dashboard` quick action stub. After Jacob's run, build real analytics (check-in count over time, peak hours, social mode breakdown).
+11. **Analytics for venue owners** — `/venue/dashboard` quick action stub. After Jacob's run, build real analytics (check-in count over time, peak hours, social mode breakdown).
 
-8. **We Met `checkOut()` afterglow** — `SessionContext.checkOut()` should create an afterglow row after checkout. Verify this is wired correctly — was an unverified gap.
+12. **We Met `checkOut()` afterglow** — `SessionContext.checkOut()` should create an afterglow row after checkout. Verify this is wired correctly — was an unverified gap.
 
-9. **Zone [id] screen tabs** — `app/zone/[id].tsx` has 4 tabs (People / Pulse / Chat / Events). Confirm each tab is fully functional against the live Supabase schema after SQL is applied.
-
-10. **Onboarding modal** — `components/OnboardingModal.tsx` (5 slides: Welcome, Social Mode, Mood Mode, We Met, Afterglow). Confirm it shows only on first launch (AsyncStorage gate).
+13. **Onboarding modal** — `components/OnboardingModal.tsx` (5 slides: Welcome, Social Mode, Mood Mode, We Met, Afterglow). Confirm it shows only on first launch (AsyncStorage gate).
 
 ### Before App Store Launch
 
