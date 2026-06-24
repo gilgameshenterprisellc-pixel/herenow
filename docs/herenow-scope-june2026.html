@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HereNow — Feature Scope & Status · June 2026</title>
+<style>
+  :root {
+    --bg: #050A15;
+    --surface: #0D1B2E;
+    --border: #1A2E4A;
+    --cyan: #29B6F6;
+    --text: #f8fafc;
+    --muted: #7A93AC;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --purple: #a78bfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 0 0 80px;
+  }
+
+  header {
+    background: #060D1A;
+    border-bottom: 2px solid var(--cyan);
+    padding: 40px 48px 32px;
+    box-shadow: 0 0 40px rgba(41,182,246,0.08);
+  }
+
+  header .eyebrow {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  header h1 {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  section {
+    margin-top: 56px;
+  }
+
+  h2 {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+    margin-top: 28px;
+  }
+
+  h3:first-of-type { margin-top: 0; }
+
+  p { color: #8EADC7; margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    position: relative;
+  }
+
+  .feature-card .name {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .feature-card .desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .badge-live    { background: rgba(34,197,94,0.15);  color: var(--green);  border: 1px solid rgba(34,197,94,0.3); }
+  .badge-new     { background: rgba(41,182,246,0.15); color: var(--cyan);   border: 1px solid rgba(41,182,246,0.3); }
+  .badge-pending { background: rgba(245,158,11,0.15); color: var(--amber);  border: 1px solid rgba(245,158,11,0.3); }
+  .badge-wip     { background: rgba(167,139,250,0.15); color: var(--purple); border: 1px solid rgba(167,139,250,0.3); }
+
+  .journey {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step {
+    display: flex;
+    gap: 20px;
+    position: relative;
+  }
+
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 44px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+
+  .step-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--cyan);
+    color: var(--cyan);
+    font-size: 15px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step-content {
+    padding-top: 8px;
+    padding-bottom: 28px;
+    flex: 1;
+  }
+
+  .step-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .step-body {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .step-body ul {
+    padding-left: 20px;
+    margin-top: 6px;
+  }
+
+  .step-body li { margin-bottom: 4px; }
+
+  .note {
+    background: rgba(41,182,246,0.06);
+    border: 1px solid rgba(41,182,246,0.2);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: #8EADC7;
+    margin-top: 14px;
+    line-height: 1.6;
+  }
+
+  .note strong { color: var(--cyan); }
+
+  .sql-block {
+    background: #020710;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-family: 'SF Mono', Consolas, 'Courier New', monospace;
+    font-size: 12px;
+    color: #7ECFFF;
+    line-height: 1.7;
+    margin-top: 12px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 14px;
+  }
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(26,46,74,0.5);
+    font-size: 13px;
+    color: #8EADC7;
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  td:first-child { color: var(--text); font-weight: 600; }
+
+  .divider {
+    margin: 40px 0 0;
+    height: 1px;
+    background: var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">HereNow Internal</div>
+  <h1>Feature Scope &amp; Status</h1>
+  <p>Branch: <code>feat/venue-subs-privacy-feed-sweep</code> &nbsp;·&nbsp; June 2026 &nbsp;·&nbsp; Draft for Jacob, Jamie, Joshua review</p>
+</header>
+
+<div class="container">
+
+  <!-- ── FEATURE STATUS ── -->
+  <section>
+    <h2>Feature Status Overview</h2>
+    <div class="status-grid">
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> User Authentication</div>
+        <div class="desc">Email + password signup/login. Profile creation on first sign-in. Pending profile restore for email-confirmation flow on web.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Zone Check-In</div>
+        <div class="desc">GPS-based zone entry. Users select social mode (Open / Selective / Quiet) and mood. Sessions end on checkout or app close. PostGIS geofencing.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> People at This Venue</div>
+        <div class="desc">Live list of checked-in users at the same zone. Shows name, interests, age range, kickoff prompt. Respects new check-in privacy setting.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> We Met</div>
+        <div class="desc">Mutual connection request between checked-in users. Pending / Confirmed states. Direct message thread unlocked on both-sides confirm.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Direct Messages</div>
+        <div class="desc">Thread-based DMs between We Met pairs. Real-time via Supabase subscriptions. Message thread at <code>/messages/[wemetId]</code>.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Zone Pulse</div>
+        <div class="desc">Social post feed inside a zone. Posts visible to everyone in the zone right now. Hidden posts filtered at query level (admin moderation).</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Zone Chat</div>
+        <div class="desc">Real-time group chat inside a zone. Hidden messages filtered at query level. Reported messages flow to admin panel.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Universal Feed</div>
+        <div class="desc">Discovery feed showing all zone_posts across the app. Includes venue subscription sections: MY VENUES chip row + FROM YOUR VENUES feed cards.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Afterglow</div>
+        <div class="desc">Session recap shown after checkout. Venue visited, duration, connections made, mood summary.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Badges</div>
+        <div class="desc">Achievement badges awarded for first check-in, streak milestones, connections made. Displayed on profile.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Push Notifications</div>
+        <div class="desc">We Met requests, message pings, venue promotion alerts. Notifications tab in bottom nav. Supabase push token registry.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Venue Dashboard</div>
+        <div class="desc">Venue owners see live check-in count, age breakdown, interest cloud, subscriber count. Quick actions to manage all venue features.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-new">New</span> Venue Subscriptions (Follow)</div>
+        <div class="desc">Users tap "+ Follow" on any venue page. Creates a subscription row. Venue's promos and announcements appear in their feed. Unfollow from My Venues.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-new">New</span> Venue Promotions</div>
+        <div class="desc">Venue owners create promotions (title, discount label, description, feed toggle). Shown on venue page and in followers' feeds. Owner can delete anytime.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-new">New</span> Venue Announcements</div>
+        <div class="desc">280-char venue announcements pushed to followers. Optional universal feed post. History shown to venue owner. Venue owners can delete past announcements.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-new">New</span> My Venues</div>
+        <div class="desc">Profile nav item listing all venues the user follows. Tap to visit. Unfollow with confirmation. Empty state guides new users to find venues.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-new">New</span> Check-in Privacy</div>
+        <div class="desc">Toggle in Edit Profile: Full (name + interests + age + kickoff shown) vs Minimal (name only). Saved to <code>checkin_visibility</code> on profiles table.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Venue Highlights</div>
+        <div class="desc">Venue owners pin up to 5 highlight items (photo/text) shown at top of the zone page. Reorderable. Admin-controlled.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Admin Panel</div>
+        <div class="desc">Admin-only screens: user list, venue approval queue, content reports. Actions use server-side RPC with <code>is_admin</code> double-check.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> Content Moderation</div>
+        <div class="desc">Admins can hide pulse posts and chat messages. Hidden content filtered at query level — never reaches the client.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-live">Live</span> PWA / Web</div>
+        <div class="desc">Expo web build with service worker registration. Full feature parity with native. Safe area insets applied across all screens.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-pending">Pending</span> Auto-subscribe on Check-In</div>
+        <div class="desc">Jacob's idea: prompt users to follow a venue automatically when they check in. Currently manual. Planned follow-up.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-pending">Pending</span> active_sessions RPC Privacy</div>
+        <div class="desc">The RPC that returns checked-in users needs updating to null-out interest_tags, kickoffs, age_range when checkin_visibility = 'minimal'. Backend SQL task.</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="name"><span class="badge badge-wip">Roadmap</span> Instagram / TikTok Social Auth</div>
+        <div class="desc">Let users connect social handles to their profile. Show follower count as social proof to others at the venue.</div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── VENUE OWNER JOURNEY ── -->
+  <section>
+    <h2>Venue Owner — Full Journey</h2>
+    <div class="journey">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Apply as a venue</div>
+          <div class="step-body">
+            On the signup screen, owner selects "I own or manage a venue." They fill out the venue application form at <code>/zone/create</code>:
+            <ul>
+              <li>Venue name and description</li>
+              <li>Venue type (bar, restaurant, gym, coffee shop, etc.)</li>
+              <li>Radius (geofence size in meters — how far out check-in triggers)</li>
+              <li>GPS location auto-detected or manually confirmed</li>
+            </ul>
+            Application submitted → <code>profile.venue_status = 'pending'</code>, <code>profile.is_venue_owner = true</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Waiting for approval</div>
+          <div class="step-body">
+            The venue owner sees an "Under Review" screen when they open Venue Dashboard. They cannot access dashboard tools until approved.
+            The pending card shows:
+            <ul>
+              <li>"Your venue application is being reviewed — usually 24–48 hours"</li>
+              <li>A contact email: support@herenow.app</li>
+              <li>Back to Home button</li>
+            </ul>
+            Profile nav shows "Venue Status" with an amber ⏱ Pending pill badge.
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Admin reviews and approves</div>
+          <div class="step-body">
+            Admin opens <code>/admin/venues</code>. Sees all pending applications with venue name, owner name, and type. Approves or denies. On approval:
+            <ul>
+              <li><code>profiles.venue_status</code> → <code>'approved'</code></li>
+              <li>A zone row is created (or linked if already attached)</li>
+              <li>Venue owner receives a push notification (planned)</li>
+            </ul>
+            <div class="note">
+              <strong>Admin access:</strong> Jacob and Jamie are granted <code>is_admin = true</code> via the SQL migration. Any profile with this flag can access all admin routes.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Venue dashboard is live</div>
+          <div class="step-body">
+            Once approved, the owner sees the full dashboard at <code>/venue/dashboard</code>:
+            <ul>
+              <li><strong>Live check-in counter</strong> — pulsing dot when anyone is in</li>
+              <li><strong>Subscriber count</strong> — how many users are following the venue</li>
+              <li><strong>Age range breakdown</strong> — anonymous bar chart (when check-ins active)</li>
+              <li><strong>Top interests in the room</strong> — tag cloud (when check-ins active)</li>
+            </ul>
+            Quick action grid: Edit Venue · Add Event · Highlights · Promotions · Announce.
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Market to followers</div>
+          <div class="step-body">
+            <strong>Promotions</strong> (<code>/venue/promotions</code>):
+            <ul>
+              <li>Title (required, max 80 chars)</li>
+              <li>Discount label — "30% off drinks", "Free entry before 10pm" (max 50 chars)</li>
+              <li>Details / description (max 400 chars)</li>
+              <li>Toggle: post to universal feed (all HereNow users) vs followers only</li>
+            </ul>
+            <strong>Announcements</strong> (<code>/venue/announcements</code>):
+            <ul>
+              <li>Up to 280 chars — like a tweet, direct to followers</li>
+              <li>Toggle: post to universal feed</li>
+              <li>History shown, delete anytime</li>
+            </ul>
+            Both appear in followers' <strong>FROM YOUR VENUES</strong> feed section immediately.
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <div class="step-title">Manage venue appearance</div>
+          <div class="step-body">
+            <strong>Highlights</strong> (<code>/venue/highlights</code>): Pin up to 5 items shown at the top of the zone page — featured menu items, specials, upcoming events, photos.
+            <br /><br />
+            <strong>Edit Venue</strong> (<code>/venue/edit</code>): Update name, description, type, geofence radius, and GPS location at any time.
+            <br /><br />
+            <strong>Add Events</strong> (<code>/zone/event/create</code>): Create timed events (trivia night, DJ, happy hour) that show in the zone's event feed.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── REGULAR USER JOURNEY ── -->
+  <section>
+    <h2>Regular User — Full Journey</h2>
+    <div class="journey">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Sign up</div>
+          <div class="step-body">
+            Screen at <code>/(auth)/signup</code>:
+            <ul>
+              <li>Email + password</li>
+              <li>Display name (what others see at venues)</li>
+              <li>Username (unique handle)</li>
+              <li>"I own or manage a venue" checkbox — routes to venue application if checked</li>
+            </ul>
+            Email confirmation required before first sign-in. On web, profile created automatically after email confirm via pending-profile localStorage restore.
+            <div class="note">
+              <strong>Login fix shipped:</strong> Pressing Enter on the password field now submits the login form — no more having to manually tap "Sign In."
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Set up profile</div>
+          <div class="step-body">
+            Profile edit at <code>/profile/edit</code>:
+            <ul>
+              <li>Display name, bio (160 chars), avatar photo (web upload)</li>
+              <li>Age range — shown to others at venues (or hidden via privacy)</li>
+              <li>Interests — up to 16 tags (Music, Gaming, Art, etc.)</li>
+              <li>Conversation kickoff — one-liner shown on your People card</li>
+              <li><strong>Check-in Privacy toggle</strong> (new): Full (all visible) vs Minimal (name only)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Explore the home feed</div>
+          <div class="step-body">
+            Home tab (<code>/(tabs)/index</code>): Zone map showing nearby venues and events. Tap a zone chip to open it.
+            <br /><br />
+            Feed tab (<code>/(tabs)/feed</code>):
+            <ul>
+              <li><strong>MY VENUES</strong> — horizontal scroll chips for venues you follow. Tap to jump to the zone.</li>
+              <li><strong>FROM YOUR VENUES</strong> — promotions and announcements from followed venues, sorted newest first.</li>
+              <li><strong>DISCOVERY</strong> — universal post feed from all zones.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Arrive at a venue — zone page</div>
+          <div class="step-body">
+            Zone page at <code>/zone/[id]</code>:
+            <ul>
+              <li>Venue name, type, active event (if any)</li>
+              <li><strong>+ Follow button</strong> (new): Subscribe to get the venue's future promos in your feed. Bell icon 🔔 when following.</li>
+              <li>Venue highlights pinned at top</li>
+              <li>People tab — who's checked in right now</li>
+              <li>Pulse tab — zone social feed</li>
+              <li>Chat tab — live group chat</li>
+              <li>Events tab — upcoming events</li>
+              <li>Check In button — opens check-in screen</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Check in</div>
+          <div class="step-body">
+            Check-in screen at <code>/check-in/[zoneId]</code>:
+            <ul>
+              <li>Choose Social Mode: Open (visible to all) / Selective (visible to interests-match) / Quiet (hidden from People list)</li>
+              <li>Choose Mood: Open to chat / Selective / Just vibing</li>
+              <li>Tap "Check In" → session row created, appears in People list for others</li>
+            </ul>
+            Privacy: if user has set Minimal check-in privacy, their interests, age, and kickoff are hidden from other users' People cards — only their name shows.
+            <div class="note">
+              <strong>Planned:</strong> Auto-subscribe prompt on first check-in — "Follow this venue to see their deals?" (one-tap follow at check-in moment).
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <div class="step-title">Connect with people</div>
+          <div class="step-body">
+            From the People tab:
+            <ul>
+              <li>Tap a person's card to view their full profile (respects their privacy setting)</li>
+              <li>Tap "We Met" to send a connection request</li>
+              <li>Other person sees a pending notification; accepts or declines</li>
+              <li>Both accept → DM thread unlocked at <code>/messages/[wemetId]</code></li>
+            </ul>
+            Post to Pulse — share a moment to the zone's social feed (text or image).
+            <br />
+            Chat in real-time with everyone in the zone via the Chat tab.
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-content">
+          <div class="step-title">Check out &amp; Afterglow</div>
+          <div class="step-body">
+            Check out via the zone page or the active session card on profile. Session ends, user exits People list. Afterglow screen shows:
+            <ul>
+              <li>Venue visited, time spent</li>
+              <li>Connections made this session</li>
+              <li>Any badges earned</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">8</div>
+        <div class="step-content">
+          <div class="step-title">Manage venues you follow</div>
+          <div class="step-body">
+            Profile → My Venues (<code>/my-venues</code>):
+            <ul>
+              <li>List of all followed venues with follow date and type</li>
+              <li>Tap venue to jump to its zone page</li>
+              <li>Unfollow with confirmation — stops promos appearing in feed</li>
+              <li>Empty state explains how to follow from a venue page</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── DATABASE TABLES ── -->
+  <section>
+    <h2>New Database Tables (this PR)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th>Purpose</th>
+          <th>Key columns</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>venue_subscriptions</td>
+          <td>Tracks which users follow which venues</td>
+          <td>user_id, zone_id (UNIQUE pair), subscribed_at</td>
+        </tr>
+        <tr>
+          <td>venue_promotions</td>
+          <td>Deals and offers created by venue owners</td>
+          <td>zone_id, title, discount_label, description, post_to_feed, expires_at</td>
+        </tr>
+        <tr>
+          <td>venue_announcements</td>
+          <td>Short messages pushed to venue followers</td>
+          <td>zone_id, message (280 chars), post_to_feed</td>
+        </tr>
+        <tr>
+          <td>profiles.checkin_visibility</td>
+          <td>Column (not table) — user's check-in privacy preference</td>
+          <td>'full' (default) | 'minimal'</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note" style="margin-top: 20px;">
+      <strong>SQL to run in Supabase:</strong> See <code>supabase/venue_subscriptions.sql</code> for the full migration including RLS policies. The <code>checkin_visibility</code> column is in the same file.
+    </div>
+  </section>
+
+
+  <!-- ── BUG FIXES IN THIS PR ── -->
+  <section>
+    <h2>Bug Fixes &amp; Code Quality (this PR)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Fix</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Enter key on login</td>
+          <td>Password TextInput now has <code>returnKeyType="go"</code> + <code>onSubmitEditing={handleLogin}</code>. Pressing Enter/Go submits the form.</td>
+        </tr>
+        <tr>
+          <td>Safe area insets — 4 screens</td>
+          <td><code>check-in/[zoneId]</code>, <code>we-met</code>, <code>zone/create</code>, <code>zone/event/create</code> all had hardcoded <code>paddingTop: 56</code>. Now use <code>useSafeAreaInsets()</code> — correct on notch phones and iPads.</td>
+        </tr>
+        <tr>
+          <td>KeyboardAvoidingView — 2 screens</td>
+          <td><code>zone/create</code> and <code>zone/event/create</code> now wrap in KAV so keyboard doesn't cover text inputs on iOS.</td>
+        </tr>
+        <tr>
+          <td>.single() → .maybeSingle()</td>
+          <td><code>afterglow/[sessionId]</code> and <code>check-in/[zoneId]</code> — changed to <code>.maybeSingle()</code> so missing rows return null instead of PGRST116 error.</td>
+        </tr>
+        <tr>
+          <td>Hidden content moderation</td>
+          <td><code>fetchPulse</code> and <code>fetchChat</code> now filter <code>.eq('is_hidden', false)</code>. Admin-hidden posts/messages never reach clients.</td>
+        </tr>
+        <tr>
+          <td>Messages list bottom padding</td>
+          <td><code>app/messages/index.tsx</code> list style now has <code>paddingBottom: 80</code> so the last thread isn't hidden behind the tab bar.</td>
+        </tr>
+        <tr>
+          <td>Redundant auth calls</td>
+          <td><code>venue/promotions</code> and <code>venue/announcements</code> were calling <code>getUser()</code> inside the INSERT object on every save. Moved to top of handler, single call with early exit guard.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+
+  <!-- ── PENDING BACKEND ── -->
+  <section>
+    <h2>Pending — Backend / SQL Tasks</h2>
+    <div class="journey">
+
+      <div class="step">
+        <div class="step-num">!</div>
+        <div class="step-content">
+          <div class="step-title">active_sessions_in_zone RPC — privacy filter</div>
+          <div class="step-body">
+            The RPC that returns checked-in users to the People tab needs to be updated to respect <code>checkin_visibility</code>. When <code>checkin_visibility = 'minimal'</code>, null out <code>interest_tags</code>, <code>kickoffs</code>, and <code>age_range</code> in the returned row.
+            <div class="sql-block">-- Pseudocode for the RPC update:
+SELECT
+  p.id,
+  p.display_name,
+  p.avatar_url,
+  CASE WHEN p.checkin_visibility = 'full' THEN p.interest_tags ELSE '{}' END AS interest_tags,
+  CASE WHEN p.checkin_visibility = 'full' THEN p.kickoffs       ELSE '{}' END AS kickoffs,
+  CASE WHEN p.checkin_visibility = 'full' THEN p.age_range      ELSE NULL  END AS age_range,
+  s.social_mode,
+  s.mood_mode
+FROM sessions s
+JOIN profiles p ON p.id = s.user_id
+WHERE s.zone_id = _zone_id AND s.checked_out_at IS NULL;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">!</div>
+        <div class="step-content">
+          <div class="step-title">Admin access — Jacob Hillenbrand</div>
+          <div class="step-body">
+            Run after Jacob signs up with <code>hillenbrand.jacob@gmail.com</code>:
+            <div class="sql-block">INSERT INTO profiles (id, display_name, username, is_admin, venue_status)
+SELECT id, 'Jacob', 'jacob_h', true, 'none'
+FROM auth.users WHERE email = 'hillenbrand.jacob@gmail.com'
+ON CONFLICT (id) DO UPDATE SET is_admin = true;</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="divider"></div>
+  <p style="margin-top: 32px; color: var(--muted); font-size: 12px;">
+    Generated June 2026 · Branch: feat/venue-subs-privacy-feed-sweep · Internal use only
+  </p>
+
+</div>
+</body>
+</html>

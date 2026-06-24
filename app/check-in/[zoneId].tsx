@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
@@ -70,6 +71,7 @@ const MOOD_MODES: { mode: MoodMode; emoji: string; label: string; desc: string; 
 ]
 
 export default function CheckInScreen() {
+  const insets = useSafeAreaInsets()
   const { zoneId } = useLocalSearchParams<{ zoneId: string }>()
   const [zoneName, setZoneName]     = useState('')
   const [socialMode, setSocialMode] = useState<SocialMode | null>(null)
@@ -79,7 +81,7 @@ export default function CheckInScreen() {
   const { checkIn, activeSession } = useSessionContext()
 
   useEffect(() => {
-    supabase.from('zones').select('name').eq('id', zoneId).single()
+    supabase.from('zones').select('name').eq('id', zoneId).maybeSingle()
       .then(({ data }) => setZoneName(data?.name ?? ''))
   }, [zoneId])
 
@@ -120,7 +122,7 @@ export default function CheckInScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -225,7 +227,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 14,
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,

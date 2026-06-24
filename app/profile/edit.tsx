@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
+  ScrollView, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, Switch,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -39,6 +39,7 @@ export default function EditProfileScreen() {
   const [interests, setInterests]     = useState<string[]>([])
   const [kickoff, setKickoff]         = useState('')
   const [kickoffTemplate, setKickoffTemplate] = useState('')
+  const [checkinPrivacy, setCheckinPrivacy] = useState<'full' | 'minimal'>('full')
 
   useEffect(() => {
     const load = async () => {
@@ -47,7 +48,7 @@ export default function EditProfileScreen() {
       setUserId(user.id)
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, bio, age_range, interest_tags, kickoffs, avatar_url')
+        .select('display_name, bio, age_range, interest_tags, kickoffs, avatar_url, checkin_visibility')
         .eq('id', user.id)
         .maybeSingle()
       if (data) {
@@ -57,6 +58,7 @@ export default function EditProfileScreen() {
         setInterests(data.interest_tags ?? [])
         setKickoff(data.kickoffs?.[0] ?? '')
         setAvatarUrl(data.avatar_url ?? null)
+        setCheckinPrivacy((data.checkin_visibility as 'full' | 'minimal') ?? 'full')
       }
       setLoading(false)
     }
@@ -100,8 +102,9 @@ export default function EditProfileScreen() {
         display_name:  displayName.trim(),
         bio:           bio.trim() || null,
         age_range:     ageRange || null,
-        interest_tags: interests,
-        kickoffs:      kickoff.trim() ? [kickoff.trim()] : [],
+        interest_tags:       interests,
+        kickoffs:            kickoff.trim() ? [kickoff.trim()] : [],
+        checkin_visibility:  checkinPrivacy,
       })
       .eq('id', user.id)
 
@@ -275,6 +278,32 @@ export default function EditProfileScreen() {
           <Text style={styles.charCount}>{kickoff.length}/120</Text>
         </View>
 
+        {/* Check-in visibility */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Check-in Privacy</Text>
+          <Text style={styles.hint}>Control what others see when you're checked in to a venue.</Text>
+          <View style={styles.privacyToggleCard}>
+            <View style={styles.privacyToggleRow}>
+              <View style={styles.privacyToggleText}>
+                <Text style={styles.privacyToggleTitle}>
+                  {checkinPrivacy === 'full' ? '🔓 Full profile visible' : '🔒 Minimal only'}
+                </Text>
+                <Text style={styles.privacyToggleSub}>
+                  {checkinPrivacy === 'full'
+                    ? 'Others see your name, interests, age range, and kickoff'
+                    : 'Others only see your name — no interests, age, or kickoff'}
+                </Text>
+              </View>
+              <Switch
+                value={checkinPrivacy === 'minimal'}
+                onValueChange={(v) => setCheckinPrivacy(v ? 'minimal' : 'full')}
+                trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
+                thumbColor="#f8fafc"
+              />
+            </View>
+          </View>
+        </View>
+
         {/* Privacy note */}
         <View style={styles.privacyNote}>
           <Text style={styles.privacyText}>
@@ -373,4 +402,12 @@ const styles = StyleSheet.create({
     borderColor: '#1A2E4A',
   },
   privacyText: { fontSize: 12, color: '#7A93AC', lineHeight: 17, textAlign: 'center' },
+  privacyToggleCard: {
+    backgroundColor: '#0D1B2E', borderRadius: 12,
+    borderWidth: 1, borderColor: '#1A2E4A', padding: 14,
+  },
+  privacyToggleRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  privacyToggleText: { flex: 1, gap: 3 },
+  privacyToggleTitle: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
+  privacyToggleSub:   { fontSize: 12, color: '#7A93AC', lineHeight: 17 },
 })

@@ -2,12 +2,14 @@
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useWeMet } from '@/hooks/useWeMet'
 import WemetCard from '@/components/WemetCard'
 
 export default function WeMetScreen() {
+  const insets = useSafeAreaInsets()
   const [userId, setUserId]     = useState<string | null>(null)
   const { pending, confirmed, loading, refresh } = useWeMet()
 
@@ -22,7 +24,7 @@ export default function WeMetScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -87,7 +89,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 14,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,

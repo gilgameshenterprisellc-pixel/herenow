@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 8 },
   backText: { fontSize: 22, color: '#f8fafc' },
   title: { fontSize: 20, fontWeight: '800', color: '#f8fafc' },
-  list: { padding: 14, gap: 2 },
+  list: { padding: 14, gap: 2, paddingBottom: 80 },
   thread: {
     flexDirection: 'row',
     alignItems: 'center',

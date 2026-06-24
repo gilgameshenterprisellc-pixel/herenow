@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator,
+  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import * as Location from 'expo-location'
 import { supabase } from '@/lib/supabase'
@@ -24,6 +25,7 @@ const VENUE_TYPES = [
 ]
 
 export default function CreateZoneScreen() {
+  const insets = useSafeAreaInsets()
   const [access, setAccess]           = useState<AccessState>('loading')
   const [name, setName]               = useState('')
   const [desc, setDesc]               = useState('')
@@ -121,7 +123,7 @@ export default function CreateZoneScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.pendingGlow} />
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#f8fafc" />
           </TouchableOpacity>
@@ -151,8 +153,8 @@ export default function CreateZoneScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#f8fafc" />
         </TouchableOpacity>
@@ -271,7 +273,7 @@ export default function CreateZoneScreen() {
           }
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -286,7 +288,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 14,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
