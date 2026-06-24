@@ -1,8 +1,9 @@
 ﻿import { useState } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator,
+  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { createEvent } from '@/lib/events'
 
@@ -42,6 +43,7 @@ function friendlyDate(isoLocal: string): string {
 }
 
 export default function CreateEventScreen() {
+  const insets = useSafeAreaInsets()
   const { zoneId }        = useLocalSearchParams<{ zoneId: string }>()
   const [title, setTitle] = useState('')
   const [desc, setDesc]   = useState('')
@@ -96,8 +98,8 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -199,7 +201,7 @@ export default function CreateEventScreen() {
           }
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 56,
+    paddingTop: 14,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,

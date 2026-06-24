@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { fetchSubscriberCount } from '@/lib/venueSubscriptions'
 
 interface VenueZone {
   id: string
@@ -30,8 +31,9 @@ export default function VenueDashboard() {
   const [refreshing, setRefreshing]   = useState(false)
   const [venue, setVenue]             = useState<VenueZone | null>(null)
   const [stats, setStats]             = useState<AggregateStats>({ total: 0, ageRanges: {}, interests: {} })
-  const [ownerName, setOwnerName]     = useState('')
-  const [venueStatus, setVenueStatus] = useState<string | null>(null)
+  const [ownerName, setOwnerName]         = useState('')
+  const [venueStatus, setVenueStatus]     = useState<string | null>(null)
+  const [subscriberCount, setSubscriberCount] = useState(0)
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -82,6 +84,8 @@ export default function VenueDashboard() {
         }
 
         setStats({ total, ageRanges, interests })
+        const subCount = await fetchSubscriberCount(z.id)
+        setSubscriberCount(subCount)
       }
     } finally {
       setLoading(false)
@@ -256,6 +260,17 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        {/* Subscriber stat */}
+        {venue && (
+          <View style={styles.subStatCard}>
+            <Text style={styles.subStatNum}>{subscriberCount}</Text>
+            <Text style={styles.subStatLabel}>
+              {subscriberCount === 1 ? 'follower' : 'followers'}
+            </Text>
+            <Text style={styles.subStatHint}>People subscribed to your venue</Text>
+          </View>
+        )}
+
         {/* Quick actions */}
         <View style={styles.actionsGrid}>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/edit' as any)}>
@@ -401,6 +416,13 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 13, fontWeight: '700', color: '#8EADC7' },
 
   privacyNote: { fontSize: 11, color: '#2A3F55', textAlign: 'center', lineHeight: 16, paddingHorizontal: 8 },
+  subStatCard: {
+    backgroundColor: '#0D1B2E', borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: '#29B6F625', alignItems: 'center', gap: 2,
+  },
+  subStatNum:   { fontSize: 32, fontWeight: '900', color: '#29B6F6' },
+  subStatLabel: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
+  subStatHint:  { fontSize: 12, color: '#7A93AC' },
 
   // Pending approval styles
   pendingGlow: {

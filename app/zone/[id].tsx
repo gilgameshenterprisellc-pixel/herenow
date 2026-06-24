@@ -19,6 +19,7 @@ import { checkAndAwardBadges } from '@/lib/badges'
 import { reportUser, reportContent, type ReportReason, type ContentReportReason } from '@/lib/reports'
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
+import { subscribeToVenue, unsubscribeFromVenue, isSubscribedToVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
 import ChatMessage from '@/components/ChatMessage'
@@ -68,6 +69,10 @@ export default function ZoneScreen() {
   // Highlights
   const [highlights, setHighlights] = useState<VenueHighlight[]>([])
 
+  // Subscription
+  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [subLoading, setSubLoading]     = useState(false)
+
   const isCheckedIn = activeSession?.zone_id === id
 
   useEffect(() => {
@@ -91,6 +96,12 @@ export default function ZoneScreen() {
       // Load highlights (visible to all)
       const hl = await fetchHighlights(id)
       setHighlights(hl)
+
+      // Check subscription state
+      if (user) {
+        const subbed = await isSubscribedToVenue(id)
+        setIsSubscribed(subbed)
+      }
 
       // Join as member if not already
       if (user) {
@@ -249,6 +260,19 @@ export default function ZoneScreen() {
     Alert.alert('Reported', 'Thanks for keeping the space safe. We\'ll review this.')
   }
 
+  const handleSubscribeToggle = async () => {
+    setSubLoading(true)
+    if (isSubscribed) {
+      await unsubscribeFromVenue(id)
+      setIsSubscribed(false)
+    } else {
+      await subscribeToVenue(id)
+      setIsSubscribed(true)
+      Alert.alert('Following! 🔔', `You'll see ${zone?.name ?? 'this venue'}'s promotions and announcements in your feed.`)
+    }
+    setSubLoading(false)
+  }
+
   const handleCheckOut = () => {
     Alert.alert('Check out', 'Leave this venue and end your session?', [
       { text: 'Stay', style: 'cancel' },
@@ -287,6 +311,16 @@ export default function ZoneScreen() {
             {zone?.radius_meters}m radius
           </Text>
         </View>
+        <TouchableOpacity
+          style={[styles.subBtn, isSubscribed && styles.subBtnActive]}
+          onPress={handleSubscribeToggle}
+          disabled={subLoading}
+        >
+          <Text style={[styles.subBtnText, isSubscribed && styles.subBtnTextActive]}>
+            {subLoading ? '…' : isSubscribed ? '🔔' : '+ Follow'}
+          </Text>
+        </TouchableOpacity>
+
         {isCheckedIn ? (
           <TouchableOpacity style={styles.checkOutBtn} onPress={handleCheckOut}>
             <Text style={styles.checkOutText}>Leave</Text>
@@ -559,6 +593,16 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   zoneName: { fontSize: 18, fontWeight: '800', color: '#f8fafc' },
   zoneMeta: { fontSize: 12, color: '#7A93AC', marginTop: 2 },
+  subBtn: {
+    borderWidth: 1,
+    borderColor: '#29B6F6',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  subBtnActive: { backgroundColor: '#29B6F618' },
+  subBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 12 },
+  subBtnTextActive: { color: '#29B6F6' },
   checkInBtn: {
     backgroundColor: '#29B6F6',
     borderRadius: 20,

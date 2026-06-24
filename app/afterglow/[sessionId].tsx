@@ -34,7 +34,7 @@ export default function AftergowScreen() {
       .from('afterglow')
       .select('*')
       .eq('session_id', sessionId)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         setGlow(data)
         setLoading(false)

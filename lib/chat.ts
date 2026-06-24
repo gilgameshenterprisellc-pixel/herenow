@@ -20,6 +20,7 @@ export async function fetchChat(zoneId: string): Promise<ChatMessage[]> {
     .from('venue_chat')
     .select('*, profiles(id, display_name, avatar_url)')
     .eq('zone_id', zoneId)
+    .eq('is_hidden', false)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: true })
     .limit(100)

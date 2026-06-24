@@ -33,6 +33,7 @@ export async function fetchPulse(zoneId: string): Promise<PulsePost[]> {
     .from('pulse_posts')
     .select('*, profiles(id, display_name, avatar_url)')
     .eq('zone_id', zoneId)
+    .eq('is_hidden', false)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(30)

@@ -167,6 +167,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
+            returnKeyType="next"
           />
           <TextInput
             style={styles.input}
@@ -176,6 +177,8 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             secureTextEntry
             autoComplete="current-password"
+            returnKeyType="go"
+            onSubmitEditing={handleLogin}
           />
         </Reanimated.View>
 
