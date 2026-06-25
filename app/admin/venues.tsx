@@ -342,7 +342,7 @@ export default function AdminVenues() {
                       <Text style={styles.formTitle}>Geofencing Setup</Text>
                       <Text style={styles.formHint}>
                         {(venue.venue_lat && venue.venue_lng)
-                          ? '✓ Coordinates auto-filled from the venue's submission. Verify they look right, then approve.'
+                          ? "✓ Coordinates auto-filled from the venue's submission. Verify they look right, then approve."
                           : venue.venue_address
                             ? `Address on file: ${[venue.venue_address, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')} — geocoding failed, enter coordinates manually via maps.google.com → right-click → copy lat/lng.`
                             : 'No address on file. Find coordinates at maps.google.com → right-click the venue → copy lat/lng.'

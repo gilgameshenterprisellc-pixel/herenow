@@ -129,7 +129,7 @@ export default function ProfileScreen() {
 
   // Build nav items dynamically — only venue owners see the venue item
   const baseNav: NavItem[] = [
-    { label: 'Connections', route: '/we-met',    icon: 'people-outline' },
+    { label: 'We Met',      route: '/we-met',    icon: 'people-outline' },
     { label: 'Messages',   route: '/messages',   icon: 'chatbubble-ellipses-outline' },
     { label: 'My Venues',  route: '/my-venues',  icon: 'business-outline' },
     { label: 'Badges',     route: '/badges',     icon: 'ribbon-outline' },
