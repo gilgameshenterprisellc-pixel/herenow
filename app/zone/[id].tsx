@@ -82,7 +82,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng')
         .eq('id', id)
         .maybeSingle()
 

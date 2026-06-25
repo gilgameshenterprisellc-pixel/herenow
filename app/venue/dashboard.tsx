@@ -13,9 +13,9 @@ import { fetchSubscriberCount } from '@/lib/venueSubscriptions'
 interface VenueZone {
   id: string
   name: string
-  type: string
-  lat: number
-  lng: number
+  type: string | null
+  center_lat: number | null
+  center_lng: number | null
   member_count: number | null
 }
 

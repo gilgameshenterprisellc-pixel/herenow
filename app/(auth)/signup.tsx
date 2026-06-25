@@ -21,6 +21,7 @@ export default function SignupScreen() {
   const [venueName, setVenueName]     = useState('')
   const [venueType, setVenueType]     = useState<string | null>(null)
   const [venueAddress, setVenueAddress] = useState('')
+  const [venueSuite, setVenueSuite]     = useState('')
   const [venueCity, setVenueCity]       = useState('')
   const [venueState, setVenueState]     = useState('')
   const [venueZip, setVenueZip]         = useState('')
@@ -59,9 +60,10 @@ export default function SignupScreen() {
     }).start()
   }
 
-  const geocodeAddress = async (address: string, city: string, state: string, zip: string) => {
+  const geocodeAddress = async (address: string, suite: string, city: string, state: string, zip: string) => {
     try {
-      const q = encodeURIComponent(`${address}, ${city}, ${state} ${zip}`)
+      const street = suite.trim() ? `${address.trim()}, ${suite.trim()}` : address.trim()
+      const q = encodeURIComponent(`${street}, ${city}, ${state} ${zip}`)
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
         { headers: { 'User-Agent': 'HereNow/1.0 (herenow.app)' } }
@@ -118,6 +120,7 @@ export default function SignupScreen() {
     if (isVenue && venueAddress.trim()) {
       coords = await geocodeAddress(
         venueAddress.trim(),
+        venueSuite.trim(),
         venueCity.trim(),
         venueState.trim().toUpperCase(),
         venueZip.trim()
@@ -137,6 +140,7 @@ export default function SignupScreen() {
       ...(isVenue ? {
         venue_type:    venueType ? (VENUE_TYPE_MAP[venueType] ?? venueType.toLowerCase()) : null,
         venue_address: venueAddress.trim(),
+        venue_suite:   venueSuite.trim() || null,
         venue_city:    venueCity.trim(),
         venue_state:   venueState.trim().toUpperCase(),
         venue_zip:     venueZip.trim(),
@@ -331,6 +335,14 @@ export default function SignupScreen() {
                 placeholderTextColor="#2B4560"
                 value={venueAddress}
                 onChangeText={setVenueAddress}
+                autoCapitalize="words"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Suite / Unit / Floor (optional)"
+                placeholderTextColor="#2B4560"
+                value={venueSuite}
+                onChangeText={setVenueSuite}
                 autoCapitalize="words"
               />
               <View style={{ flexDirection: 'row', gap: 8 }}>
