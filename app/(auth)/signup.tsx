@@ -24,6 +24,7 @@ export default function SignupScreen() {
   const [venueCity, setVenueCity]       = useState('')
   const [venueState, setVenueState]     = useState('')
   const [venueZip, setVenueZip]         = useState('')
+  const [gender, setGender]             = useState('')
   const [loading, setLoading]           = useState(false)
   const [toggleWidth, setToggleWidth] = useState(0)
 
@@ -70,6 +71,8 @@ export default function SignupScreen() {
     } catch {}
     return null
   }
+
+  const GENDER_OPTIONS = ['Man', 'Woman', 'Non-binary', 'Prefer not to say']
 
   const VENUE_TYPE_MAP: Record<string, string> = {
     'Bar': 'bar',
@@ -139,7 +142,9 @@ export default function SignupScreen() {
         venue_zip:     venueZip.trim(),
         venue_lat:     coords?.lat ?? null,
         venue_lng:     coords?.lng ?? null,
-      } : {}),
+      } : {
+        gender: gender || null,
+      }),
     })
 
     setLoading(false)
@@ -260,6 +265,19 @@ export default function SignupScreen() {
                 onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                 autoCapitalize="none"
               />
+              <Text style={styles.fieldLabel}>Gender <Text style={{ textTransform: 'none', letterSpacing: 0, fontSize: 11, fontWeight: '400', color: '#2B4560' }}>(private · optional)</Text></Text>
+              <View style={styles.typeGrid}>
+                {GENDER_OPTIONS.map((g) => (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.typePill, gender === g && styles.typePillOn]}
+                    onPress={() => setGender(gender === g ? '' : g)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.typeTxt, gender === g && styles.typeTxtOn]}>{g}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="Email"

@@ -127,7 +127,7 @@ export default function LoginScreen() {
 
         <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)}>
           <Text style={styles.title}>HereNow</Text>
-          <Text style={styles.subtitle}>Connect where you are.</Text>
+          <Text style={styles.subtitle}>You Had To Be There</Text>
         </Reanimated.View>
 
         {/* Toggle */}

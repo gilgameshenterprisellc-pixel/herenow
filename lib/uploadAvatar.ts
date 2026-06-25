@@ -9,13 +9,29 @@ export async function uploadAvatarWeb(userId: string): Promise<string | null> {
     input.type = 'file'
     input.accept = 'image/jpeg,image/png,image/webp'
 
+    // Guard so we only resolve once (cancel + onchange can both fire in some browsers)
+    let settled = false
+    const settle = (v: string | null) => { if (!settled) { settled = true; resolve(v) } }
+
+    // Modern browsers (Chrome 114+, Firefox 113+) emit 'cancel' when picker is dismissed
+    input.addEventListener('cancel', () => settle(null))
+
+    // Safari / older browser fallback: window regains focus after picker closes
+    const onFocus = () => {
+      window.removeEventListener('focus', onFocus)
+      // Give onchange time to fire first if the user did select a file
+      setTimeout(() => settle(null), 300)
+    }
+    window.addEventListener('focus', onFocus)
+
     input.onchange = async () => {
+      window.removeEventListener('focus', onFocus)
       const file = input.files?.[0]
-      if (!file) { resolve(null); return }
+      if (!file) { settle(null); return }
 
       if (file.size > 5 * 1024 * 1024) {
         alert('Photo must be under 5MB.')
-        resolve(null)
+        settle(null)
         return
       }
 
@@ -28,13 +44,12 @@ export async function uploadAvatarWeb(userId: string): Promise<string | null> {
 
       if (error) {
         console.error('[uploadAvatar]', error.message)
-        resolve(null)
+        settle(null)
         return
       }
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-      // Cache-bust so the new image loads immediately
-      resolve(`${data.publicUrl}?v=${Date.now()}`)
+      settle(`${data.publicUrl}?v=${Date.now()}`)
     }
 
     input.click()
