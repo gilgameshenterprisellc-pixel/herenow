@@ -20,7 +20,11 @@ export default function SignupScreen() {
   const [password, setPassword]       = useState('')
   const [venueName, setVenueName]     = useState('')
   const [venueType, setVenueType]     = useState<string | null>(null)
-  const [loading, setLoading]         = useState(false)
+  const [venueAddress, setVenueAddress] = useState('')
+  const [venueCity, setVenueCity]       = useState('')
+  const [venueState, setVenueState]     = useState('')
+  const [venueZip, setVenueZip]         = useState('')
+  const [loading, setLoading]           = useState(false)
   const [toggleWidth, setToggleWidth] = useState(0)
 
   const pillAnim = useRef(new Animated.Value(0)).current
@@ -54,11 +58,37 @@ export default function SignupScreen() {
     }).start()
   }
 
+  const geocodeAddress = async (address: string, city: string, state: string, zip: string) => {
+    try {
+      const q = encodeURIComponent(`${address}, ${city}, ${state} ${zip}`)
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'HereNow/1.0 (herenow.app)' } }
+      )
+      const json = await res.json()
+      if (json?.[0]) return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) }
+    } catch {}
+    return null
+  }
+
+  const VENUE_TYPE_MAP: Record<string, string> = {
+    'Bar': 'bar',
+    'Restaurant': 'restaurant',
+    'Coffee Shop': 'cafe',
+    'Venue / Event Space': 'venue',
+    'Gym': 'other',
+    'Other': 'other',
+  }
+
   const handleSignup = async () => {
     const isVenue = mode === 'venue'
     if (isVenue) {
       if (!venueName.trim() || !email.trim() || !password.trim()) {
         Alert.alert('Missing fields', 'Enter venue name, email, and password.')
+        return
+      }
+      if (!venueAddress.trim() || !venueCity.trim() || !venueState.trim() || !venueZip.trim()) {
+        Alert.alert('Missing fields', "Enter your venue's full address so we can set up your check-in zone.")
         return
       }
     } else {
@@ -73,11 +103,22 @@ export default function SignupScreen() {
       email: email.trim().toLowerCase(),
       password,
     })
-    setLoading(false)
 
     if (error || !data.user) {
+      setLoading(false)
       Alert.alert('Signup failed', error?.message ?? 'Unknown error')
       return
+    }
+
+    // Geocode the venue address (non-blocking — signup continues even if geocoding fails)
+    let coords: { lat: number; lng: number } | null = null
+    if (isVenue && venueAddress.trim()) {
+      coords = await geocodeAddress(
+        venueAddress.trim(),
+        venueCity.trim(),
+        venueState.trim().toUpperCase(),
+        venueZip.trim()
+      )
     }
 
     const cleanUsername = isVenue
@@ -90,7 +131,18 @@ export default function SignupScreen() {
       username: cleanUsername,
       is_venue_owner: isVenue,
       venue_status: isVenue ? 'pending' : 'none',
+      ...(isVenue ? {
+        venue_type:    venueType ? (VENUE_TYPE_MAP[venueType] ?? venueType.toLowerCase()) : null,
+        venue_address: venueAddress.trim(),
+        venue_city:    venueCity.trim(),
+        venue_state:   venueState.trim().toUpperCase(),
+        venue_zip:     venueZip.trim(),
+        venue_lat:     coords?.lat ?? null,
+        venue_lng:     coords?.lng ?? null,
+      } : {}),
     })
+
+    setLoading(false)
 
     if (profileError) {
       Alert.alert('Profile error', profileError.message)
@@ -253,6 +305,43 @@ export default function SignupScreen() {
                     <Text style={[styles.typeTxt, venueType === t && styles.typeTxtOn]}>{t}</Text>
                   </TouchableOpacity>
                 ))}
+              </View>
+              <Text style={styles.fieldLabel}>Venue address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Street address"
+                placeholderTextColor="#2B4560"
+                value={venueAddress}
+                onChangeText={setVenueAddress}
+                autoCapitalize="words"
+              />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  style={[styles.input, { flex: 3 }]}
+                  placeholder="City"
+                  placeholderTextColor="#2B4560"
+                  value={venueCity}
+                  onChangeText={setVenueCity}
+                  autoCapitalize="words"
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1.5 }]}
+                  placeholder="ST"
+                  placeholderTextColor="#2B4560"
+                  value={venueState}
+                  onChangeText={(t) => setVenueState(t.toUpperCase())}
+                  autoCapitalize="characters"
+                  maxLength={2}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 2 }]}
+                  placeholder="ZIP"
+                  placeholderTextColor="#2B4560"
+                  value={venueZip}
+                  onChangeText={setVenueZip}
+                  keyboardType="number-pad"
+                  maxLength={5}
+                />
               </View>
               <TextInput
                 style={styles.input}

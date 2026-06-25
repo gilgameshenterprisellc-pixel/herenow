@@ -12,6 +12,13 @@ interface PendingVenue {
   display_name: string
   username: string | null
   created_at: string
+  venue_address: string | null
+  venue_city:    string | null
+  venue_state:   string | null
+  venue_zip:     string | null
+  venue_lat:     number | null
+  venue_lng:     number | null
+  venue_type:    string | null
   existing_zone: {
     id: string
     name: string
@@ -44,7 +51,7 @@ export default function AdminVenues() {
   const load = useCallback(async () => {
     const { data: pendingProfiles } = await supabase
       .from('profiles')
-      .select('id, display_name, username, created_at')
+      .select('id, display_name, username, created_at, venue_address, venue_city, venue_state, venue_zip, venue_lat, venue_lng, venue_type')
       .eq('venue_status', 'pending')
       .order('created_at', { ascending: true })
 
@@ -64,11 +71,18 @@ export default function AdminVenues() {
     const zoneByOwner: Record<string, any> = {}
     for (const z of zones ?? []) zoneByOwner[z.owner_id] = z
 
-    const merged: PendingVenue[] = pendingProfiles.map((p) => ({
-      id:           p.id,
-      display_name: p.display_name,
-      username:     p.username,
-      created_at:   p.created_at,
+    const merged: PendingVenue[] = pendingProfiles.map((p: any) => ({
+      id:            p.id,
+      display_name:  p.display_name,
+      username:      p.username,
+      created_at:    p.created_at,
+      venue_address: p.venue_address ?? null,
+      venue_city:    p.venue_city    ?? null,
+      venue_state:   p.venue_state   ?? null,
+      venue_zip:     p.venue_zip     ?? null,
+      venue_lat:     p.venue_lat     ?? null,
+      venue_lng:     p.venue_lng     ?? null,
+      venue_type:    p.venue_type    ?? null,
       existing_zone: zoneByOwner[p.id] ?? null,
     }))
 
@@ -79,10 +93,10 @@ export default function AdminVenues() {
     for (const v of merged) {
       const z = v.existing_zone
       defaultForms[v.id] = {
-        zoneName: z?.name ?? '',
-        zoneType: z?.type ?? 'venue',
-        lat:      z?.center_lat?.toString() ?? '',
-        lng:      z?.center_lng?.toString() ?? '',
+        zoneName: z?.name ?? v.display_name,
+        zoneType: z?.type ?? v.venue_type ?? 'venue',
+        lat:      z?.center_lat?.toString() ?? v.venue_lat?.toString()  ?? '',
+        lng:      z?.center_lng?.toString() ?? v.venue_lng?.toString()  ?? '',
         radius:   z?.radius_meters?.toString() ?? '50',
       }
     }
@@ -208,9 +222,22 @@ export default function AdminVenues() {
               <View key={venue.id} style={styles.card}>
                 <TouchableOpacity style={styles.cardHeader} onPress={() => setExpanded(isOpen ? null : venue.id)}>
                   <View style={styles.cardLeft}>
-                    <Text style={styles.cardVenueName}>{venue.existing_zone?.name ?? '(zone not set up yet)'}</Text>
-                    <Text style={styles.cardOwner}>Owner: {venue.display_name}{venue.username ? ` @${venue.username}` : ''}</Text>
-                    {venue.existing_zone?.type ? <Text style={styles.cardType}>Type: {venue.existing_zone.type}</Text> : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={styles.cardVenueName}>{venue.display_name}</Text>
+                      {(venue.venue_lat && venue.venue_lng)
+                        ? <Text style={{ fontSize: 11, color: '#22c55e' }}>● GPS ready</Text>
+                        : venue.venue_address
+                          ? <Text style={{ fontSize: 11, color: '#f59e0b' }}>● Address on file</Text>
+                          : <Text style={{ fontSize: 11, color: '#ef4444' }}>● No address</Text>
+                      }
+                    </View>
+                    {(venue.venue_address || venue.venue_city) && (
+                      <Text style={styles.cardAddress}>
+                        {[venue.venue_address, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')}
+                      </Text>
+                    )}
+                    {venue.username ? <Text style={styles.cardOwner}>@{venue.username}</Text> : null}
+                    {venue.venue_type ? <Text style={styles.cardType}>{venue.venue_type}</Text> : null}
                   </View>
                   <Text style={styles.chevron}>{isOpen ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
@@ -219,7 +246,12 @@ export default function AdminVenues() {
                   <View style={styles.formSection}>
                     <Text style={styles.formTitle}>Geofencing Setup</Text>
                     <Text style={styles.formHint}>
-                      Find the coordinates at maps.google.com → right-click the venue location → copy lat/lng.
+                      {(venue.venue_lat && venue.venue_lng)
+                        ? '✓ Coordinates auto-filled from the address the venue submitted. Verify they look right, then approve.'
+                        : venue.venue_address
+                          ? `Address on file: ${[venue.venue_address, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')} — geocoding failed, enter coordinates manually via maps.google.com → right-click → copy lat/lng.`
+                          : 'No address on file. Find coordinates at maps.google.com → right-click the venue → copy lat/lng.'
+                      }
                     </Text>
 
                     <Text style={styles.label}>Zone Name</Text>
