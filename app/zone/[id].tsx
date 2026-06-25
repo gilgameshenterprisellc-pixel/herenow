@@ -138,40 +138,47 @@ export default function ZoneScreen() {
 
   const handleWeMet = async (person: ActivePerson) => {
     if (!userId || !isCheckedIn || !activeSession) return
+    try {
+      const existing = await existingWeMet({ zoneId: id, otherUserId: person.user_id })
+      if (existing) {
+        Alert.alert(
+          'Already sent',
+          existing.status === 'confirmed'
+            ? 'You\'ve already confirmed you met this person!'
+            : existing.status === 'pending'
+            ? 'Waiting for them to confirm.'
+            : 'This request has expired or was declined.'
+        )
+        return
+      }
 
-    const existing = await existingWeMet({ zoneId: id, otherUserId: person.user_id })
-    if (existing) {
       Alert.alert(
-        'Already sent',
-        existing.status === 'confirmed'
-          ? 'You\'ve already confirmed you met this person!'
-          : existing.status === 'pending'
-          ? 'Waiting for them to confirm.'
-          : 'This request has expired or was declined.'
-      )
-      return
-    }
-
-    Alert.alert(
-      `We Met — ${person.display_name}`,
-      'Send a confirmation that you actually met this person IRL?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send We Met',
-          onPress: async () => {
-            await sendWeMet({
-              zoneId: id,
-              recipientId: person.user_id,
-              initiatorSessionId: activeSession.id,
-              recipientSessionId: person.session_id,
-            })
-            await checkAndAwardBadges('wemet_confirmed')
-            Alert.alert('Sent! 🤝', `We Met request sent to ${person.display_name}. They'll confirm when they see it.`)
+        `We Met — ${person.display_name}`,
+        'Send a confirmation that you actually met this person IRL?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Send We Met',
+            onPress: async () => {
+              try {
+                await sendWeMet({
+                  zoneId: id,
+                  recipientId: person.user_id,
+                  initiatorSessionId: activeSession.id,
+                  recipientSessionId: person.session_id,
+                })
+                await checkAndAwardBadges('wemet_confirmed')
+                Alert.alert('Sent! 🤝', `We Met request sent to ${person.display_name}. They'll confirm when they see it.`)
+              } catch {
+                Alert.alert('Error', 'Could not send We Met. Try again.')
+              }
+            },
           },
-        },
-      ]
-    )
+        ]
+      )
+    } catch {
+      Alert.alert('Error', 'Something went wrong. Try again.')
+    }
   }
 
   const handleReport = (person: ActivePerson) => {
@@ -188,8 +195,12 @@ export default function ZoneScreen() {
   }
 
   const submitReport = async (reportedId: string, reason: ReportReason) => {
-    await reportUser({ reportedId, zoneId: id, reason })
-    Alert.alert('Reported', 'Thank you for keeping the space safe. We\'ll review this.')
+    try {
+      await reportUser({ reportedId, zoneId: id, reason })
+      Alert.alert('Reported', 'Thank you for keeping the space safe. We\'ll review this.')
+    } catch {
+      Alert.alert('Error', 'Could not submit report. Try again.')
+    }
   }
 
   const handleBlock = (person: ActivePerson) => {
@@ -201,8 +212,12 @@ export default function ZoneScreen() {
           text: 'Block',
           style: 'destructive',
           onPress: async () => {
-            await blockUser(person.user_id)
-            setPeople((prev) => prev.filter((p) => p.user_id !== person.user_id))
+            try {
+              await blockUser(person.user_id)
+              setPeople((prev) => prev.filter((p) => p.user_id !== person.user_id))
+            } catch {
+              Alert.alert('Error', 'Could not block user. Try again.')
+            }
           },
         },
         { text: 'Cancel', style: 'cancel' },
@@ -213,33 +228,43 @@ export default function ZoneScreen() {
   const handlePostPulse = async () => {
     if (!activeSession || (!newPulse.trim() && !vibeTag)) return
     setPostingPulse(true)
-    await createPulsePost({
-      zoneId: id,
-      sessionId: activeSession.id,
-      content: newPulse.trim() || undefined,
-      vibeTag: vibeTag ?? undefined,
-    })
-    setNewPulse('')
-    setVibeTag(null)
-    setShowVibePicker(false)
-    await checkAndAwardBadges('pulse_post')
-    await refreshPulse()
-    setPostingPulse(false)
+    try {
+      await createPulsePost({
+        zoneId: id,
+        sessionId: activeSession.id,
+        content: newPulse.trim() || undefined,
+        vibeTag: vibeTag ?? undefined,
+      })
+      setNewPulse('')
+      setVibeTag(null)
+      setShowVibePicker(false)
+      await checkAndAwardBadges('pulse_post')
+      await refreshPulse()
+    } catch {
+      Alert.alert('Error', 'Could not post. Try again.')
+    } finally {
+      setPostingPulse(false)
+    }
   }
 
   const handleSendChat = async () => {
     if (!chatInput.trim() || sendingChat) return
     setSendingChat(true)
-    await sendChatMessage({
-      zoneId: id,
-      content: chatInput.trim(),
-      sessionId: activeSession?.id ?? null,
-    })
-    setChatInput('')
-    await checkAndAwardBadges('chat_message')
-    await refreshChat()
-    setSendingChat(false)
-    setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 100)
+    try {
+      await sendChatMessage({
+        zoneId: id,
+        content: chatInput.trim(),
+        sessionId: activeSession?.id ?? null,
+      })
+      setChatInput('')
+      await checkAndAwardBadges('chat_message')
+      await refreshChat()
+      setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 100)
+    } catch {
+      Alert.alert('Error', 'Could not send message. Try again.')
+    } finally {
+      setSendingChat(false)
+    }
   }
 
   const handleReportPost = (postId: string) => {
@@ -256,21 +281,30 @@ export default function ZoneScreen() {
   }
 
   const submitContentReport = async (postId: string, reason: ContentReportReason) => {
-    await reportContent({ contentType: 'pulse_post', contentId: postId, zoneId: id, reason })
-    Alert.alert('Reported', 'Thanks for keeping the space safe. We\'ll review this.')
+    try {
+      await reportContent({ contentType: 'pulse_post', contentId: postId, zoneId: id, reason })
+      Alert.alert('Reported', 'Thanks for keeping the space safe. We\'ll review this.')
+    } catch {
+      Alert.alert('Error', 'Could not submit report. Try again.')
+    }
   }
 
   const handleSubscribeToggle = async () => {
     setSubLoading(true)
-    if (isSubscribed) {
-      await unsubscribeFromVenue(id)
-      setIsSubscribed(false)
-    } else {
-      await subscribeToVenue(id)
-      setIsSubscribed(true)
-      Alert.alert('Following! 🔔', `You'll see ${zone?.name ?? 'this venue'}'s promotions and announcements in your feed.`)
+    try {
+      if (isSubscribed) {
+        await unsubscribeFromVenue(id)
+        setIsSubscribed(false)
+      } else {
+        await subscribeToVenue(id)
+        setIsSubscribed(true)
+        Alert.alert('Following! 🔔', `You'll see ${zone?.name ?? 'this venue'}'s promotions and announcements in your feed.`)
+      }
+    } catch {
+      Alert.alert('Error', 'Could not update follow status. Try again.')
+    } finally {
+      setSubLoading(false)
     }
-    setSubLoading(false)
   }
 
   const handleCheckOut = () => {
@@ -280,8 +314,12 @@ export default function ZoneScreen() {
         text: 'Check Out',
         style: 'destructive',
         onPress: async () => {
-          await checkOut()
-          router.replace(`/afterglow/${activeSession?.id}`)
+          try {
+            await checkOut()
+            router.replace(`/afterglow/${activeSession?.id}`)
+          } catch {
+            Alert.alert('Error', 'Could not check out. Try again.')
+          }
         },
       },
     ])
