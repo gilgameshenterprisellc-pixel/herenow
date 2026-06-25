@@ -111,54 +111,61 @@ export default function AdminVenues() {
     if (isNaN(lng) || lng < -180 || lng > 180) { Alert.alert('Invalid longitude', 'Enter a value between -180 and 180'); return }
     if (isNaN(radius) || radius < 10 || radius > 5000) { Alert.alert('Invalid radius', 'Radius must be between 10 and 5000 meters'); return }
 
-    Alert.alert(
-      `Approve ${venue.venue_name ?? venue.display_name}?`,
-      `Zone: ${form.zoneName}\nLocation: ${lat}, ${lng}\nRadius: ${radius}m`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          onPress: async () => {
-            setSubmitting(venue.id)
-            const { error } = await supabase.rpc('admin_approve_venue', {
-              p_profile_id: venue.id,
-              p_zone_name:  form.zoneName.trim(),
-              p_zone_type:  form.zoneType,
-              p_lat:        lat,
-              p_lng:        lng,
-              p_radius:     radius,
-            })
-            setSubmitting(null)
-            if (error) {
-              Alert.alert('Error', error.message)
-            } else {
-              Alert.alert('Approved ✓', `${venue.venue_name ?? venue.display_name} is now live.`)
-              setVenues((prev) => prev.filter((v) => v.id !== venue.id))
-            }
-          },
-        },
-      ]
-    )
+    const doApprove = async () => {
+      setSubmitting(venue.id)
+      const { error } = await supabase.rpc('admin_approve_venue', {
+        p_profile_id: venue.id,
+        p_zone_name:  form.zoneName.trim(),
+        p_zone_type:  form.zoneType,
+        p_lat:        lat,
+        p_lng:        lng,
+        p_radius:     radius,
+      })
+      setSubmitting(null)
+      if (error) {
+        Alert.alert('Error', error.message)
+      } else {
+        Alert.alert('Approved ✓', `${venue.display_name} is now live.`)
+        setVenues((prev) => prev.filter((v) => v.id !== venue.id))
+      }
+    }
+
+    if (Platform.OS === 'web') {
+      const ok = (window as any).confirm(`Approve ${venue.display_name}?\n\nZone: ${form.zoneName}\nLocation: ${lat}, ${lng}\nRadius: ${radius}m`)
+      if (ok) doApprove()
+    } else {
+      Alert.alert(
+        `Approve ${venue.display_name}?`,
+        `Zone: ${form.zoneName}\nLocation: ${lat}, ${lng}\nRadius: ${radius}m`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Approve', onPress: doApprove },
+        ]
+      )
+    }
   }
 
   const handleDeny = (venue: PendingVenue) => {
-    Alert.alert(
-      `Deny ${venue.venue_name ?? venue.display_name}?`,
-      'The owner will see their application as denied.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Deny',
-          style: 'destructive',
-          onPress: async () => {
-            setSubmitting(venue.id)
-            await supabase.rpc('admin_deny_venue', { p_profile_id: venue.id })
-            setSubmitting(null)
-            setVenues((prev) => prev.filter((v) => v.id !== venue.id))
-          },
-        },
-      ]
-    )
+    const doDeny = async () => {
+      setSubmitting(venue.id)
+      await supabase.rpc('admin_deny_venue', { p_profile_id: venue.id })
+      setSubmitting(null)
+      setVenues((prev) => prev.filter((v) => v.id !== venue.id))
+    }
+
+    if (Platform.OS === 'web') {
+      const ok = (window as any).confirm(`Deny ${venue.display_name}?\n\nThe owner will see their application as denied.`)
+      if (ok) doDeny()
+    } else {
+      Alert.alert(
+        `Deny ${venue.display_name}?`,
+        'The owner will see their application as denied.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Deny', style: 'destructive', onPress: doDeny },
+        ]
+      )
+    }
   }
 
   return (
@@ -246,7 +253,7 @@ export default function AdminVenues() {
                           onChangeText={(v) => updateForm(venue.id, 'lat', v)}
                           placeholder="e.g. 41.8781"
                           placeholderTextColor="#4A6580"
-                          keyboardType="decimal-pad"
+                          keyboardType="default"
                         />
                       </View>
                       <View style={styles.coordField}>
@@ -257,7 +264,7 @@ export default function AdminVenues() {
                           onChangeText={(v) => updateForm(venue.id, 'lng', v)}
                           placeholder="e.g. -87.6298"
                           placeholderTextColor="#4A6580"
-                          keyboardType="decimal-pad"
+                          keyboardType="default"
                         />
                       </View>
                     </View>
