@@ -74,6 +74,7 @@ export default function AdminVenues() {
   const [expanded, setExpanded]     = useState<string | null>(null)
   const [forms, setForms]           = useState<Record<string, GeofenceForm>>({})
   const [submitting, setSubmitting] = useState<string | null>(null)
+  const [geocoding, setGeocoding]   = useState<Record<string, boolean>>({})
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -168,6 +169,35 @@ export default function AdminVenues() {
     setForms((prev) => ({ ...prev, [venueId]: { ...prev[venueId], [field]: value } }))
   }
 
+  const fetchCoordinates = async (venue: PendingVenue) => {
+    if (!venue.venue_address && !venue.venue_city) {
+      Alert.alert('No address', 'This venue did not provide an address. Enter coordinates manually.')
+      return
+    }
+    setGeocoding((prev) => ({ ...prev, [venue.id]: true }))
+    const parts = [venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean)
+    const q = encodeURIComponent(parts.join(', '))
+    try {
+      const res  = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'HereNow/1.0 (herenow.app)' } }
+      )
+      const data = await res.json()
+      if (data.length > 0) {
+        setForms((prev) => ({
+          ...prev,
+          [venue.id]: { ...prev[venue.id], lat: data[0].lat, lng: data[0].lon },
+        }))
+      } else {
+        Alert.alert('Address not found', 'Nominatim could not locate this address. Try maps.google.com → right-click the venue → "What\'s here?" → copy the coordinates shown at the bottom.')
+      }
+    } catch {
+      Alert.alert('Network error', 'Geocoding request failed. Check your connection and try again.')
+    } finally {
+      setGeocoding((prev) => ({ ...prev, [venue.id]: false }))
+    }
+  }
+
   // ── Approve ───────────────────────────────────────────────────────────────
 
   const handleApprove = async (venue: PendingVenue) => {
@@ -179,8 +209,14 @@ export default function AdminVenues() {
     const radius = parseInt(form.radius)
 
     if (!form.zoneName.trim())                             { Alert.alert('Zone name required'); return }
-    if (isNaN(lat)    || lat    < -90   || lat    > 90)   { Alert.alert('Invalid latitude', 'Must be −90 to 90'); return }
-    if (isNaN(lng)    || lng    < -180  || lng    > 180)  { Alert.alert('Invalid longitude', 'Must be −180 to 180'); return }
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      Alert.alert('Latitude required', form.lat ? 'Must be −90 to 90' : 'Tap "Fetch Coordinates" to auto-fill, or enter manually.')
+      return
+    }
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+      Alert.alert('Longitude required', form.lng ? 'Must be −180 to 180' : 'Tap "Fetch Coordinates" to auto-fill, or enter manually.')
+      return
+    }
     if (isNaN(radius) || radius < 10    || radius > 5000) { Alert.alert('Invalid radius', 'Must be 10–5000 m'); return }
 
     const doApprove = async () => {
@@ -375,11 +411,25 @@ export default function AdminVenues() {
                         ))}
                       </ScrollView>
 
+                      {(venue.venue_address || venue.venue_city) && (
+                        <TouchableOpacity
+                          style={[styles.geocodeBtn, geocoding[venue.id] && styles.btnDisabled]}
+                          onPress={() => !geocoding[venue.id] && fetchCoordinates(venue)}
+                        >
+                          {geocoding[venue.id]
+                            ? <ActivityIndicator size="small" color="#050A15" />
+                            : <Text style={styles.geocodeBtnText}>
+                                {form.lat && form.lng ? '🔄 Re-fetch Coordinates' : '📍 Fetch Coordinates from Address'}
+                              </Text>
+                          }
+                        </TouchableOpacity>
+                      )}
+
                       <View style={styles.coordRow}>
                         <View style={styles.coordField}>
                           <Text style={styles.label}>Latitude</Text>
                           <TextInput
-                            style={styles.input}
+                            style={[styles.input, !form.lat && styles.inputEmpty]}
                             value={form.lat}
                             onChangeText={(v) => updateForm(venue.id, 'lat', v)}
                             placeholder="e.g. 41.8781"
@@ -390,7 +440,7 @@ export default function AdminVenues() {
                         <View style={styles.coordField}>
                           <Text style={styles.label}>Longitude</Text>
                           <TextInput
-                            style={styles.input}
+                            style={[styles.input, !form.lng && styles.inputEmpty]}
                             value={form.lng}
                             onChangeText={(v) => updateForm(venue.id, 'lng', v)}
                             placeholder="e.g. -87.6298"
@@ -610,4 +660,10 @@ const styles = StyleSheet.create({
     padding: 10, marginTop: 4,
   },
   noZoneWarnText: { fontSize: 12, color: '#f59e0b', lineHeight: 17 },
+  geocodeBtn: {
+    backgroundColor: '#22c55e', borderRadius: 10,
+    paddingVertical: 11, alignItems: 'center',
+  },
+  geocodeBtnText: { fontSize: 13, fontWeight: '700', color: '#050A15' },
+  inputEmpty: { borderColor: '#f59e0b50' },
 })
