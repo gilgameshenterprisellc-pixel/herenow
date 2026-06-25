@@ -73,8 +73,9 @@ export default function AdminVenues() {
   const [refreshing, setRefreshing] = useState(false)
   const [expanded, setExpanded]     = useState<string | null>(null)
   const [forms, setForms]           = useState<Record<string, GeofenceForm>>({})
-  const [submitting, setSubmitting] = useState<string | null>(null)
-  const [geocoding, setGeocoding]   = useState<Record<string, boolean>>({})
+  const [submitting, setSubmitting]       = useState<string | null>(null)
+  const [geocoding, setGeocoding]         = useState<Record<string, boolean>>({})
+  const [geocodeStatus, setGeocodeStatus] = useState<Record<string, 'success' | 'notfound' | 'error'>>({})
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -171,28 +172,29 @@ export default function AdminVenues() {
 
   const fetchCoordinates = async (venue: PendingVenue) => {
     if (!venue.venue_address && !venue.venue_city) {
-      Alert.alert('No address', 'This venue did not provide an address. Enter coordinates manually.')
+      setGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'notfound' }))
       return
     }
     setGeocoding((prev) => ({ ...prev, [venue.id]: true }))
+    setGeocodeStatus((prev) => { const next = { ...prev }; delete next[venue.id]; return next })
     const parts = [venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean)
     const q = encodeURIComponent(parts.join(', '))
     try {
       const res  = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'HereNow/1.0 (herenow.app)' } }
       )
       const data = await res.json()
-      if (data.length > 0) {
+      if (Array.isArray(data) && data.length > 0) {
         setForms((prev) => ({
           ...prev,
           [venue.id]: { ...prev[venue.id], lat: data[0].lat, lng: data[0].lon },
         }))
+        setGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'success' }))
       } else {
-        Alert.alert('Address not found', 'Nominatim could not locate this address. Try maps.google.com → right-click the venue → "What\'s here?" → copy the coordinates shown at the bottom.')
+        setGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'notfound' }))
       }
     } catch {
-      Alert.alert('Network error', 'Geocoding request failed. Check your connection and try again.')
+      setGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'error' }))
     } finally {
       setGeocoding((prev) => ({ ...prev, [venue.id]: false }))
     }
@@ -413,17 +415,28 @@ export default function AdminVenues() {
                       </ScrollView>
 
                       {(venue.venue_address || venue.venue_city) && (
-                        <TouchableOpacity
-                          style={[styles.geocodeBtn, geocoding[venue.id] && styles.btnDisabled]}
-                          onPress={() => !geocoding[venue.id] && fetchCoordinates(venue)}
-                        >
-                          {geocoding[venue.id]
-                            ? <ActivityIndicator size="small" color="#050A15" />
-                            : <Text style={styles.geocodeBtnText}>
-                                {form.lat && form.lng ? '🔄 Re-fetch Coordinates' : '📍 Fetch Coordinates from Address'}
-                              </Text>
-                          }
-                        </TouchableOpacity>
+                        <>
+                          <TouchableOpacity
+                            style={[styles.geocodeBtn, geocoding[venue.id] && styles.btnDisabled]}
+                            onPress={() => !geocoding[venue.id] && fetchCoordinates(venue)}
+                          >
+                            {geocoding[venue.id]
+                              ? <ActivityIndicator size="small" color="#050A15" />
+                              : <Text style={styles.geocodeBtnText}>
+                                  {form.lat && form.lng ? '🔄 Re-fetch Coordinates' : '📍 Fetch Coordinates from Address'}
+                                </Text>
+                            }
+                          </TouchableOpacity>
+                          {geocodeStatus[venue.id] === 'success' && (
+                            <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates fetched — check lat/lng below</Text>
+                          )}
+                          {geocodeStatus[venue.id] === 'notfound' && (
+                            <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 4 }}>Address not found. Enter coordinates manually via maps.google.com → right-click → copy lat/lng.</Text>
+                          )}
+                          {geocodeStatus[venue.id] === 'error' && (
+                            <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>Network error — check connection and try again.</Text>
+                          )}
+                        </>
                       )}
 
                       <View style={styles.coordRow}>
