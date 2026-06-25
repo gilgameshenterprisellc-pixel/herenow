@@ -27,6 +27,8 @@ interface Profile {
   is_venue_owner: boolean
   venue_status: string | null
   is_admin: boolean | null
+  social_mode: string | null
+  mood_mode: string | null
 }
 
 interface NavItem {
@@ -35,28 +37,66 @@ interface NavItem {
   icon: IoniconsName
 }
 
+const SOCIAL_MODES = [
+  { value: 'just_vibes', label: '✨ Vibes' },
+  { value: 'friends',    label: '👥 Friends' },
+  { value: 'networking', label: '💼 Network' },
+  { value: 'dating',     label: '❤️ Dating' },
+]
+
+const MOOD_MODES = [
+  { value: 'open',       label: '🟢 Open' },
+  { value: 'selective',  label: '🟡 Selective' },
+  { value: 'not_today',  label: '🚫 Ghost' },
+]
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
-  const [profile, setProfile]       = useState<Profile | null>(null)
-  const [loading, setLoading]       = useState(true)
-  const [badgeCount, setBadgeCount] = useState(0)
-  const { activeSession }           = useSessionContext()
+  const [profile, setProfile]               = useState<Profile | null>(null)
+  const [loading, setLoading]               = useState(true)
+  const [userId, setUserId]                 = useState<string | null>(null)
+  const [badgeCount, setBadgeCount]         = useState(0)
+  const [checkinCount, setCheckinCount]     = useState(0)
+  const [connectionCount, setConnectionCount] = useState(0)
+  const [venueCount, setVenueCount]         = useState(0)
+  const { activeSession }                   = useSessionContext()
 
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/(auth)/login'); return }
 
-    const [{ data: p }, earned] = await Promise.all([
+    const [profileRes, earned, sessRes, connRes, venueRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
       fetchUserBadges(user.id),
+      supabase.from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .not('checked_out_at', 'is', null),
+      supabase.from('we_met')
+        .select('*', { count: 'exact', head: true })
+        .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .eq('status', 'confirmed'),
+      supabase.from('venue_subscriptions')
+        .select('*', { count: 'exact', head: true })
+        .eq('subscriber_id', user.id),
     ])
 
-    setProfile(p)
+    setProfile(profileRes.data)
+    setUserId(user.id)
     setBadgeCount(earned.length)
+    setCheckinCount(sessRes.count ?? 0)
+    setConnectionCount(connRes.count ?? 0)
+    setVenueCount(venueRes.count ?? 0)
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
+
+  const updateMode = async (field: 'social_mode' | 'mood_mode', value: string) => {
+    if (!userId) return
+    setProfile((prev) => prev ? { ...prev, [field]: value } : null)
+    await supabase.from('profiles').update({ [field]: value }).eq('id', userId)
+  }
 
   const handleSignOut = async () => {
     if (Platform.OS !== 'web') {
@@ -89,10 +129,10 @@ export default function ProfileScreen() {
 
   // Build nav items dynamically — only venue owners see the venue item
   const baseNav: NavItem[] = [
-    { label: 'We Met',    route: '/we-met',     icon: 'people-outline' },
-    { label: 'Messages',  route: '/messages',   icon: 'chatbubble-ellipses-outline' },
-    { label: 'My Venues', route: '/my-venues',  icon: 'business-outline' },
-    { label: 'Badges',    route: '/badges',     icon: 'ribbon-outline' },
+    { label: 'Connections', route: '/we-met',    icon: 'people-outline' },
+    { label: 'Messages',   route: '/messages',   icon: 'chatbubble-ellipses-outline' },
+    { label: 'My Venues',  route: '/my-venues',  icon: 'business-outline' },
+    { label: 'Badges',     route: '/badges',     icon: 'ribbon-outline' },
   ]
 
   const venueNav: NavItem | null = profile?.is_venue_owner
@@ -146,21 +186,74 @@ export default function ProfileScreen() {
         )}
       </Reanimated.View>
 
-      {/* Stats row */}
+      {/* Stats row — Connections | Check-ins | Venues | Badges */}
       <Reanimated.View entering={FadeInDown.delay(80).duration(450)} style={styles.statsRow}>
+        <TouchableOpacity style={styles.stat} onPress={() => router.push('/we-met')}>
+          <Text style={styles.statNum}>{connectionCount}</Text>
+          <Text style={styles.statLabel}>Connections</Text>
+        </TouchableOpacity>
+        <View style={styles.statDivider} />
         <View style={styles.stat}>
+          <Text style={styles.statNum}>{checkinCount}</Text>
+          <Text style={styles.statLabel}>Check-ins</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.stat}>
+          <Text style={styles.statNum}>{venueCount}</Text>
+          <Text style={styles.statLabel}>Venues</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <TouchableOpacity style={styles.stat} onPress={() => router.push('/badges')}>
           <Text style={styles.statNum}>{badgeCount}</Text>
           <Text style={styles.statLabel}>Badges</Text>
+        </TouchableOpacity>
+      </Reanimated.View>
+
+      {/* Mode quick-toggle */}
+      <Reanimated.View entering={FadeInDown.delay(110).duration(450)} style={styles.modeCard}>
+        <Text style={styles.modeSectionTitle}>My Mode</Text>
+        <Text style={styles.modeSectionSub}>Active now · shown when you check in</Text>
+
+        <View style={styles.modeGroup}>
+          <Text style={styles.modeGroupLabel}>VIBE</Text>
+          <View style={styles.modePills}>
+            {SOCIAL_MODES.map((m) => (
+              <TouchableOpacity
+                key={m.value}
+                style={[styles.modePill, profile?.social_mode === m.value && styles.modePillActive]}
+                onPress={() => updateMode('social_mode', m.value)}
+              >
+                <Text style={[styles.modePillText, profile?.social_mode === m.value && styles.modePillTextActive]}>
+                  {m.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.stat}>
-          <Text style={styles.statNum}>{activeSession ? '1' : '0'}</Text>
-          <Text style={styles.statLabel}>Active session</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.stat}>
-          <Text style={styles.statNum}>{profile?.age_range ?? '–'}</Text>
-          <Text style={styles.statLabel}>Age range</Text>
+
+        <View style={[styles.modeGroup, styles.modeGroupBorder]}>
+          <Text style={styles.modeGroupLabel}>MOOD</Text>
+          <View style={styles.modePills}>
+            {MOOD_MODES.map((m) => (
+              <TouchableOpacity
+                key={m.value}
+                style={[
+                  styles.modePill,
+                  profile?.mood_mode === m.value && styles.modePillActive,
+                  m.value === 'not_today' && profile?.mood_mode === m.value && styles.modePillGhost,
+                ]}
+                onPress={() => updateMode('mood_mode', m.value)}
+              >
+                <Text style={[
+                  styles.modePillText,
+                  profile?.mood_mode === m.value && styles.modePillTextActive,
+                  m.value === 'not_today' && profile?.mood_mode === m.value && { color: '#ef4444' },
+                ]}>
+                  {m.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </Reanimated.View>
 
@@ -278,6 +371,36 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 18, fontWeight: '800', color: '#f8fafc' },
   statLabel: { fontSize: 10, color: '#7A93AC' },
   statDivider: { width: 1, height: 28, backgroundColor: '#1A2E4A' },
+  modeCard: {
+    marginHorizontal: 16,
+    backgroundColor: '#0D1B2E',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    padding: 14,
+    gap: 12,
+  },
+  modeSectionTitle: { fontSize: 13, fontWeight: '700', color: '#f8fafc' },
+  modeSectionSub: { fontSize: 11, color: '#4A6580', marginTop: -8 },
+  modeGroup: { gap: 8 },
+  modeGroupBorder: { borderTopWidth: 1, borderTopColor: '#1A2E4A', paddingTop: 12 },
+  modeGroupLabel: {
+    fontSize: 10, fontWeight: '700', color: '#8EADC7',
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  modePills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  modePill: {
+    backgroundColor: '#0B1526',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+  },
+  modePillActive: { backgroundColor: '#29B6F618', borderColor: '#29B6F6' },
+  modePillGhost:  { backgroundColor: '#ef444415', borderColor: '#ef444440' },
+  modePillText: { fontSize: 12, color: '#7A93AC', fontWeight: '600' },
+  modePillTextActive: { color: '#29B6F6' },
   sessionCard: {
     marginHorizontal: 16,
     backgroundColor: '#22c55e12',

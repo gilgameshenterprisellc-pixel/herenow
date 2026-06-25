@@ -9,7 +9,8 @@ import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import { uploadAvatarWeb } from '@/lib/uploadAvatar'
 
-const AGE_RANGES = ['18–22', '23–27', '28–34', '35–45', '45+', 'Prefer not to say']
+const AGE_RANGES    = ['18–22', '23–27', '28–34', '35–45', '45+', 'Prefer not to say']
+const GENDER_OPTIONS = ['Man', 'Woman', 'Non-binary', 'Prefer not to say']
 
 const COMMON_INTERESTS = [
   'Music', 'Sports', 'Gaming', 'Art', 'Tech', 'Fitness',
@@ -37,6 +38,8 @@ export default function EditProfileScreen() {
   const [bio, setBio]                 = useState('')
   const [ageRange, setAgeRange]       = useState('')
   const [interests, setInterests]     = useState<string[]>([])
+  const [interestText, setInterestText] = useState('')
+  const [gender, setGender]           = useState('')
   const [kickoff, setKickoff]         = useState('')
   const [kickoffTemplate, setKickoffTemplate] = useState('')
   const [checkinPrivacy, setCheckinPrivacy] = useState<'full' | 'minimal'>('full')
@@ -48,7 +51,7 @@ export default function EditProfileScreen() {
       setUserId(user.id)
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, bio, age_range, interest_tags, kickoffs, avatar_url, checkin_visibility')
+        .select('display_name, bio, age_range, interest_tags, interest_text, gender, kickoffs, avatar_url, checkin_visibility')
         .eq('id', user.id)
         .maybeSingle()
       if (data) {
@@ -56,6 +59,8 @@ export default function EditProfileScreen() {
         setBio(data.bio ?? '')
         setAgeRange(data.age_range ?? '')
         setInterests(data.interest_tags ?? [])
+        setInterestText(data.interest_text ?? '')
+        setGender(data.gender ?? '')
         setKickoff(data.kickoffs?.[0] ?? '')
         setAvatarUrl(data.avatar_url ?? null)
         setCheckinPrivacy((data.checkin_visibility as 'full' | 'minimal') ?? 'full')
@@ -102,9 +107,11 @@ export default function EditProfileScreen() {
         display_name:  displayName.trim(),
         bio:           bio.trim() || null,
         age_range:     ageRange || null,
-        interest_tags:       interests,
-        kickoffs:            kickoff.trim() ? [kickoff.trim()] : [],
-        checkin_visibility:  checkinPrivacy,
+        interest_tags:      interests,
+        interest_text:      interestText.trim() || null,
+        gender:             gender || null,
+        kickoffs:           kickoff.trim() ? [kickoff.trim()] : [],
+        checkin_visibility: checkinPrivacy,
       })
       .eq('id', user.id)
 
@@ -223,6 +230,32 @@ export default function EditProfileScreen() {
           </ScrollView>
         </View>
 
+        {/* Gender — private */}
+        <View style={styles.field}>
+          <Text style={styles.label}>
+            Gender{' '}
+            <Text style={{ textTransform: 'none', letterSpacing: 0, fontSize: 11, fontWeight: '400', color: '#4A6580' }}>
+              (private)
+            </Text>
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pills}
+          >
+            {GENDER_OPTIONS.map((g) => (
+              <TouchableOpacity
+                key={g}
+                style={[styles.pill, gender === g && styles.pillActive]}
+                onPress={() => setGender(gender === g ? '' : g)}
+              >
+                <Text style={[styles.pillText, gender === g && styles.pillTextActive]}>{g}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <Text style={styles.hint}>Never shown to others — only used for venue analytics.</Text>
+        </View>
+
         {/* Interests */}
         <View style={styles.field}>
           <Text style={styles.label}>Interests ({interests.length} selected)</Text>
@@ -242,6 +275,17 @@ export default function EditProfileScreen() {
               )
             })}
           </View>
+          <TextInput
+            style={styles.input}
+            value={interestText}
+            onChangeText={setInterestText}
+            placeholder="Anything else? (e.g. vintage vinyl, local coffee spots…)"
+            placeholderTextColor="#4A6580"
+            maxLength={200}
+          />
+          {interestText.length > 0 && (
+            <Text style={styles.charCount}>{interestText.length}/200</Text>
+          )}
         </View>
 
         {/* Kickoff prompt */}
