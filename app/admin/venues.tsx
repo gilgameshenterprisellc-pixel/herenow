@@ -15,6 +15,7 @@ interface PendingVenue {
   username: string | null
   created_at: string
   venue_address: string | null
+  venue_suite:   string | null
   venue_city:    string | null
   venue_state:   string | null
   venue_zip:     string | null
@@ -36,6 +37,7 @@ interface LiveVenue {
   display_name: string
   username: string | null
   venue_address: string | null
+  venue_suite:   string | null
   venue_city:    string | null
   venue_state:   string | null
   venue_type:    string | null
@@ -79,12 +81,12 @@ export default function AdminVenues() {
     const [pendingRes, approvedRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, display_name, username, created_at, venue_address, venue_city, venue_state, venue_zip, venue_lat, venue_lng, venue_type')
+        .select('id, display_name, username, created_at, venue_address, venue_suite, venue_city, venue_state, venue_zip, venue_lat, venue_lng, venue_type')
         .eq('venue_status', 'pending')
         .order('created_at', { ascending: true }),
       supabase
         .from('profiles')
-        .select('id, display_name, username, venue_address, venue_city, venue_state, venue_type')
+        .select('id, display_name, username, venue_address, venue_suite, venue_city, venue_state, venue_type')
         .eq('venue_status', 'approved')
         .order('display_name', { ascending: true }),
     ])
@@ -114,6 +116,7 @@ export default function AdminVenues() {
       username:      p.username ?? null,
       created_at:    p.created_at,
       venue_address: p.venue_address ?? null,
+      venue_suite:   p.venue_suite   ?? null,
       venue_city:    p.venue_city    ?? null,
       venue_state:   p.venue_state   ?? null,
       venue_zip:     p.venue_zip     ?? null,
@@ -145,6 +148,7 @@ export default function AdminVenues() {
       display_name:  p.display_name,
       username:      p.username ?? null,
       venue_address: p.venue_address ?? null,
+      venue_suite:   p.venue_suite   ?? null,
       venue_city:    p.venue_city    ?? null,
       venue_state:   p.venue_state   ?? null,
       venue_type:    p.venue_type    ?? null,
@@ -328,7 +332,7 @@ export default function AdminVenues() {
                       </View>
                       {(venue.venue_address || venue.venue_city) && (
                         <Text style={styles.cardAddress}>
-                          {[venue.venue_address, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')}
+                          {[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')}
                         </Text>
                       )}
                       {venue.username   ? <Text style={styles.cardMeta}>@{venue.username}</Text>   : null}
@@ -344,7 +348,7 @@ export default function AdminVenues() {
                         {(venue.venue_lat && venue.venue_lng)
                           ? "✓ Coordinates auto-filled from the venue's submission. Verify they look right, then approve."
                           : venue.venue_address
-                            ? `Address on file: ${[venue.venue_address, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')} — geocoding failed, enter coordinates manually via maps.google.com → right-click → copy lat/lng.`
+                            ? `Address on file: ${[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')} — geocoding failed, enter coordinates manually via maps.google.com → right-click → copy lat/lng.`
                             : 'No address on file. Find coordinates at maps.google.com → right-click the venue → copy lat/lng.'
                         }
                       </Text>
@@ -452,7 +456,7 @@ export default function AdminVenues() {
 
                   {(venue.venue_address || venue.venue_city) && (
                     <Text style={styles.cardAddress}>
-                      {[venue.venue_address, venue.venue_city, venue.venue_state].filter(Boolean).join(', ')}
+                      {[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state].filter(Boolean).join(', ')}
                     </Text>
                   )}
                   {venue.username && <Text style={styles.cardMeta}>@{venue.username}</Text>}
