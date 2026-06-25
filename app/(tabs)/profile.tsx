@@ -78,7 +78,7 @@ export default function ProfileScreen() {
         .eq('status', 'confirmed'),
       supabase.from('venue_subscriptions')
         .select('*', { count: 'exact', head: true })
-        .eq('subscriber_id', user.id),
+        .eq('user_id', user.id),
     ])
 
     setProfile(profileRes.data)
