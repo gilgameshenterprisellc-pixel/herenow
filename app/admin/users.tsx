@@ -53,25 +53,24 @@ export default function AdminUsers() {
 
   const toggleMute = (user: AdminUser) => {
     const label = user.is_muted ? 'Unmute' : 'Mute'
-    Alert.alert(
-      `${label} ${user.display_name}?`,
-      user.is_muted
-        ? 'They will be able to post again.'
-        : 'They will not be able to create posts or send chat messages.',
-      [
+    const msg = user.is_muted ? 'They will be able to post again.' : 'They will not be able to create posts or send chat messages.'
+
+    const doMute = async () => {
+      setActing(user.id)
+      await supabase.rpc('admin_set_user_muted', { p_user_id: user.id, p_muted: !user.is_muted })
+      setActing(null)
+      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_muted: !u.is_muted } : u))
+    }
+
+    if (Platform.OS === 'web') {
+      const ok = (window as any).confirm(`${label} ${user.display_name}?\n\n${msg}`)
+      if (ok) doMute()
+    } else {
+      Alert.alert(`${label} ${user.display_name}?`, msg, [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: label,
-          style: user.is_muted ? 'default' : 'destructive',
-          onPress: async () => {
-            setActing(user.id)
-            await supabase.rpc('admin_set_user_muted', { p_user_id: user.id, p_muted: !user.is_muted })
-            setActing(null)
-            setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_muted: !u.is_muted } : u))
-          },
-        },
-      ]
-    )
+        { text: label, style: user.is_muted ? 'default' : 'destructive', onPress: doMute },
+      ])
+    }
   }
 
   const renderUser = ({ item }: { item: AdminUser }) => (

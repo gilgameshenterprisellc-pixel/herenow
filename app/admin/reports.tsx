@@ -114,26 +114,29 @@ export default function AdminReports() {
   }
 
   const muteUser = async (report: UserReport) => {
-    Alert.alert(
-      `Mute ${report.reported?.display_name}?`,
-      'They will not be able to post or send messages until unmuted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Mute',
-          style: 'destructive',
-          onPress: async () => {
-            setActing(report.id)
-            await supabase.rpc('admin_set_user_muted', { p_user_id: report.reported_id, p_muted: true })
-            setActing(null)
-            setUsers((prev) => prev.map((r) =>
-              r.id === report.id ? { ...r, reported: r.reported ? { ...r.reported, is_muted: true } : null } : r
-            ))
-            Alert.alert('Muted', `${report.reported?.display_name} has been muted.`)
-          },
-        },
-      ]
-    )
+    const doMute = async () => {
+      setActing(report.id)
+      await supabase.rpc('admin_set_user_muted', { p_user_id: report.reported_id, p_muted: true })
+      setActing(null)
+      setUsers((prev) => prev.map((r) =>
+        r.id === report.id ? { ...r, reported: r.reported ? { ...r.reported, is_muted: true } : null } : r
+      ))
+      Alert.alert('Muted', `${report.reported?.display_name} has been muted.`)
+    }
+
+    if (Platform.OS === 'web') {
+      const ok = (window as any).confirm(`Mute ${report.reported?.display_name}?\n\nThey will not be able to post or send messages until unmuted.`)
+      if (ok) doMute()
+    } else {
+      Alert.alert(
+        `Mute ${report.reported?.display_name}?`,
+        'They will not be able to post or send messages until unmuted.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Mute', style: 'destructive', onPress: doMute },
+        ]
+      )
+    }
   }
 
   const unmuteUser = async (report: UserReport) => {
