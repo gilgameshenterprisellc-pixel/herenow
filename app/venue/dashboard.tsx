@@ -101,8 +101,12 @@ export default function VenueDashboard() {
     Alert.alert('Sign out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: async () => {
-        await supabase.auth.signOut()
-        router.replace('/(auth)/login')
+        try {
+          await supabase.auth.signOut()
+          router.replace('/(auth)/login')
+        } catch {
+          Alert.alert('Error', 'Could not sign out. Try again.')
+        }
       }},
     ])
   }

@@ -333,6 +333,7 @@ export default function AdminVenues() {
         ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {loading ? (
           <ActivityIndicator color="#29B6F6" size="large" style={{ marginTop: 60 }} />
@@ -399,7 +400,7 @@ export default function AdminVenues() {
                       />
 
                       <Text style={styles.label}>Zone Type</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePills}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePills} keyboardShouldPersistTaps="handled">
                         {ZONE_TYPES.map((t) => (
                           <TouchableOpacity
                             key={t}

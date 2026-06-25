@@ -106,16 +106,24 @@ export default function ProfileScreen() {
           text: 'Sign out',
           style: 'destructive',
           onPress: async () => {
-            await supabase.auth.signOut()
-            router.replace('/(auth)/login')
+            try {
+              await supabase.auth.signOut()
+              router.replace('/(auth)/login')
+            } catch {
+              Alert.alert('Error', 'Could not sign out. Try again.')
+            }
           },
         },
       ])
     } else {
-      // Full page reload clears the JS auth cache completely.
-      // router.replace('/') leaves stale session in memory → lands on tabs, not landing page.
-      await supabase.auth.signOut()
-      ;(window as any).location.replace('/')
+      try {
+        // Full page reload clears the JS auth cache completely.
+        // router.replace('/') leaves stale session in memory → lands on tabs, not landing page.
+        await supabase.auth.signOut()
+        ;(window as any).location.replace('/')
+      } catch {
+        ;(window as any).location.replace('/')
+      }
     }
   }
 
