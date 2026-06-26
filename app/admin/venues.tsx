@@ -8,10 +8,23 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const ZONE_TYPES = ['bar', 'club', 'restaurant', 'cafe', 'venue', 'park', 'other']
+
+const DENY_REASONS = [
+  'Location could not be verified',
+  'Incomplete or inaccurate information provided',
+  'Venue type not supported in your area',
+  'Does not meet HereNow community guidelines',
+  'Other — see note below',
+]
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PendingVenue {
   id: string
+  email: string | null
   display_name: string
   username: string | null
   created_at: string
@@ -61,8 +74,6 @@ interface GeofenceForm {
   radius: string
 }
 
-const ZONE_TYPES = ['bar', 'club', 'restaurant', 'cafe', 'venue', 'park', 'other']
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AdminVenues() {
@@ -79,13 +90,22 @@ export default function AdminVenues() {
   const [geocoding, setGeocoding]         = useState<Record<string, boolean>>({})
   const [geocodeStatus, setGeocodeStatus] = useState<Record<string, 'success' | 'notfound' | 'error'>>({})
 
+  // Deny modal
+  const [denyTarget, setDenyTarget] = useState<PendingVenue | null>(null)
+  const [denyPreset, setDenyPreset] = useState<string>('')
+  const [denyCustom, setDenyCustom] = useState<string>('')
+  const [denyingId, setDenyingId]   = useState<string | null>(null)
+
+  // Live venue zone toggling
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+
   // ── Load ──────────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
     const [pendingRes, approvedRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, display_name, username, created_at, venue_address, venue_suite, venue_city, venue_state, venue_zip, venue_lat, venue_lng, venue_type')
+        .select('id, email, display_name, username, created_at, venue_address, venue_suite, venue_city, venue_state, venue_zip, venue_lat, venue_lng, venue_type')
         .eq('venue_status', 'pending')
         .order('created_at', { ascending: true }),
       supabase
@@ -113,9 +133,9 @@ export default function AdminVenues() {
     const zoneByOwner: Record<string, any> = {}
     for (const z of zones ?? []) zoneByOwner[z.owner_id] = z
 
-    // Pending list
     const mergedPending: PendingVenue[] = pendingProfiles.map((p: any) => ({
       id:            p.id,
+      email:         p.email ?? null,
       display_name:  p.display_name,
       username:      p.username ?? null,
       created_at:    p.created_at,
@@ -132,7 +152,6 @@ export default function AdminVenues() {
 
     setPending(mergedPending)
 
-    // Pre-fill pending forms
     const defaultForms: Record<string, GeofenceForm> = {}
     for (const v of mergedPending) {
       const z = v.existing_zone
@@ -146,7 +165,6 @@ export default function AdminVenues() {
     }
     setForms(defaultForms)
 
-    // Live list
     setLive(approvedProfiles.map((p: any) => ({
       id:            p.id,
       display_name:  p.display_name,
@@ -212,7 +230,7 @@ export default function AdminVenues() {
     const lng    = parseFloat(form.lng)
     const radius = parseInt(form.radius)
 
-    if (!form.zoneName.trim())                             { showToast('Zone name required.', 'error'); return }
+    if (!form.zoneName.trim()) { showToast('Zone name required.', 'error'); return }
     if (isNaN(lat) || lat < -90 || lat > 90) {
       showToast(form.lat ? 'Latitude must be −90 to 90.' : 'Tap "Fetch Coordinates" to auto-fill, or enter manually.', 'error')
       return
@@ -221,7 +239,7 @@ export default function AdminVenues() {
       showToast(form.lng ? 'Longitude must be −180 to 180.' : 'Tap "Fetch Coordinates" to auto-fill, or enter manually.', 'error')
       return
     }
-    if (isNaN(radius) || radius < 10    || radius > 5000) { showToast('Radius must be 10–5000 m.', 'error'); return }
+    if (isNaN(radius) || radius < 10 || radius > 5000) { showToast('Radius must be 10–5000 m.', 'error'); return }
 
     const doApprove = async () => {
       setSubmitting(venue.id)
@@ -235,7 +253,6 @@ export default function AdminVenues() {
       })
       setSubmitting(null)
       if (error) {
-        console.error('[AdminVenues] approve error:', error)
         showToast(error.message ?? 'Approval failed. Try again.', 'error')
       } else {
         showToast(`${venue.display_name} is now live!`, 'success')
@@ -265,28 +282,56 @@ export default function AdminVenues() {
   // ── Deny ─────────────────────────────────────────────────────────────────
 
   const handleDeny = (venue: PendingVenue) => {
-    const doDeny = async () => {
-      setSubmitting(venue.id)
-      await supabase.rpc('admin_deny_venue', { p_profile_id: venue.id })
-      setSubmitting(null)
-      setPending((prev) => prev.filter((v) => v.id !== venue.id))
+    setDenyPreset('')
+    setDenyCustom('')
+    setDenyTarget(venue)
+  }
+
+  const doDenyConfirmed = async () => {
+    if (!denyTarget || !denyPreset) { showToast('Select a reason.', 'error'); return }
+    setDenyingId(denyTarget.id)
+
+    const reasonText = denyPreset + (denyCustom.trim() ? `\n\n${denyCustom.trim()}` : '')
+
+    await supabase.rpc('admin_deny_venue', { p_profile_id: denyTarget.id })
+    await supabase.from('profiles').update({ denial_reason: reasonText }).eq('id', denyTarget.id)
+
+    setPending((prev) => prev.filter((v) => v.id !== denyTarget.id))
+    showToast(`${denyTarget.display_name} application denied.`, 'info')
+
+    if (denyTarget.email && Platform.OS === 'web') {
+      const subject = encodeURIComponent(`Your HereNow Application — ${denyTarget.display_name}`)
+      const body = encodeURIComponent(
+        `Hello ${denyTarget.display_name},\n\n` +
+        `Thank you for your interest in HereNow. After reviewing your application, we are unable to approve your venue at this time.\n\n` +
+        `Reason: ${reasonText}\n\n` +
+        `If you have questions or would like to update your information and reapply, please reply to this email.\n\n` +
+        `Best,\nThe HereNow Team`
+      )
+      window.open(`mailto:${denyTarget.email}?subject=${subject}&body=${body}`, '_blank')
     }
 
-    if (Platform.OS === 'web') {
-      const ok = (window as any).confirm(
-        `Deny "${venue.display_name}"?\n\nThe owner will see their application as denied.`
-      )
-      if (ok) doDeny()
-    } else {
-      Alert.alert(
-        `Deny ${venue.display_name}?`,
-        'The owner will see their application as denied.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Deny', style: 'destructive', onPress: doDeny },
-        ]
-      )
-    }
+    setDenyingId(null)
+    setDenyTarget(null)
+  }
+
+  // ── Live venue management ─────────────────────────────────────────────────
+
+  const handleToggleZone = async (venue: LiveVenue) => {
+    if (!venue.zone) return
+    setTogglingId(venue.id)
+    const newActive = !venue.zone.is_active
+    const { error } = await supabase
+      .from('zones')
+      .update({ is_active: newActive })
+      .eq('id', venue.zone.id)
+    setTogglingId(null)
+    if (error) { showToast('Failed to update zone.', 'error'); return }
+    showToast(
+      newActive ? `${venue.display_name} zone is live.` : `${venue.display_name} zone paused.`,
+      newActive ? 'success' : 'info'
+    )
+    load()
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -376,7 +421,8 @@ export default function AdminVenues() {
                           {[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')}
                         </Text>
                       )}
-                      {venue.username   ? <Text style={styles.cardMeta}>@{venue.username}</Text>   : null}
+                      {venue.email    ? <Text style={styles.cardEmail}>{venue.email}</Text>         : null}
+                      {venue.username ? <Text style={styles.cardMeta}>@{venue.username}</Text>      : null}
                       {venue.venue_type ? <Text style={styles.cardMeta}>{venue.venue_type}</Text>  : null}
                     </View>
                     <Text style={styles.chevron}>{isOpen ? '▲' : '▼'}</Text>
@@ -512,61 +558,147 @@ export default function AdminVenues() {
               <Text style={styles.emptySub}>Approve a pending application to get started.</Text>
             </View>
           ) : (
-            live.map((venue) => (
-              <View key={venue.id} style={styles.card}>
-                <View style={styles.liveCardInner}>
-                  <View style={styles.liveCardHeader}>
-                    <View style={styles.liveDot} />
-                    <Text style={styles.cardVenueName}>{venue.display_name}</Text>
-                  </View>
-
-                  {(venue.venue_address || venue.venue_city) && (
-                    <Text style={styles.cardAddress}>
-                      {[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state].filter(Boolean).join(', ')}
-                    </Text>
-                  )}
-                  {venue.username && <Text style={styles.cardMeta}>@{venue.username}</Text>}
-
-                  {venue.zone ? (
-                    <View style={styles.zoneInfo}>
-                      <View style={styles.zoneInfoRow}>
-                        <Text style={styles.zoneInfoLabel}>Zone</Text>
-                        <Text style={styles.zoneInfoValue}>{venue.zone.name}</Text>
-                      </View>
-                      <View style={styles.zoneInfoRow}>
-                        <Text style={styles.zoneInfoLabel}>Type</Text>
-                        <Text style={styles.zoneInfoValue}>{venue.zone.type}</Text>
-                      </View>
-                      <View style={styles.zoneInfoRow}>
-                        <Text style={styles.zoneInfoLabel}>Radius</Text>
-                        <Text style={styles.zoneInfoValue}>{venue.zone.radius_meters}m</Text>
-                      </View>
-                      <View style={styles.zoneInfoRow}>
-                        <Text style={styles.zoneInfoLabel}>Coords</Text>
-                        <Text style={styles.zoneInfoValue}>
-                          {venue.zone.center_lat?.toFixed(5)}, {venue.zone.center_lng?.toFixed(5)}
-                        </Text>
-                      </View>
-                      <View style={styles.zoneInfoRow}>
-                        <Text style={styles.zoneInfoLabel}>Active</Text>
-                        <Text style={[styles.zoneInfoValue, { color: venue.zone.is_active ? '#22c55e' : '#ef4444' }]}>
-                          {venue.zone.is_active ? '● Yes' : '● Paused'}
-                        </Text>
-                      </View>
+            live.map((venue) => {
+              const toggling = togglingId === venue.id
+              return (
+                <View key={venue.id} style={styles.card}>
+                  <View style={styles.liveCardInner}>
+                    <View style={styles.liveCardHeader}>
+                      <View style={[styles.liveDot, { backgroundColor: venue.zone?.is_active ? '#22c55e' : '#f59e0b' }]} />
+                      <Text style={styles.cardVenueName}>{venue.display_name}</Text>
                     </View>
-                  ) : (
-                    <View style={styles.noZoneWarn}>
-                      <Text style={styles.noZoneWarnText}>
-                        No zone on file — run venue_approval_fix.sql in Supabase and re-approve if needed.
+
+                    {(venue.venue_address || venue.venue_city) && (
+                      <Text style={styles.cardAddress}>
+                        {[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state].filter(Boolean).join(', ')}
                       </Text>
-                    </View>
-                  )}
+                    )}
+                    {venue.username && <Text style={styles.cardMeta}>@{venue.username}</Text>}
+
+                    {venue.zone ? (
+                      <>
+                        <View style={styles.zoneInfo}>
+                          <View style={styles.zoneInfoRow}>
+                            <Text style={styles.zoneInfoLabel}>Zone</Text>
+                            <Text style={styles.zoneInfoValue}>{venue.zone.name}</Text>
+                          </View>
+                          <View style={styles.zoneInfoRow}>
+                            <Text style={styles.zoneInfoLabel}>Type</Text>
+                            <Text style={styles.zoneInfoValue}>{venue.zone.type}</Text>
+                          </View>
+                          <View style={styles.zoneInfoRow}>
+                            <Text style={styles.zoneInfoLabel}>Radius</Text>
+                            <Text style={styles.zoneInfoValue}>{venue.zone.radius_meters}m</Text>
+                          </View>
+                          <View style={styles.zoneInfoRow}>
+                            <Text style={styles.zoneInfoLabel}>Coords</Text>
+                            <Text style={styles.zoneInfoValue}>
+                              {venue.zone.center_lat?.toFixed(5)}, {venue.zone.center_lng?.toFixed(5)}
+                            </Text>
+                          </View>
+                          <View style={styles.zoneInfoRow}>
+                            <Text style={styles.zoneInfoLabel}>Status</Text>
+                            <Text style={[styles.zoneInfoValue, { color: venue.zone.is_active ? '#22c55e' : '#f59e0b' }]}>
+                              {venue.zone.is_active ? '● Live' : '● Paused'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.toggleZoneBtn,
+                            venue.zone.is_active ? styles.toggleZoneBtnPause : styles.toggleZoneBtnResume,
+                            toggling && styles.btnDisabled,
+                          ]}
+                          onPress={() => !toggling && handleToggleZone(venue)}
+                        >
+                          {toggling
+                            ? <ActivityIndicator size="small" color="#f8fafc" />
+                            : <Text style={styles.toggleZoneBtnText}>
+                                {venue.zone.is_active ? '⏸ Pause Zone' : '▶ Resume Zone'}
+                              </Text>
+                          }
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <View style={styles.noZoneWarn}>
+                        <Text style={styles.noZoneWarnText}>
+                          No zone on file — run venue_approval_fix.sql in Supabase and re-approve if needed.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))
+              )
+            })
           )
         )}
       </ScrollView>
+
+      {/* ── Deny Modal ─────────────────────────────────────────────────────── */}
+      {denyTarget && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setDenyTarget(null)}
+            activeOpacity={1}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Deny "{denyTarget.display_name}"?</Text>
+            <Text style={styles.modalSub}>
+              Select a reason. It will be saved and you can email it to the venue.
+            </Text>
+
+            <View style={styles.reasonList}>
+              {DENY_REASONS.map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  style={[styles.reasonRow, denyPreset === r && styles.reasonRowActive]}
+                  onPress={() => setDenyPreset(r)}
+                >
+                  <View style={[styles.reasonRadio, denyPreset === r && styles.reasonRadioActive]} />
+                  <Text style={[styles.reasonText, denyPreset === r && styles.reasonTextActive]}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.denyTextarea}
+              value={denyCustom}
+              onChangeText={setDenyCustom}
+              placeholder="Additional notes (optional)"
+              placeholderTextColor="#4A6580"
+              multiline
+              maxLength={500}
+            />
+
+            {denyTarget.email && (
+              <Text style={styles.emailNote}>
+                📧 After denying, your email client will open with a pre-written message to {denyTarget.email}
+              </Text>
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setDenyTarget(null)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalDenyBtn, (!denyPreset || !!denyingId) && styles.btnDisabled]}
+                onPress={doDenyConfirmed}
+                disabled={!denyPreset || !!denyingId}
+              >
+                {denyingId
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={styles.modalDenyText}>✗ Deny Application</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   )
 }
@@ -619,6 +751,7 @@ const styles = StyleSheet.create({
   cardLeft: { flex: 1, gap: 3 },
   cardVenueName: { fontSize: 16, fontWeight: '800', color: '#f8fafc' },
   cardMeta: { fontSize: 13, color: '#8EADC7' },
+  cardEmail: { fontSize: 12, color: '#29B6F6' },
   cardAddress: { fontSize: 12, color: '#7A93AC' },
   chevron: { fontSize: 14, color: '#7A93AC' },
   formSection: { borderTopWidth: 1, borderTopColor: '#1A2E4A', padding: 16, gap: 10 },
@@ -656,13 +789,13 @@ const styles = StyleSheet.create({
   },
   approveBtnText: { fontSize: 14, fontWeight: '700', color: '#050A15' },
   btnDisabled: { opacity: 0.5 },
-  liveCardInner: { padding: 16, gap: 8 },
+  liveCardInner: { padding: 16, gap: 10 },
   liveCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' },
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
   zoneInfo: {
     backgroundColor: '#050A15', borderRadius: 10,
     borderWidth: 1, borderColor: '#1A2E4A',
-    padding: 12, gap: 6, marginTop: 4,
+    padding: 12, gap: 6,
   },
   zoneInfoRow: { flexDirection: 'row', gap: 10 },
   zoneInfoLabel: {
@@ -673,7 +806,7 @@ const styles = StyleSheet.create({
   noZoneWarn: {
     backgroundColor: '#f59e0b10', borderRadius: 8,
     borderWidth: 1, borderColor: '#f59e0b30',
-    padding: 10, marginTop: 4,
+    padding: 10,
   },
   noZoneWarnText: { fontSize: 12, color: '#f59e0b', lineHeight: 17 },
   geocodeBtn: {
@@ -682,4 +815,66 @@ const styles = StyleSheet.create({
   },
   geocodeBtnText: { fontSize: 13, fontWeight: '700', color: '#050A15' },
   inputEmpty: { borderColor: '#f59e0b50' },
+  toggleZoneBtn: {
+    borderRadius: 10, paddingVertical: 11,
+    alignItems: 'center', borderWidth: 1,
+  },
+  toggleZoneBtnPause: { borderColor: '#f59e0b', backgroundColor: '#f59e0b10' },
+  toggleZoneBtnResume: { borderColor: '#22c55e', backgroundColor: '#22c55e10' },
+  toggleZoneBtnText: { fontSize: 13, fontWeight: '700', color: '#f8fafc' },
+
+  // Deny modal
+  modalOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(2,8,16,0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    zIndex: 999,
+  },
+  modalCard: {
+    backgroundColor: '#0D1B2E',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 480,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: '#ef444430',
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#f8fafc' },
+  modalSub: { fontSize: 13, color: '#7A93AC', lineHeight: 18 },
+  reasonList: { gap: 8 },
+  reasonRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#050A15', borderRadius: 10, padding: 12,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  reasonRowActive: { borderColor: '#ef4444', backgroundColor: '#ef444408' },
+  reasonRadio: {
+    width: 16, height: 16, borderRadius: 8,
+    borderWidth: 2, borderColor: '#4A6580',
+    flexShrink: 0,
+  },
+  reasonRadioActive: { borderColor: '#ef4444', backgroundColor: '#ef4444' },
+  reasonText: { fontSize: 13, color: '#8EADC7', flex: 1, lineHeight: 18 },
+  reasonTextActive: { color: '#f8fafc', fontWeight: '600' },
+  denyTextarea: {
+    backgroundColor: '#050A15', borderRadius: 10, padding: 12,
+    color: '#f8fafc', fontSize: 14, borderWidth: 1, borderColor: '#1A2E4A',
+    minHeight: 72, textAlignVertical: 'top',
+  },
+  emailNote: { fontSize: 12, color: '#29B6F6', lineHeight: 17 },
+  modalActions: { flexDirection: 'row', gap: 10 },
+  modalCancelBtn: {
+    flex: 1, borderRadius: 10, paddingVertical: 12,
+    alignItems: 'center', borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  modalCancelText: { fontSize: 14, fontWeight: '700', color: '#7A93AC' },
+  modalDenyBtn: {
+    flex: 2, borderRadius: 10, paddingVertical: 12,
+    alignItems: 'center', backgroundColor: '#ef4444',
+  },
+  modalDenyText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 })
