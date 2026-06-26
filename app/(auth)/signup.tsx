@@ -140,6 +140,7 @@ export default function SignupScreen() {
       is_venue_owner: isVenue,
       venue_status: isVenue ? 'pending' : 'none',
       ...(isVenue ? {
+        email:         email.trim().toLowerCase(),
         venue_type:    venueType ? (VENUE_TYPE_MAP[venueType] ?? venueType.toLowerCase()) : null,
         venue_address: venueAddress.trim(),
         venue_suite:   venueSuite.trim() || null,

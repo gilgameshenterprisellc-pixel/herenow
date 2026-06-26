@@ -34,6 +34,7 @@ export default function VenueDashboard() {
   const [stats, setStats]             = useState<AggregateStats>({ total: 0, ageRanges: {}, interests: {} })
   const [ownerName, setOwnerName]         = useState('')
   const [venueStatus, setVenueStatus]     = useState<string | null>(null)
+  const [denialReason, setDenialReason]   = useState<string | null>(null)
   const [subscriberCount, setSubscriberCount] = useState(0)
   const pulseAnim = useRef(new Animated.Value(1)).current
 
@@ -54,11 +55,12 @@ export default function VenueDashboard() {
       if (!user) { router.replace('/(auth)/login'); return }
 
       const [{ data: profile }, { data: zones }] = await Promise.all([
-        supabase.from('profiles').select('display_name, venue_status').eq('id', user.id).maybeSingle(),
+        supabase.from('profiles').select('display_name, venue_status, denial_reason').eq('id', user.id).maybeSingle(),
         supabase.from('zones').select('*').eq('owner_id', user.id).limit(1),
       ])
 
       setVenueStatus(profile?.venue_status ?? null)
+      setDenialReason(profile?.denial_reason ?? null)
       setOwnerName(profile?.display_name ?? '')
       const z = zones?.[0] ?? null
       setVenue(z)
@@ -125,6 +127,41 @@ export default function VenueDashboard() {
     return (
       <View style={styles.center}>
         <ActivityIndicator color="#29B6F6" size="large" />
+      </View>
+    )
+  }
+
+  if (venueStatus === 'denied') {
+    return (
+      <View style={[styles.center, { paddingHorizontal: 24 }]}>
+        <Reanimated.View entering={FadeInDown.delay(60).duration(500)} style={[styles.pendingCard, styles.deniedCard]}>
+          <View style={[styles.pendingIconWrap, styles.deniedIconWrap]}>
+            <Ionicons name="close-circle-outline" size={52} color="#ef4444" />
+          </View>
+          <Text style={[styles.pendingTitle, styles.deniedTitle]}>Application Not Approved</Text>
+          <Text style={styles.pendingSub}>
+            We reviewed your application and weren't able to approve it at this time.
+          </Text>
+          {denialReason ? (
+            <View style={styles.deniedReasonBox}>
+              <Text style={styles.deniedReasonLabel}>Reason given:</Text>
+              <Text style={styles.deniedReasonText}>{denialReason}</Text>
+            </View>
+          ) : null}
+          <View style={styles.pendingDivider} />
+          <Text style={styles.pendingHint}>
+            Questions or want to update your info and reapply?{'\n'}Email{' '}
+            <Text style={styles.pendingEmail}>support@herenow.app</Text>
+          </Text>
+        </Reanimated.View>
+        <Reanimated.View entering={FadeInDown.delay(220).duration(500)} style={{ width: '100%' }}>
+          <TouchableOpacity
+            style={styles.backHomeBtn}
+            onPress={() => router.replace('/(tabs)')}
+          >
+            <Text style={styles.backHomeBtnText}>Back to Home</Text>
+          </TouchableOpacity>
+        </Reanimated.View>
       </View>
     )
   }
@@ -467,4 +504,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backHomeBtnText: { color: '#7A93AC', fontWeight: '700', fontSize: 15 },
+  deniedCard: { borderColor: '#ef444430' },
+  deniedIconWrap: { backgroundColor: '#ef444415' },
+  deniedTitle: { color: '#ef4444' },
+  deniedReasonBox: {
+    backgroundColor: '#ef444410', borderRadius: 10,
+    borderWidth: 1, borderColor: '#ef444430',
+    padding: 12, alignSelf: 'stretch', marginTop: 4,
+  },
+  deniedReasonLabel: { fontSize: 11, fontWeight: '700', color: '#ef4444', marginBottom: 4 },
+  deniedReasonText: { fontSize: 13, color: '#f8fafc', lineHeight: 18 },
 })
