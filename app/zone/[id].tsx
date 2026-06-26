@@ -3,6 +3,8 @@ import {
   View, Text, FlatList, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native'
+import { useToast } from '@/contexts/ToastContext'
+import { platformConfirm } from '@/lib/confirm'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -40,6 +42,7 @@ export default function ZoneScreen() {
   const { id }                     = useLocalSearchParams<{ id: string }>()
   const insets                     = useSafeAreaInsets()
   const { activeSession, checkOut } = useSessionContext()
+  const { showToast }              = useToast()
   const [userId, setUserId]         = useState<string | null>(null)
   const [zone, setZone]             = useState<any>(null)
   const [loading, setLoading]       = useState(true)
@@ -141,87 +144,82 @@ export default function ZoneScreen() {
     try {
       const existing = await existingWeMet({ zoneId: id, otherUserId: person.user_id })
       if (existing) {
-        Alert.alert(
-          'Already sent',
+        showToast(
           existing.status === 'confirmed'
-            ? 'You\'ve already confirmed you met this person!'
+            ? 'Already confirmed — you met this person!'
             : existing.status === 'pending'
-            ? 'Waiting for them to confirm.'
-            : 'This request has expired or was declined.'
+            ? 'Request sent — waiting for them to confirm.'
+            : 'This request expired or was declined.',
+          existing.status === 'confirmed' ? 'success' : 'info'
         )
         return
       }
 
-      Alert.alert(
+      platformConfirm(
         `We Met — ${person.display_name}`,
         'Send a confirmation that you actually met this person IRL?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Send We Met',
-            onPress: async () => {
-              try {
-                await sendWeMet({
-                  zoneId: id,
-                  recipientId: person.user_id,
-                  initiatorSessionId: activeSession.id,
-                  recipientSessionId: person.session_id,
-                })
-                await checkAndAwardBadges('wemet_confirmed')
-                Alert.alert('Sent! 🤝', `We Met request sent to ${person.display_name}. They'll confirm when they see it.`)
-              } catch {
-                Alert.alert('Error', 'Could not send We Met. Try again.')
-              }
-            },
-          },
-        ]
+        async () => {
+          try {
+            await sendWeMet({
+              zoneId: id,
+              recipientId: person.user_id,
+              initiatorSessionId: activeSession.id,
+              recipientSessionId: person.session_id,
+            })
+            await checkAndAwardBadges('wemet_confirmed')
+            showToast(`We Met request sent to ${person.display_name}!`, 'success')
+          } catch {
+            showToast('Could not send We Met. Try again.', 'error')
+          }
+        },
+        { confirmText: 'Send We Met' }
       )
     } catch {
-      Alert.alert('Error', 'Something went wrong. Try again.')
+      showToast('Something went wrong. Try again.', 'error')
     }
   }
 
   const handleReport = (person: ActivePerson) => {
-    Alert.alert(
-      `Report ${person.display_name}`,
-      'What is this report about?',
-      [
-        { text: 'Harassment', onPress: () => submitReport(person.user_id, 'harassment') },
-        { text: 'Inappropriate behavior', onPress: () => submitReport(person.user_id, 'inappropriate_behavior') },
-        { text: 'Spam', onPress: () => submitReport(person.user_id, 'spam') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    )
+    if (Platform.OS === 'web') {
+      if ((window as any).confirm(`Report ${person.display_name} for inappropriate behavior?`)) {
+        submitReport(person.user_id, 'inappropriate_behavior')
+      }
+    } else {
+      Alert.alert(
+        `Report ${person.display_name}`,
+        'What is this report about?',
+        [
+          { text: 'Harassment', onPress: () => submitReport(person.user_id, 'harassment') },
+          { text: 'Inappropriate behavior', onPress: () => submitReport(person.user_id, 'inappropriate_behavior') },
+          { text: 'Spam', onPress: () => submitReport(person.user_id, 'spam') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      )
+    }
   }
 
   const submitReport = async (reportedId: string, reason: ReportReason) => {
     try {
       await reportUser({ reportedId, zoneId: id, reason })
-      Alert.alert('Reported', 'Thank you for keeping the space safe. We\'ll review this.')
+      showToast('Reported. Thank you for keeping the space safe.', 'success')
     } catch {
-      Alert.alert('Error', 'Could not submit report. Try again.')
+      showToast('Could not submit report. Try again.', 'error')
     }
   }
 
   const handleBlock = (person: ActivePerson) => {
-    Alert.alert(
+    platformConfirm(
       `Block ${person.display_name}?`,
       'They won\'t be able to send you We Met requests, and you won\'t see each other here.',
-      [
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await blockUser(person.user_id)
-              setPeople((prev) => prev.filter((p) => p.user_id !== person.user_id))
-            } catch {
-              Alert.alert('Error', 'Could not block user. Try again.')
-            }
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
+      async () => {
+        try {
+          await blockUser(person.user_id)
+          setPeople((prev) => prev.filter((p) => p.user_id !== person.user_id))
+        } catch {
+          showToast('Could not block user. Try again.', 'error')
+        }
+      },
+      { confirmText: 'Block', destructive: true }
     )
   }
 
@@ -241,7 +239,7 @@ export default function ZoneScreen() {
       await checkAndAwardBadges('pulse_post')
       await refreshPulse()
     } catch {
-      Alert.alert('Error', 'Could not post. Try again.')
+      showToast('Could not post. Try again.', 'error')
     } finally {
       setPostingPulse(false)
     }
@@ -261,31 +259,37 @@ export default function ZoneScreen() {
       await refreshChat()
       setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 100)
     } catch {
-      Alert.alert('Error', 'Could not send message. Try again.')
+      showToast('Could not send message. Try again.', 'error')
     } finally {
       setSendingChat(false)
     }
   }
 
   const handleReportPost = (postId: string) => {
-    Alert.alert(
-      'Report this post',
-      'What\'s wrong with it?',
-      [
-        { text: 'Spam', onPress: () => submitContentReport(postId, 'spam') },
-        { text: 'Harassment', onPress: () => submitContentReport(postId, 'harassment') },
-        { text: 'Inappropriate', onPress: () => submitContentReport(postId, 'inappropriate') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    )
+    if (Platform.OS === 'web') {
+      if ((window as any).confirm('Report this post as spam or inappropriate?')) {
+        submitContentReport(postId, 'spam')
+      }
+    } else {
+      Alert.alert(
+        'Report this post',
+        'What\'s wrong with it?',
+        [
+          { text: 'Spam', onPress: () => submitContentReport(postId, 'spam') },
+          { text: 'Harassment', onPress: () => submitContentReport(postId, 'harassment') },
+          { text: 'Inappropriate', onPress: () => submitContentReport(postId, 'inappropriate') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      )
+    }
   }
 
   const submitContentReport = async (postId: string, reason: ContentReportReason) => {
     try {
       await reportContent({ contentType: 'pulse_post', contentId: postId, zoneId: id, reason })
-      Alert.alert('Reported', 'Thanks for keeping the space safe. We\'ll review this.')
+      showToast('Reported. Thanks for keeping the space safe.', 'success')
     } catch {
-      Alert.alert('Error', 'Could not submit report. Try again.')
+      showToast('Could not submit report. Try again.', 'error')
     }
   }
 
@@ -298,31 +302,29 @@ export default function ZoneScreen() {
       } else {
         await subscribeToVenue(id)
         setIsSubscribed(true)
-        Alert.alert('Following! 🔔', `You'll see ${zone?.name ?? 'this venue'}'s promotions and announcements in your feed.`)
+        showToast(`Following ${zone?.name ?? 'this venue'}! You'll see their updates in your feed.`, 'success')
       }
     } catch {
-      Alert.alert('Error', 'Could not update follow status. Try again.')
+      showToast('Could not update follow status. Try again.', 'error')
     } finally {
       setSubLoading(false)
     }
   }
 
   const handleCheckOut = () => {
-    Alert.alert('Check out', 'Leave this venue and end your session?', [
-      { text: 'Stay', style: 'cancel' },
-      {
-        text: 'Check Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await checkOut()
-            router.replace(`/afterglow/${activeSession?.id}`)
-          } catch {
-            Alert.alert('Error', 'Could not check out. Try again.')
-          }
-        },
+    platformConfirm(
+      'Check out',
+      'Leave this venue and end your session?',
+      async () => {
+        try {
+          await checkOut()
+          router.replace(`/afterglow/${activeSession?.id}`)
+        } catch {
+          showToast('Could not check out. Try again.', 'error')
+        }
       },
-    ])
+      { confirmText: 'Check Out', cancelText: 'Stay', destructive: true }
+    )
   }
 
   if (loading) {

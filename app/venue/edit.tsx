@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
+  ScrollView, ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Location from 'expo-location'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/contexts/ToastContext'
 
 const RADIUS_OPTIONS = [
   { label: 'Small (bar, coffee shop)', meters: 80 },
@@ -25,6 +26,7 @@ interface VenueZone {
 
 export default function VenueEditScreen() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
   const [locating, setLocating]   = useState(false)
@@ -77,7 +79,7 @@ export default function VenueEditScreen() {
     try {
       if (Platform.OS === 'web') {
         if (!navigator.geolocation) {
-          Alert.alert('Not supported', 'Geolocation is not available in this browser.')
+          showToast('Geolocation is not available in this browser.', 'error')
           return
         }
         await new Promise<void>((resolve, reject) => {
@@ -94,7 +96,7 @@ export default function VenueEditScreen() {
       } else {
         const { status } = await Location.requestForegroundPermissionsAsync()
         if (status !== 'granted') {
-          Alert.alert('Permission denied', 'Location access is needed to pin your venue.')
+          showToast('Location access is needed to pin your venue.', 'error')
           return
         }
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
@@ -102,16 +104,16 @@ export default function VenueEditScreen() {
         setLng(pos.coords.longitude)
       }
     } catch (err: any) {
-      Alert.alert('Location error', err?.message ?? 'Could not get location. Make sure location access is allowed.')
+      showToast(err?.message ?? 'Could not get location. Make sure location access is allowed.', 'error')
     } finally {
       setLocating(false)
     }
   }
 
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert('Venue name required'); return }
+    if (!name.trim()) { showToast('Venue name required.', 'error'); return }
     if (lat === null || lng === null) {
-      Alert.alert('Location required', 'Tap "Use My Location" while you\'re standing at your venue to set the pin.')
+      showToast('Tap "Use My Location" while you\'re standing at your venue to set the pin.', 'error')
       return
     }
     if (!userId) return
@@ -135,7 +137,7 @@ export default function VenueEditScreen() {
         .eq('id', existingZone.id)
 
       setSaving(false)
-      if (error) { Alert.alert('Save failed', error.message); return }
+      if (error) { showToast(error.message ?? 'Save failed. Try again.', 'error'); return }
     } else {
       const { error } = await supabase
         .from('zones')
@@ -152,7 +154,7 @@ export default function VenueEditScreen() {
         })
 
       setSaving(false)
-      if (error) { Alert.alert('Save failed', error.message); return }
+      if (error) { showToast(error.message ?? 'Save failed. Try again.', 'error'); return }
     }
 
     router.replace('/venue/dashboard' as any)

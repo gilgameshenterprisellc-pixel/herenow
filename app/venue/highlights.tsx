@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, Platform, RefreshControl,
+  TextInput, ActivityIndicator, Platform, RefreshControl,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchHighlights, createHighlight, deleteHighlight, type VenueHighlight } from '@/lib/highlights'
+import { useToast } from '@/contexts/ToastContext'
+import { platformConfirm } from '@/lib/confirm'
 
 const EMOJIS = ['⭐', '🔥', '🎉', '🍹', '🎵', '🌃', '🎭', '🎮', '🍔', '🥳', '💫', '🏆']
 const MAX = 6
 
 export default function VenueHighlightsScreen() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [zoneId, setZoneId]           = useState<string | null>(null)
   const [highlights, setHighlights]   = useState<VenueHighlight[]>([])
   const [loading, setLoading]         = useState(true)
@@ -47,8 +50,8 @@ export default function VenueHighlightsScreen() {
   const onRefresh = () => { setRefreshing(true); load() }
 
   const handleAdd = async () => {
-    if (!zoneId || !title.trim()) { Alert.alert('Title required'); return }
-    if (highlights.length >= MAX) { Alert.alert(`Max ${MAX} highlights`, 'Delete one first to add another.'); return }
+    if (!zoneId || !title.trim()) { showToast('Title required.', 'error'); return }
+    if (highlights.length >= MAX) { showToast(`Max ${MAX} highlights — delete one first to add another.`, 'info'); return }
 
     setSaving(true)
     const created = await createHighlight({
@@ -67,17 +70,15 @@ export default function VenueHighlightsScreen() {
   }
 
   const handleDelete = (id: string, hlTitle: string) => {
-    Alert.alert(`Remove "${hlTitle}"?`, 'This will remove the highlight from your venue showcase.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteHighlight(id)
-          setHighlights((prev) => prev.filter((h) => h.id !== id))
-        },
+    platformConfirm(
+      `Remove "${hlTitle}"?`,
+      'This will remove the highlight from your venue showcase.',
+      async () => {
+        await deleteHighlight(id)
+        setHighlights((prev) => prev.filter((h) => h.id !== id))
       },
-    ])
+      { confirmText: 'Remove', destructive: true }
+    )
   }
 
   if (loading) {

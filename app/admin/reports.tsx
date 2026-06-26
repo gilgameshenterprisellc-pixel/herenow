@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/contexts/ToastContext'
 
 type ReportTab = 'content' | 'users'
 
@@ -33,6 +34,7 @@ interface UserReport {
 
 export default function AdminReports() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [tab, setTab]             = useState<ReportTab>('content')
   const [content, setContent]     = useState<ContentReport[]>([])
   const [users, setUsers]         = useState<UserReport[]>([])
@@ -121,7 +123,7 @@ export default function AdminReports() {
       setUsers((prev) => prev.map((r) =>
         r.id === report.id ? { ...r, reported: r.reported ? { ...r.reported, is_muted: true } : null } : r
       ))
-      Alert.alert('Muted', `${report.reported?.display_name} has been muted.`)
+      showToast(`${report.reported?.display_name ?? 'User'} has been muted.`, 'success')
     }
 
     if (Platform.OS === 'web') {

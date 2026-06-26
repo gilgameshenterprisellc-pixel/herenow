@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, Platform, RefreshControl, Switch,
+  TextInput, ActivityIndicator, Platform, RefreshControl, Switch,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/contexts/ToastContext'
+import { platformConfirm } from '@/lib/confirm'
 
 interface Announcement {
   id: string
@@ -16,6 +18,7 @@ interface Announcement {
 
 export default function VenueAnnouncementsScreen() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [zoneId, setZoneId]         = useState<string | null>(null)
   const [annos, setAnnos]           = useState<Announcement[]>([])
   const [loading, setLoading]       = useState(true)
@@ -51,7 +54,7 @@ export default function VenueAnnouncementsScreen() {
   const onRefresh = () => { setRefreshing(true); load() }
 
   const handleSend = async () => {
-    if (!zoneId || !message.trim()) { Alert.alert('Message required'); return }
+    if (!zoneId || !message.trim()) { showToast('Message required.', 'error'); return }
 
     setSending(true)
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -72,23 +75,21 @@ export default function VenueAnnouncementsScreen() {
       setAnnos((prev) => [data as Announcement, ...prev])
       setMessage('')
       setPostToFeed(false)
-      Alert.alert('Sent! 📣', 'Your announcement is now live for your followers.')
+      showToast('Announcement sent to your followers!', 'success')
     }
     setSending(false)
   }
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete announcement?', 'This will remove it from your followers\' feeds too.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.from('venue_announcements').delete().eq('id', id)
-          setAnnos((prev) => prev.filter((a) => a.id !== id))
-        },
+    platformConfirm(
+      'Delete announcement?',
+      'This will remove it from your followers\' feeds too.',
+      async () => {
+        await supabase.from('venue_announcements').delete().eq('id', id)
+        setAnnos((prev) => prev.filter((a) => a.id !== id))
       },
-    ])
+      { confirmText: 'Delete', destructive: true }
+    )
   }
 
   function timeAgo(iso: string): string {

@@ -4,6 +4,7 @@ import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useGeofenceTask } from '@/hooks/useGeofenceTask'
 import { SessionProvider } from '@/contexts/SessionContext'
+import { ToastProvider } from '@/contexts/ToastContext'
 import { supabase } from '@/lib/supabase'
 import { registerPushToken } from '@/lib/push'
 import { AnalyticsProvider } from '@/components/AnalyticsProvider'
@@ -61,32 +62,34 @@ export default function RootLayout() {
   }, [])
 
   return (
-    <View style={{ flex: 1 }}>
-    <SessionProvider>
-      <StatusBar style="light" />
-      <AnalyticsProvider />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="zone/[id]" />
-        <Stack.Screen name="zone/create" />
-        <Stack.Screen name="zone/event/create" />
-        <Stack.Screen name="check-in/[zoneId]" />
-        <Stack.Screen name="afterglow/[sessionId]" />
-        <Stack.Screen name="we-met" />
-        <Stack.Screen name="messages/index" />
-        <Stack.Screen name="messages/[wemetId]" />
-        <Stack.Screen name="badges" />
-        <Stack.Screen name="profile/edit" />
-        <Stack.Screen name="venue/dashboard" />
-        <Stack.Screen name="venue/edit" />
-        <Stack.Screen name="venue/highlights" />
-        <Stack.Screen name="venue/promotions" />
-        <Stack.Screen name="venue/announcements" />
-        <Stack.Screen name="my-venues" />
-        <Stack.Screen name="admin" />
-      </Stack>
-    </SessionProvider>
-    </View>
+    <ToastProvider>
+      <View style={{ flex: 1 }}>
+      <SessionProvider>
+        <StatusBar style="light" />
+        <AnalyticsProvider />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="zone/[id]" />
+          <Stack.Screen name="zone/create" />
+          <Stack.Screen name="zone/event/create" />
+          <Stack.Screen name="check-in/[zoneId]" />
+          <Stack.Screen name="afterglow/[sessionId]" />
+          <Stack.Screen name="we-met" />
+          <Stack.Screen name="messages/index" />
+          <Stack.Screen name="messages/[wemetId]" />
+          <Stack.Screen name="badges" />
+          <Stack.Screen name="profile/edit" />
+          <Stack.Screen name="venue/dashboard" />
+          <Stack.Screen name="venue/edit" />
+          <Stack.Screen name="venue/highlights" />
+          <Stack.Screen name="venue/promotions" />
+          <Stack.Screen name="venue/announcements" />
+          <Stack.Screen name="my-venues" />
+          <Stack.Screen name="admin" />
+        </Stack>
+      </SessionProvider>
+      </View>
+    </ToastProvider>
   )
 }

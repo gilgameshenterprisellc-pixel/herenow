@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Platform, Alert,
+  ActivityIndicator, RefreshControl,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { fetchMyVenues, unsubscribeFromVenue, type VenueSubscription } from '@/lib/venueSubscriptions'
+import { platformConfirm } from '@/lib/confirm'
 
 export default function MyVenuesScreen() {
   const insets = useSafeAreaInsets()
@@ -24,20 +25,14 @@ export default function MyVenuesScreen() {
   const onRefresh = () => { setRefreshing(true); load() }
 
   const handleUnfollow = (v: VenueSubscription) => {
-    Alert.alert(
+    platformConfirm(
       `Unfollow ${v.zones?.name ?? 'this venue'}?`,
       "You won't see their promotions in your feed anymore.",
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unfollow',
-          style: 'destructive',
-          onPress: async () => {
-            await unsubscribeFromVenue(v.zone_id)
-            setVenues((prev) => prev.filter((x) => x.id !== v.id))
-          },
-        },
-      ]
+      async () => {
+        await unsubscribeFromVenue(v.zone_id)
+        setVenues((prev) => prev.filter((x) => x.id !== v.id))
+      },
+      { confirmText: 'Unfollow', destructive: true }
     )
   }
 

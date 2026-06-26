@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/contexts/ToastContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ const ZONE_TYPES = ['bar', 'club', 'restaurant', 'cafe', 'venue', 'park', 'other
 
 export default function AdminVenues() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [tab, setTab]               = useState<'pending' | 'live'>('pending')
   const [pending, setPending]       = useState<PendingVenue[]>([])
   const [live, setLive]             = useState<LiveVenue[]>([])
@@ -210,16 +212,16 @@ export default function AdminVenues() {
     const lng    = parseFloat(form.lng)
     const radius = parseInt(form.radius)
 
-    if (!form.zoneName.trim())                             { Alert.alert('Zone name required'); return }
+    if (!form.zoneName.trim())                             { showToast('Zone name required.', 'error'); return }
     if (isNaN(lat) || lat < -90 || lat > 90) {
-      Alert.alert('Latitude required', form.lat ? 'Must be −90 to 90' : 'Tap "Fetch Coordinates" to auto-fill, or enter manually.')
+      showToast(form.lat ? 'Latitude must be −90 to 90.' : 'Tap "Fetch Coordinates" to auto-fill, or enter manually.', 'error')
       return
     }
     if (isNaN(lng) || lng < -180 || lng > 180) {
-      Alert.alert('Longitude required', form.lng ? 'Must be −180 to 180' : 'Tap "Fetch Coordinates" to auto-fill, or enter manually.')
+      showToast(form.lng ? 'Longitude must be −180 to 180.' : 'Tap "Fetch Coordinates" to auto-fill, or enter manually.', 'error')
       return
     }
-    if (isNaN(radius) || radius < 10    || radius > 5000) { Alert.alert('Invalid radius', 'Must be 10–5000 m'); return }
+    if (isNaN(radius) || radius < 10    || radius > 5000) { showToast('Radius must be 10–5000 m.', 'error'); return }
 
     const doApprove = async () => {
       setSubmitting(venue.id)
@@ -234,11 +236,11 @@ export default function AdminVenues() {
       setSubmitting(null)
       if (error) {
         console.error('[AdminVenues] approve error:', error)
-        Alert.alert('Approval failed', error.message)
+        showToast(error.message ?? 'Approval failed. Try again.', 'error')
       } else {
-        Alert.alert('Approved ✓', `${venue.display_name} is now live.`, [
-          { text: 'OK', onPress: () => { load(); setTab('live') } },
-        ])
+        showToast(`${venue.display_name} is now live!`, 'success')
+        load()
+        setTab('live')
         setPending((prev) => prev.filter((v) => v.id !== venue.id))
       }
     }

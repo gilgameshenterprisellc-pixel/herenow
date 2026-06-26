@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import * as Location from 'expo-location'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/contexts/ToastContext'
 
 type AccessState = 'loading' | 'denied' | 'pending' | 'granted'
 
@@ -26,6 +27,7 @@ const VENUE_TYPES = [
 
 export default function CreateZoneScreen() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [access, setAccess]           = useState<AccessState>('loading')
   const [name, setName]               = useState('')
   const [desc, setDesc]               = useState('')
@@ -63,24 +65,45 @@ export default function CreateZoneScreen() {
 
   const fetchLocation = async () => {
     setLocLoading(true)
-    const { status } = await Location.requestForegroundPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('Location required', 'HereNow needs your location to create a venue zone.')
+    try {
+      if (Platform.OS === 'web') {
+        if (!navigator.geolocation) {
+          showToast('Geolocation not supported in this browser', 'error')
+          return
+        }
+        await new Promise<void>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+              resolve()
+            },
+            (err) => reject(new Error(err.message ?? 'Could not get location')),
+            { enableHighAccuracy: true, timeout: 10000 }
+          )
+        })
+      } else {
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status !== 'granted') {
+          showToast('Location access needed to create a venue zone', 'error')
+          return
+        }
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      }
+    } catch (err: any) {
+      showToast(err?.message ?? 'Could not get location', 'error')
+    } finally {
       setLocLoading(false)
-      return
     }
-    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
-    setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-    setLocLoading(false)
   }
 
   const handleCreate = async () => {
-    if (!name.trim()) { Alert.alert('Name required', 'Give this venue a name.'); return }
-    if (!location) { Alert.alert('Location required', 'Tap "Use my location" to set the zone center.'); return }
+    if (!name.trim()) { showToast('Give this venue a name.', 'error'); return }
+    if (!location) { showToast('Tap "Use my location" to set the zone center.', 'error'); return }
 
     const radiusNum = parseInt(radius, 10)
     if (isNaN(radiusNum) || radiusNum < 10 || radiusNum > 500) {
-      Alert.alert('Invalid radius', 'Radius must be between 10m and 500m.')
+      showToast('Radius must be between 10m and 500m.', 'error')
       return
     }
 
@@ -104,7 +127,7 @@ export default function CreateZoneScreen() {
     setCreating(false)
 
     if (error || !data) {
-      Alert.alert('Failed to create venue', error?.message ?? 'Try again.')
+      showToast(error?.message ?? 'Failed to create venue — try again.', 'error')
       return
     }
 

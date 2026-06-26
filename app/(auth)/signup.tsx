@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Animated, Easing, Platform, ActivityIndicator, Alert, ScrollView,
+  Animated, Easing, Platform, ActivityIndicator, ScrollView,
 } from 'react-native'
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
@@ -27,6 +27,7 @@ export default function SignupScreen() {
   const [venueZip, setVenueZip]         = useState('')
   const [gender, setGender]             = useState('')
   const [loading, setLoading]           = useState(false)
+  const [errorMsg, setErrorMsg]         = useState('')
   const [toggleWidth, setToggleWidth] = useState(0)
 
   const pillAnim = useRef(new Animated.Value(0)).current
@@ -89,20 +90,21 @@ export default function SignupScreen() {
     const isVenue = mode === 'venue'
     if (isVenue) {
       if (!venueName.trim() || !email.trim() || !password.trim()) {
-        Alert.alert('Missing fields', 'Enter venue name, email, and password.')
+        setErrorMsg('Enter venue name, email, and password.')
         return
       }
       if (!venueAddress.trim() || !venueCity.trim() || !venueState.trim() || !venueZip.trim()) {
-        Alert.alert('Missing fields', "Enter your venue's full address so we can set up your check-in zone.")
+        setErrorMsg("Enter your venue's full address so we can set up your check-in zone.")
         return
       }
     } else {
       if (!displayName.trim() || !username.trim() || !email.trim() || !password.trim()) {
-        Alert.alert('Missing fields', 'Please fill in all fields.')
+        setErrorMsg('Please fill in all fields.')
         return
       }
     }
 
+    setErrorMsg('')
     setLoading(true)
     const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
@@ -111,7 +113,7 @@ export default function SignupScreen() {
 
     if (error || !data.user) {
       setLoading(false)
-      Alert.alert('Signup failed', error?.message ?? 'Unknown error')
+      setErrorMsg(error?.message ?? 'Signup failed — please try again.')
       return
     }
 
@@ -154,7 +156,7 @@ export default function SignupScreen() {
     setLoading(false)
 
     if (profileError) {
-      Alert.alert('Profile error', profileError.message)
+      setErrorMsg(profileError.message)
       return
     }
 
@@ -395,6 +397,10 @@ export default function SignupScreen() {
             </Reanimated.View>
           )}
 
+          {!!errorMsg && (
+            <Text style={styles.errorMsg}>{errorMsg}</Text>
+          )}
+
           <Reanimated.View entering={FadeInUp.delay(240).springify().damping(16)} style={{ width: '100%' }}>
             <TouchableOpacity
               style={[
@@ -504,4 +510,5 @@ const styles = StyleSheet.create({
   },
   btnTxt: { color: '#020810', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
   footerLink: { color: '#3A5C7A', fontSize: 13, textAlign: 'center', paddingTop: 4 },
+  errorMsg: { color: '#f87171', fontSize: 13, textAlign: 'center', paddingHorizontal: 4, lineHeight: 18 },
 })

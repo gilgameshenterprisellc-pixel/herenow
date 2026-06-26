@@ -6,13 +6,14 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
 import type { SocialMode, MoodMode } from '@/lib/sessions'
+import { useToast } from '@/contexts/ToastContext'
+import { platformConfirm } from '@/lib/confirm'
 import { checkAndAwardBadges } from '@/lib/badges'
 
 const SOCIAL_MODES: { mode: SocialMode; emoji: string; label: string; desc: string; color: string }[] = [
@@ -79,6 +80,7 @@ export default function CheckInScreen() {
   const [loading, setLoading]       = useState(false)
 
   const { checkIn, activeSession } = useSessionContext()
+  const { showToast } = useToast()
 
   useEffect(() => {
     supabase.from('zones').select('name').eq('id', zoneId).maybeSingle()
@@ -87,18 +89,16 @@ export default function CheckInScreen() {
 
   const handleCheckIn = async () => {
     if (!socialMode) {
-      Alert.alert('Select your intent', 'Choose a Social Mode to let others know what you\'re here for.')
+      showToast('Choose a Social Mode to let others know what you\'re here for.', 'info')
       return
     }
 
     if (activeSession && activeSession.zone_id !== zoneId) {
-      Alert.alert(
+      platformConfirm(
         'Already checked in',
         'You\'ll be checked out of your current venue first.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', onPress: doCheckIn },
-        ]
+        doCheckIn,
+        { confirmText: 'Continue' }
       )
       return
     }
@@ -112,7 +112,7 @@ export default function CheckInScreen() {
     setLoading(false)
 
     if (!session) {
-      Alert.alert('Check-in failed', 'Something went wrong. Try again.')
+      showToast('Check-in failed — something went wrong. Try again.', 'error')
       return
     }
 

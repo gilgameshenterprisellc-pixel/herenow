@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated, Platform } from 'react-native'
 import type { ActivePerson } from '@/lib/sessions'
 import SocialModeBadge from './SocialModeBadge'
@@ -19,27 +19,25 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
   const isMe = person.user_id === currentUserId
   const isNotToday = person.mood_mode === 'not_today'
   const wemetScale = useRef(new Animated.Value(1)).current
+  const [showActions, setShowActions] = useState(false)
 
   const onWemetIn  = () => Animated.spring(wemetScale, { toValue: 0.95, useNativeDriver: true, speed: 40, bounciness: 0 }).start()
   const onWemetOut = () => Animated.spring(wemetScale, { toValue: 1,    useNativeDriver: true, speed: 40, bounciness: 6 }).start()
 
   const showMoreMenu = () => {
-    Alert.alert(
-      person.display_name,
-      undefined,
-      [
-        {
-          text: '🚩 Report',
-          onPress: () => onReport?.(person),
-        },
-        {
-          text: '🚫 Block',
-          style: 'destructive',
-          onPress: () => onBlock?.(person),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    )
+    if (Platform.OS === 'web') {
+      setShowActions((prev) => !prev)
+    } else {
+      Alert.alert(
+        person.display_name,
+        undefined,
+        [
+          { text: '🚩 Report', onPress: () => onReport?.(person) },
+          { text: '🚫 Block', style: 'destructive', onPress: () => onBlock?.(person) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      )
+    }
   }
 
   return (
@@ -73,9 +71,28 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
 
         {/* ⋯ menu — only for other people */}
         {!isMe && (onReport || onBlock) && (
-          <TouchableOpacity style={styles.moreBtn} onPress={showMoreMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.moreBtnText}>⋯</Text>
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity style={styles.moreBtn} onPress={showMoreMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.moreBtnText}>⋯</Text>
+            </TouchableOpacity>
+            {Platform.OS === 'web' && showActions && (
+              <View style={styles.webMenu}>
+                {onReport && (
+                  <TouchableOpacity onPress={() => { onReport(person); setShowActions(false) }} style={styles.webMenuItem}>
+                    <Text style={styles.webMenuText}>🚩 Report</Text>
+                  </TouchableOpacity>
+                )}
+                {onBlock && (
+                  <TouchableOpacity onPress={() => { onBlock(person); setShowActions(false) }} style={styles.webMenuItem}>
+                    <Text style={[styles.webMenuText, { color: '#f87171' }]}>🚫 Block</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowActions(false)} style={styles.webMenuItem}>
+                  <Text style={[styles.webMenuText, { color: '#64748b' }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         )}
       </View>
 
@@ -153,6 +170,20 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   moreBtnText: { fontSize: 20, color: '#4A6580', letterSpacing: 1 },
+  webMenu: {
+    position: 'absolute',
+    top: 28,
+    right: 0,
+    backgroundColor: '#0D1F35',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(41,182,246,0.15)',
+    zIndex: 100,
+    minWidth: 130,
+    overflow: 'hidden',
+  },
+  webMenuItem: { paddingVertical: 10, paddingHorizontal: 14 },
+  webMenuText: { fontSize: 14, color: '#c0d8ec', fontWeight: '500' },
   kickoff: {
     backgroundColor: '#050A15',
     borderRadius: 10,

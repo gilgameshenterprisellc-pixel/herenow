@@ -1,11 +1,12 @@
 ﻿import { useState } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { createEvent } from '@/lib/events'
+import { useToast } from '@/contexts/ToastContext'
 
 const EVENT_TYPES = [
   { id: 'music',      emoji: '🎵', label: 'Music' },
@@ -44,6 +45,7 @@ function friendlyDate(isoLocal: string): string {
 
 export default function CreateEventScreen() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const { zoneId }        = useLocalSearchParams<{ zoneId: string }>()
   const [title, setTitle] = useState('')
   const [desc, setDesc]   = useState('')
@@ -54,13 +56,13 @@ export default function CreateEventScreen() {
 
   const handleCreate = async () => {
     if (!title.trim()) {
-      Alert.alert('Title required', 'Give your event a name.')
+      showToast('Give your event a name.', 'error')
       return
     }
 
     const startISO = localToISO(startsAt)
     if (!startISO) {
-      Alert.alert('Invalid start time', 'Use format: YYYY-MM-DDTHH:MM (e.g. 2026-06-17T20:00)')
+      showToast('Use format: YYYY-MM-DDTHH:MM (e.g. 2026-06-17T20:00)', 'error')
       return
     }
 
@@ -68,11 +70,11 @@ export default function CreateEventScreen() {
     if (endsAt.trim()) {
       const parsed = localToISO(endsAt)
       if (!parsed) {
-        Alert.alert('Invalid end time', 'Use format: YYYY-MM-DDTHH:MM')
+        showToast('End time: use format YYYY-MM-DDTHH:MM', 'error')
         return
       }
       if (new Date(parsed) <= new Date(startISO)) {
-        Alert.alert('Invalid time', 'End time must be after start time.')
+        showToast('End time must be after start time.', 'error')
         return
       }
       endISO = parsed
@@ -90,7 +92,7 @@ export default function CreateEventScreen() {
     setCreating(false)
 
     if (!event) {
-      Alert.alert('Failed', 'Could not create the event. Try again.')
+      showToast('Could not create the event. Try again.', 'error')
       return
     }
 

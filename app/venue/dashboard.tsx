@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Platform, Animated, Alert,
+  ActivityIndicator, RefreshControl, Platform, Animated,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscriberCount } from '@/lib/venueSubscriptions'
+import { platformConfirm } from '@/lib/confirm'
 
 interface VenueZone {
   id: string
@@ -97,18 +98,21 @@ export default function VenueDashboard() {
 
   const onRefresh = () => { setRefreshing(true); load() }
 
-  const handleSignOut = async () => {
-    Alert.alert('Sign out', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: async () => {
+  const handleSignOut = () => {
+    platformConfirm(
+      'Sign out',
+      'Are you sure?',
+      async () => {
         try {
           await supabase.auth.signOut()
           router.replace('/(auth)/login')
         } catch {
-          Alert.alert('Error', 'Could not sign out. Try again.')
+          // sign-out errors are rare; navigate anyway
+          router.replace('/(auth)/login')
         }
-      }},
-    ])
+      },
+      { confirmText: 'Sign out', destructive: true }
+    )
   }
 
   const topInterests = Object.entries(stats.interests)
