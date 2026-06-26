@@ -217,6 +217,36 @@ export default function WebMap({
         const c = map.getCenter()
         onMapMoveRef.current?.(c.lat, c.lng)
       })
+
+      // "Locate Me" button — snaps map back to user position + refetches nearby zones
+      const LocateControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd() {
+          const btn = L.DomUtil.create('button', '')
+          btn.title = 'Center on my location'
+          btn.style.cssText = [
+            'width:36px;height:36px;',
+            'background:#0D1B2E;border:1px solid #1A2E4A;border-radius:8px;',
+            'display:flex;align-items:center;justify-content:center;',
+            'cursor:pointer;font-size:18px;color:#29B6F6;',
+            'box-shadow:0 2px 8px rgba(0,0,0,0.5);margin-bottom:4px;',
+          ].join('')
+          btn.innerHTML = '⊕'
+          L.DomEvent.on(btn, 'click', (e: Event) => {
+            L.DomEvent.stopPropagation(e)
+            const loc = locationRef.current
+            if (!loc || !mapRef.current) return
+            isPanningRef.current = true
+            mapRef.current.setView([loc.latitude, loc.longitude], 13, { animate: true })
+            setTimeout(() => {
+              isPanningRef.current = false
+              onMapMoveRef.current?.(loc.latitude, loc.longitude)
+            }, 600)
+          })
+          return btn
+        },
+      })
+      new LocateControl().addTo(map)
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
