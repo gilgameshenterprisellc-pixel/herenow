@@ -33,7 +33,7 @@ export default function CreateZoneScreen() {
   const [name, setName]               = useState('')
   const [desc, setDesc]               = useState('')
   const [type, setType]               = useState('')
-  const [radius, setRadius]           = useState('50')
+  const [radius, setRadius]           = useState('20')
   const [location, setLocation]       = useState<{ lat: number; lng: number } | null>(null)
   const [locLoading, setLocLoading]   = useState(false)
   const [creating, setCreating]       = useState(false)
@@ -289,7 +289,7 @@ export default function CreateZoneScreen() {
             maxLength={3}
           />
           <Text style={styles.hint}>
-            Small venue: 25–50m. Park/open space: 100–200m.
+            Bar/restaurant: 15–25m. Park/outdoor space: 50–100m. Keep it tight — users should be inside or right at the door.
           </Text>
         </View>
 
