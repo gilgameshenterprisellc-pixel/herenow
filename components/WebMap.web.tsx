@@ -6,58 +6,84 @@ interface Props {
   location: { latitude: number; longitude: number } | null
   selectedId: string | null
   onPinPress: (zone: Zone) => void
+  subscribedIds: Set<string>
 }
 
 export const WEB_MAP_HEIGHT = 360
 
-function makeIcon(L: any, zone: Zone, isSelected: boolean) {
-  const isLive = (zone.member_count ?? 0) > 0
-  const color  = isLive ? '#22c55e' : '#29B6F6'
-  const initial = zone.name[0]?.toUpperCase() ?? '?'
+type Tier = 'subscribed' | 'live' | 'regular'
 
-  const pinBg      = isSelected ? '#fff'     : color
-  const labelColor = isSelected ? color      : '#050A15'
-  const border     = isSelected ? color      : '#050A15'
-  const glow       = isSelected ? `0 0 20px ${color}cc, 0 0 8px ${color}88` : `0 0 10px ${color}55`
+function getTier(zone: Zone, subscribedIds: Set<string>): Tier {
+  if (subscribedIds.has(zone.id)) return 'subscribed'
+  if ((zone.member_count ?? 0) > 0) return 'live'
+  return 'regular'
+}
+
+const TIER_STYLE: Record<Tier, { color: string; size: number; glow: number; heatOpacity: number }> = {
+  subscribed: { color: '#f59e0b', size: 48, glow: 22, heatOpacity: 0.18 },
+  live:       { color: '#22c55e', size: 40, glow: 14, heatOpacity: 0.10 },
+  regular:    { color: '#29B6F6', size: 36, glow: 10, heatOpacity: 0.05 },
+}
+
+function makeIcon(L: any, zone: Zone, isSelected: boolean, subscribedIds: Set<string>) {
+  const tier              = getTier(zone, subscribedIds)
+  const { color, size, glow } = TIER_STYLE[tier]
+  const tailH             = Math.round(size * 0.22)
+  const h                 = size + tailH
+  const initial           = zone.name[0]?.toUpperCase() ?? '?'
+
+  const pinBg      = isSelected ? '#fff'  : color
+  const labelColor = isSelected ? color   : '#050A15'
+  const border     = isSelected ? color   : '#050A15'
+  const glowStyle  = isSelected
+    ? `0 0 ${glow + 10}px ${color}ee, 0 0 ${glow}px ${color}bb`
+    : `0 0 ${glow}px ${color}66`
+
+  // Subscribed venues get a crown emoji instead of just the initial
+  const label = tier === 'subscribed' ? '★' : initial
 
   return L.divIcon({
     html: `
-      <div style="position:relative;width:36px;height:44px;">
+      <div style="position:relative;width:${size}px;height:${h}px;">
         <div style="
-          width:36px;height:36px;
+          width:${size}px;height:${size}px;
           background:${pinBg};
           border:2.5px solid ${border};
           border-radius:50% 50% 50% 0;
           transform:rotate(-45deg);
           display:flex;align-items:center;justify-content:center;
-          box-shadow:${glow};
+          box-shadow:${glowStyle};
           cursor:pointer;
           transition:all 0.15s;
         ">
           <span style="
             transform:rotate(45deg);
             color:${labelColor};
-            font-weight:800;font-size:13px;font-family:system-ui,sans-serif;
+            font-weight:900;
+            font-size:${tier === 'subscribed' ? 16 : 13}px;
+            font-family:system-ui,sans-serif;
             line-height:1;
-          ">${initial}</span>
+          ">${label}</span>
         </div>
         <div style="
           position:absolute;bottom:0;left:50%;transform:translateX(-50%);
-          width:4px;height:8px;background:${pinBg};border-radius:0 0 2px 2px;
-          box-shadow:${glow};
+          width:4px;height:${tailH}px;
+          background:${pinBg};border-radius:0 0 2px 2px;
+          box-shadow:${glowStyle};
         "></div>
       </div>
     `,
     className: '',
-    iconSize:   [36, 44],
-    iconAnchor: [18, 44],
+    iconSize:   [size, h],
+    iconAnchor: [size / 2, h],
   })
 }
 
-export default function WebMap({ zones, location, selectedId, onPinPress }: Props) {
+export default function WebMap({ zones, location, selectedId, onPinPress, subscribedIds }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null)
   const mapRef        = useRef<any>(null)
   const markersRef    = useRef<Map<string, any>>(new Map())
+  const circlesRef    = useRef<Map<string, any>>(new Map())
   const userMarkerRef = useRef<any>(null)
 
   // Init map once
@@ -93,7 +119,7 @@ export default function WebMap({ zones, location, selectedId, onPinPress }: Prop
             position:absolute;inset:0;
             background:rgba(41,182,246,0.25);
             border-radius:50%;
-            animation:pulse 1.8s ease-out infinite;
+            animation:userPulse 1.8s ease-out infinite;
           "></div>
           <div style="
             position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -103,7 +129,7 @@ export default function WebMap({ zones, location, selectedId, onPinPress }: Prop
           "></div>
         </div>
         <style>
-          @keyframes pulse {
+          @keyframes userPulse {
             0%   { transform:scale(1); opacity:0.8; }
             100% { transform:scale(2.4); opacity:0; }
           }
@@ -120,23 +146,42 @@ export default function WebMap({ zones, location, selectedId, onPinPress }: Prop
     ).addTo(mapRef.current)
   }, [location])
 
-  // Sync zone markers
+  // Sync heat circles + markers whenever zones, selection, or subscriptions change
   useEffect(() => {
     const L = (window as any).L
     if (!L || !mapRef.current) return
 
-    // Rebuild all markers (selectedId affects pin style)
+    // Clear old layers
+    circlesRef.current.forEach(c => c.remove())
+    circlesRef.current.clear()
     markersRef.current.forEach(m => m.remove())
     markersRef.current.clear()
 
     zones.forEach(zone => {
-      const icon   = makeIcon(L, zone, zone.id === selectedId)
+      const tier   = getTier(zone, subscribedIds)
+      const { color, heatOpacity } = TIER_STYLE[tier]
+      const radius = Math.max(zone.radius_meters ?? 100, 100)
+
+      // Heat circle — drawn first so it's behind the pin
+      const circle = L.circle([zone.center_lat, zone.center_lng], {
+        radius,
+        color,
+        fillColor: color,
+        fillOpacity: heatOpacity,
+        weight: 1,
+        opacity: heatOpacity * 2,
+        interactive: false,
+      }).addTo(mapRef.current)
+      circlesRef.current.set(zone.id, circle)
+
+      // Pin marker — drawn on top
+      const icon   = makeIcon(L, zone, zone.id === selectedId, subscribedIds)
       const marker = L.marker([zone.center_lat, zone.center_lng], { icon })
         .addTo(mapRef.current)
         .on('click', () => onPinPress(zone))
       markersRef.current.set(zone.id, marker)
     })
-  }, [zones, selectedId, onPinPress])
+  }, [zones, selectedId, onPinPress, subscribedIds])
 
   // Pan to selected zone
   useEffect(() => {
