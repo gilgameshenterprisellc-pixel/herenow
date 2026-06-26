@@ -53,7 +53,8 @@ export default function NearbyScreen() {
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mapRef  = useRef<any>(null)
   const listRef = useRef<FlatList>(null)
-  const isMountedFocus = useRef(false)
+  const isMountedFocus    = useRef(false)
+  const locationLoadedRef = useRef(false)  // load zones near user only once on first fix
 
   // When user navigates back to this tab, snap map back to their location
   useFocusEffect(
@@ -110,8 +111,14 @@ export default function NearbyScreen() {
     setLoading(false)
   }
 
+  // Load zones near user only on first location fix.
+  // watchPosition fires continuously — we must NOT let every GPS ping wipe
+  // whatever the user panned the map to see. After first load, zone updates
+  // come exclusively from handleMapMove (user pan / ⊕ button / tab focus).
   useEffect(() => {
-    if (location) load(location)
+    if (!location || locationLoadedRef.current) return
+    locationLoadedRef.current = true
+    load(location)
   }, [location])
 
   // Global DB search — fires on every keystroke (debounced 300ms)
