@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
 import type { Zone } from '@/lib/zones'
+import WebMap, { WEB_MAP_HEIGHT } from './WebMap'
 
 interface Props {
   zones: Zone[]
@@ -11,42 +12,46 @@ interface Props {
   isVenueOwner?: boolean
 }
 
-export const MAP_HEIGHT = 120
+export const MAP_HEIGHT = WEB_MAP_HEIGHT
 
-export default function NearbyMap({ zones, location, isVenueOwner }: Props) {
+export default function NearbyMap({ zones, location, selectedId, onPinPress, isVenueOwner }: Props) {
   return (
     <View style={styles.wrap}>
-      {/* Neon brand accent line */}
+      {/* Top header bar */}
       <View style={styles.accentLine} />
+      <View style={styles.header}>
+        <View style={{ gap: 2 }}>
+          <Text style={styles.brand}>HERENOW</Text>
+          <Text style={styles.title}>Nearby</Text>
+          <Text style={styles.sub}>
+            {location
+              ? `${zones.length} venue${zones.length !== 1 ? 's' : ''} within 50km`
+              : 'Waiting for location…'}
+          </Text>
+        </View>
 
-      <View style={styles.inner}>
-        <View style={styles.row}>
-          <View style={{ gap: 2 }}>
-            <Text style={styles.brand}>HERENOW</Text>
-            <Text style={styles.title}>Nearby</Text>
-            <Text style={styles.sub}>
-              {location
-                ? `${zones.length} venue${zones.length !== 1 ? 's' : ''} within 50km`
-                : 'Waiting for location…'}
-            </Text>
-          </View>
+        <View style={styles.headerRight}>
+          {location && (
+            <View style={styles.locRow}>
+              <View style={styles.dot} />
+              <Text style={styles.locNote}>Live</Text>
+            </View>
+          )}
           {isVenueOwner && (
             <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/zone/create')}>
               <Text style={styles.addBtnText}>+ Venue</Text>
             </TouchableOpacity>
           )}
         </View>
-
-        {location && (
-          <View style={styles.locRow}>
-            <View style={styles.dot} />
-            <Text style={styles.locText}>
-              {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
-            </Text>
-            <Text style={styles.locNote}>  Live location active</Text>
-          </View>
-        )}
       </View>
+
+      {/* Real map */}
+      <WebMap
+        zones={zones}
+        location={location}
+        selectedId={selectedId}
+        onPinPress={onPinPress}
+      />
     </View>
   )
 }
@@ -65,34 +70,39 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  inner: {
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    gap: 10,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
     ...Platform.select({
       web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
       default: {},
     }),
   },
-  row: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
   },
   brand: {
     fontSize: 10,
     fontWeight: '800',
     color: '#29B6F6',
     letterSpacing: 3,
-    marginBottom: 4,
+    marginBottom: 2,
     ...Platform.select({
       web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any,
       default: {},
     }),
   },
-  title: { fontSize: 26, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
-  sub:   { fontSize: 13, color: '#7A93AC', marginTop: 2 },
+  title: { fontSize: 22, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
+  sub:   { fontSize: 12, color: '#7A93AC', marginTop: 2 },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  dot:    { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
+  locNote: { fontSize: 11, color: '#22c55e', fontWeight: '700' },
   addBtn: {
     backgroundColor: '#29B6F610',
     borderRadius: 20,
@@ -102,8 +112,4 @@ const styles = StyleSheet.create({
     borderColor: '#29B6F640',
   },
   addBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 13 },
-  locRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
-  locText: { fontSize: 11, color: '#4A6580', fontFamily: 'monospace' },
-  locNote: { fontSize: 11, color: '#22c55e', fontWeight: '600' },
 })
