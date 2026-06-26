@@ -8,9 +8,10 @@ interface Props {
   onPinPress: (zone: Zone) => void
   subscribedIds: Set<string>
   onMapMove?: (lat: number, lng: number) => void
+  recenterTick?: number  // increment to snap map back to user location
 }
 
-export const WEB_MAP_HEIGHT = 400
+export const WEB_MAP_HEIGHT = 420
 
 type Tier = 'subscribed' | 'live' | 'regular'
 
@@ -21,9 +22,9 @@ function getTier(zone: Zone, subscribedIds: Set<string>): Tier {
 }
 
 const TIER_STYLE: Record<Tier, { color: string; size: number; glow: number; heatOpacity: number }> = {
-  subscribed: { color: '#f59e0b', size: 48, glow: 22, heatOpacity: 0.18 },
-  live:       { color: '#22c55e', size: 40, glow: 14, heatOpacity: 0.10 },
-  regular:    { color: '#29B6F6', size: 36, glow: 10, heatOpacity: 0.05 },
+  subscribed: { color: '#f59e0b', size: 48, glow: 22, heatOpacity: 0.30 },
+  live:       { color: '#22c55e', size: 40, glow: 14, heatOpacity: 0.22 },
+  regular:    { color: '#29B6F6', size: 36, glow: 10, heatOpacity: 0.18 },
 }
 
 function makeIcon(L: any, zone: Zone, isSelected: boolean, subscribedIds: Set<string>) {
@@ -68,7 +69,7 @@ function makeIcon(L: any, zone: Zone, isSelected: boolean, subscribedIds: Set<st
 function makeUserIcon(L: any) {
   return L.divIcon({
     html: `
-      <div style="position:relative;width:22px;height:22px;">
+      <div style="position:relative;width:22px;height:22px;cursor:pointer;" title="You are here (double-click to re-center)">
         <div style="position:absolute;inset:0;background:rgba(41,182,246,0.2);
           border-radius:50%;animation:uPulse 1.8s ease-out infinite;"></div>
         <div style="position:absolute;inset:0;background:rgba(41,182,246,0.1);
@@ -121,7 +122,7 @@ function loadLeaflet(): Promise<any> {
 }
 
 export default function WebMap({
-  zones, location, selectedId, onPinPress, subscribedIds, onMapMove,
+  zones, location, selectedId, onPinPress, subscribedIds, onMapMove, recenterTick,
 }: Props) {
   const containerRef    = useRef<HTMLDivElement>(null)
   const mapRef          = useRef<any>(null)
@@ -156,11 +157,28 @@ export default function WebMap({
     zonesRef.current.forEach(zone => {
       const tier   = getTier(zone, subscribedIdsRef.current)
       const { color, heatOpacity } = TIER_STYLE[tier]
-      const radius = Math.max(zone.radius_meters ?? 100, 100)
+      const coreRadius = Math.max(zone.radius_meters ?? 150, 150)
+      const glowRadius = coreRadius * 5  // large atmospheric ring behind the pin
 
+      // Outer atmospheric glow — visible even when zoomed out
+      const outerGlow = L.circle([zone.center_lat, zone.center_lng], {
+        radius: glowRadius,
+        color: 'transparent',
+        fillColor: color,
+        fillOpacity: heatOpacity * 0.3,
+        weight: 0,
+        interactive: false,
+      }).addTo(map)
+      circlesRef.current.set(`${zone.id}_glow`, outerGlow)
+
+      // Inner zone boundary circle — clear border, stronger fill
       const circle = L.circle([zone.center_lat, zone.center_lng], {
-        radius, color, fillColor: color,
-        fillOpacity: heatOpacity, weight: 1, opacity: heatOpacity * 2,
+        radius: coreRadius,
+        color,
+        fillColor: color,
+        fillOpacity: heatOpacity,
+        weight: 2,
+        opacity: 0.7,
         interactive: false,
       }).addTo(map)
       circlesRef.current.set(zone.id, circle)
@@ -178,7 +196,20 @@ export default function WebMap({
     userMarkerRef.current = L.marker(
       [loc.latitude, loc.longitude],
       { icon: makeUserIcon(L), zIndexOffset: 2000 }
-    ).addTo(map)
+    )
+      .addTo(map)
+      .on('dblclick', (e: any) => {
+        // Double-click user dot → re-center map + reload nearby venues
+        L.DomEvent.stopPropagation(e)
+        const current = locationRef.current
+        if (!current || !mapRef.current) return
+        isPanningRef.current = true
+        mapRef.current.setView([current.latitude, current.longitude], 15, { animate: true })
+        setTimeout(() => {
+          isPanningRef.current = false
+          onMapMoveRef.current?.(current.latitude, current.longitude)
+        }, 600)
+      })
   }
 
   // One-time map init — self-injects Leaflet then sets everything up
@@ -271,6 +302,19 @@ export default function WebMap({
     mapRef.current.panTo(marker.getLatLng(), { animate: true, duration: 0.4 })
     setTimeout(() => { isPanningRef.current = false }, 600)
   }, [selectedId])
+
+  // Snap back to user location when tab regains focus (recenterTick > 0)
+  useEffect(() => {
+    if (!recenterTick) return
+    if (!mapReadyRef.current || !mapRef.current || !locationRef.current) return
+    const loc = locationRef.current
+    isPanningRef.current = true
+    mapRef.current.setView([loc.latitude, loc.longitude], 13, { animate: true })
+    setTimeout(() => {
+      isPanningRef.current = false
+      onMapMoveRef.current?.(loc.latitude, loc.longitude)
+    }, 600)
+  }, [recenterTick])
 
   return (
     <div

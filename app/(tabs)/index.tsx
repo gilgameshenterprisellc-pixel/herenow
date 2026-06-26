@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useLocation } from '@/hooks/useLocation'
 import { fetchNearbyZones, searchZonesByName } from '@/lib/zones'
 import { fetchMyVenues } from '@/lib/venueSubscriptions'
@@ -49,9 +49,19 @@ export default function NearbyScreen() {
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery]   = useState('')
   const [searchResults, setSearchResults] = useState<Zone[]>([])
+  const [mapRecenterTick, setMapRecenterTick] = useState(0)
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mapRef  = useRef<any>(null)
   const listRef = useRef<FlatList>(null)
+  const isMountedFocus = useRef(false)
+
+  // When user navigates back to this tab, snap map back to their location
+  useFocusEffect(
+    useCallback(() => {
+      if (!isMountedFocus.current) { isMountedFocus.current = true; return }
+      setMapRecenterTick(t => t + 1)
+    }, [])
+  )
 
   // Preview card animation
   const slideAnim = useRef(new Animated.Value(0)).current
@@ -193,6 +203,7 @@ export default function NearbyScreen() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onMapMove={handleMapMove}
+        recenterTick={mapRecenterTick}
       />
 
       {loading ? (
@@ -250,7 +261,7 @@ export default function NearbyScreen() {
           style={[
             styles.previewCard,
             { transform: [{ translateY: cardTranslateY }], opacity: cardOpacity },
-            Platform.OS === 'web' ? (styles.previewCardShadow as any) : null,
+            Platform.OS === 'web' ? (styles.previewCardWeb as any) : null,
           ]}
         >
           {/* Drag handle */}
@@ -349,7 +360,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     gap: 14,
     ...Platform.select({
-      web: {} as any,
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -4 },
@@ -359,8 +369,19 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  previewCardShadow: {
-    boxShadow: '0 -4px 40px rgba(0,0,0,0.6)',
+  // Web: centered card with max-width — replaces the full-width sheet look on desktop
+  previewCardWeb: {
+    maxWidth: 620,
+    marginLeft: 'auto',
+    marginRight: 'auto',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    borderBottomWidth: 1,
+    bottom: TAB_SAFE_BOTTOM + 12,
+    zIndex: 1000,
+    boxShadow: '0 8px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(41,182,246,0.08)',
   },
 })
 
