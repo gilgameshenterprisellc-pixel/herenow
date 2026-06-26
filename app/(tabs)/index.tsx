@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useLocation } from '@/hooks/useLocation'
 import { fetchNearbyZones } from '@/lib/zones'
+import { fetchMyVenues } from '@/lib/venueSubscriptions'
 import { supabase } from '@/lib/supabase'
 import ZoneCard from '@/components/ZoneCard'
 import NearbyMap from '@/components/NearbyMap'
@@ -41,10 +42,12 @@ function TypeLabel({ type }: { type?: string | null }) {
 
 export default function NearbyScreen() {
   const { location, loading: locLoading, error: locError } = useLocation()
-  const [zones, setZones]             = useState<Zone[]>([])
-  const [loading, setLoading]         = useState(false)
-  const [selectedId, setSelectedId]   = useState<string | null>(null)
+  const [zones, setZones]               = useState<Zone[]>([])
+  const [loading, setLoading]           = useState(false)
+  const [selectedId, setSelectedId]     = useState<string | null>(null)
   const [isVenueOwner, setIsVenueOwner] = useState(false)
+  const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery]   = useState('')
   const mapRef  = useRef<any>(null)
   const listRef = useRef<FlatList>(null)
 
@@ -80,6 +83,13 @@ export default function NearbyScreen() {
     })
   }, [])
 
+  // Subscribed venue IDs for map tier highlighting
+  useEffect(() => {
+    fetchMyVenues().then(subs => {
+      setSubscribedIds(new Set(subs.map(s => s.zone_id)))
+    })
+  }, [])
+
   const load = async (coords?: { latitude: number; longitude: number }) => {
     const pos = coords ?? location
     if (!pos) return
@@ -92,6 +102,14 @@ export default function NearbyScreen() {
   useEffect(() => {
     if (location) load(location)
   }, [location])
+
+  // Filter zones by search query (name or description)
+  const filteredZones = searchQuery.trim()
+    ? zones.filter(z =>
+        z.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (z.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : zones
 
   const handlePinPress = (zone: Zone) => {
     setSelectedId(prev => prev === zone.id ? null : zone.id)
@@ -147,12 +165,15 @@ export default function NearbyScreen() {
       <AnimatedBackground />
 
       <NearbyMap
-        zones={zones}
+        zones={filteredZones}
         location={location}
         selectedId={selectedId}
         onPinPress={handlePinPress}
         mapRef={mapRef}
         isVenueOwner={isVenueOwner}
+        subscribedIds={subscribedIds}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
 
       {loading ? (
@@ -162,7 +183,7 @@ export default function NearbyScreen() {
       ) : (
         <FlatList
           ref={listRef}
-          data={zones}
+          data={filteredZones}
           keyExtractor={(z) => z.id}
           contentContainerStyle={styles.list}
           onScrollToIndexFailed={() => {}}
@@ -176,19 +197,29 @@ export default function NearbyScreen() {
             </Reanimated.View>
           )}
           ListHeaderComponent={
-            zones.length > 0 ? (
+            filteredZones.length > 0 ? (
               <Text style={styles.listLabel}>
-                {zones.length} venue{zones.length !== 1 ? 's' : ''} nearby
+                {searchQuery
+                  ? `${filteredZones.length} result${filteredZones.length !== 1 ? 's' : ''} for "${searchQuery}"`
+                  : `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} nearby`}
               </Text>
             ) : null
           }
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={styles.emptyIcon}>
-                <Ionicons name="globe-outline" size={32} color="#29B6F6" />
+                <Ionicons
+                  name={searchQuery ? 'search-outline' : 'globe-outline'}
+                  size={32}
+                  color="#29B6F6"
+                />
               </View>
-              <Text style={styles.emptyTitle}>No venues nearby yet</Text>
-              <Text style={styles.emptySub}>Be the first to create one.</Text>
+              <Text style={styles.emptyTitle}>
+                {searchQuery ? 'No venues match' : 'No venues nearby yet'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {searchQuery ? 'Try a different search term.' : 'Be the first to create one.'}
+              </Text>
             </View>
           }
         />
