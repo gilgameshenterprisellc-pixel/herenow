@@ -67,6 +67,22 @@ export async function createZone(params: {
   }
 }
 
+export async function searchZonesByName(query: string): Promise<Zone[]> {
+  const { data, error } = await supabase
+    .from('zones')
+    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count')
+    .eq('is_active', true)
+    .ilike('name', `%${query}%`)
+    .limit(20)
+
+  if (error) {
+    console.error('[zones] searchZonesByName error:', error.message)
+    return []
+  }
+
+  return (data ?? []).map(z => ({ ...z, distance_meters: null }))
+}
+
 export async function checkUserInZone(
   zoneId: string,
   lat: number,

@@ -13,7 +13,7 @@ import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useLocation } from '@/hooks/useLocation'
-import { fetchNearbyZones } from '@/lib/zones'
+import { fetchNearbyZones, searchZonesByName } from '@/lib/zones'
 import { fetchMyVenues } from '@/lib/venueSubscriptions'
 import { supabase } from '@/lib/supabase'
 import ZoneCard from '@/components/ZoneCard'
@@ -48,6 +48,8 @@ export default function NearbyScreen() {
   const [isVenueOwner, setIsVenueOwner] = useState(false)
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery]   = useState('')
+  const [searchResults, setSearchResults] = useState<Zone[]>([])
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mapRef  = useRef<any>(null)
   const listRef = useRef<FlatList>(null)
 
@@ -103,13 +105,19 @@ export default function NearbyScreen() {
     if (location) load(location)
   }, [location])
 
-  // Filter zones by search query (name or description)
-  const filteredZones = searchQuery.trim()
-    ? zones.filter(z =>
-        z.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (z.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : zones
+  // Global DB search — fires on every keystroke (debounced 300ms)
+  useEffect(() => {
+    if (searchDebounce.current) clearTimeout(searchDebounce.current)
+    const q = searchQuery.trim()
+    if (!q) { setSearchResults([]); return }
+    searchDebounce.current = setTimeout(() => {
+      searchZonesByName(q).then(setSearchResults)
+    }, 300)
+    return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current) }
+  }, [searchQuery])
+
+  // When searching, show DB results; otherwise show nearby zones
+  const filteredZones = searchQuery.trim() ? searchResults : zones
 
   const handlePinPress = (zone: Zone) => {
     setSelectedId(prev => prev === zone.id ? null : zone.id)
