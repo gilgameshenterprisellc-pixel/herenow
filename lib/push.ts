@@ -3,14 +3,17 @@ import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
 
-// Show notifications as banners even when the app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge:  true,
-  }),
-})
+// Show notifications as banners when app is foregrounded — native only.
+// expo-notifications has no foreground handler on web.
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge:  true,
+    }),
+  })
+}
 
 export async function registerPushToken(): Promise<void> {
   if (Platform.OS === 'web') return

@@ -13,13 +13,13 @@ export function useLocation() {
 
   useEffect(() => {
     if (Platform.OS === 'web') {
-      // Use browser Geolocation API on web
       if (!navigator.geolocation) {
         setError('Geolocation not supported in this browser')
         setLoading(false)
         return
       }
-      navigator.geolocation.getCurrentPosition(
+      // watchPosition mirrors native watchPositionAsync — updates as user moves
+      const watchId = navigator.geolocation.watchPosition(
         (pos) => {
           setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
           setLoading(false)
@@ -27,9 +27,10 @@ export function useLocation() {
         (err) => {
           setError(err.message)
           setLoading(false)
-        }
+        },
+        { enableHighAccuracy: true, maximumAge: 10_000 }
       )
-      return
+      return () => navigator.geolocation.clearWatch(watchId)
     }
 
     // Native: use expo-location
