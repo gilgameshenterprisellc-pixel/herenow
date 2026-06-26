@@ -10,6 +10,7 @@ import { router } from 'expo-router'
 import * as Location from 'expo-location'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
+import PinPicker from '@/components/PinPicker'
 
 type AccessState = 'loading' | 'denied' | 'pending' | 'granted'
 
@@ -199,21 +200,33 @@ export default function CreateZoneScreen() {
               <Text style={styles.locLoadingText}>Getting your location...</Text>
             </View>
           ) : location ? (
-            <View style={styles.locConfirm}>
-              <Text style={styles.locConfirmText}>
-                📍 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
-              </Text>
-              <TouchableOpacity onPress={fetchLocation}>
-                <Text style={styles.locRefresh}>Refresh</Text>
-              </TouchableOpacity>
-            </View>
+            <>
+              {/* Pin picker — drag to exact building location */}
+              <PinPicker
+                lat={location.lat}
+                lng={location.lng}
+                onChange={(lat, lng) => setLocation({ lat, lng })}
+              />
+              <View style={styles.locConfirm}>
+                <Text style={styles.locConfirmText}>
+                  📍 {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                </Text>
+                <TouchableOpacity onPress={fetchLocation}>
+                  <Text style={styles.locRefresh}>Reset to GPS</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           ) : (
             <TouchableOpacity style={styles.locBtn} onPress={fetchLocation}>
               <Ionicons name="location-outline" size={18} color="#29B6F6" />
               <Text style={styles.locBtnText}>Use my location</Text>
             </TouchableOpacity>
           )}
-          <Text style={styles.hint}>The zone center is set to your current GPS position.</Text>
+          <Text style={styles.hint}>
+            {location
+              ? 'Drag the pin or tap the map to place it on your building entrance.'
+              : 'Start with your GPS position, then fine-tune on the map.'}
+          </Text>
         </View>
 
         {/* Name */}
