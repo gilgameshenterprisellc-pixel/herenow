@@ -121,6 +121,7 @@ export default function CreateZoneScreen() {
         radius_meters: radiusNum,
         center: `POINT(${location.lng} ${location.lat})`,
         created_by: user.id,
+        owner_id: user.id,
       })
       .select('id')
       .single()
