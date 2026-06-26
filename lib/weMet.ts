@@ -164,7 +164,6 @@ export async function fetchPendingWeMets(): Promise<WeMet[]> {
     `)
     .eq('recipient_id', user.id)
     .eq('status', 'pending')
-    .gt('expires_at', new Date().toISOString())
     .order('initiated_at', { ascending: false })
 
   if (error) {
