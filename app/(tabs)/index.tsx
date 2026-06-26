@@ -55,7 +55,6 @@ export default function NearbyScreen() {
 
   // Preview card animation
   const slideAnim = useRef(new Animated.Value(0)).current
-  const selectedZone = zones.find(z => z.id === selectedId) ?? null
 
   useEffect(() => {
     Animated.spring(slideAnim, {
@@ -118,6 +117,17 @@ export default function NearbyScreen() {
 
   // When searching, show DB results; otherwise show nearby zones
   const filteredZones = searchQuery.trim() ? searchResults : zones
+
+  // Look in both pools so search-result taps populate the preview card
+  const selectedZone =
+    [...zones, ...searchResults].find(z => z.id === selectedId) ?? null
+
+  // When user pans the map, refetch venues centered on the new position
+  const handleMapMove = async (lat: number, lng: number) => {
+    if (searchQuery.trim()) return  // don't clobber search results
+    const nearby = await fetchNearbyZones(lat, lng, 50)
+    setZones(nearby)
+  }
 
   const handlePinPress = (zone: Zone) => {
     setSelectedId(prev => prev === zone.id ? null : zone.id)
@@ -182,6 +192,7 @@ export default function NearbyScreen() {
         subscribedIds={subscribedIds}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        onMapMove={handleMapMove}
       />
 
       {loading ? (

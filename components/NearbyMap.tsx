@@ -14,13 +14,14 @@ interface Props {
   subscribedIds: Set<string>
   searchQuery: string
   onSearchChange: (q: string) => void
+  onMapMove?: (lat: number, lng: number) => void
 }
 
 export const MAP_HEIGHT = WEB_MAP_HEIGHT
 
 export default function NearbyMap({
   zones, location, selectedId, onPinPress,
-  isVenueOwner, subscribedIds, searchQuery, onSearchChange,
+  isVenueOwner, subscribedIds, searchQuery, onSearchChange, onMapMove,
 }: Props) {
   const [searchFocused, setSearchFocused] = useState(false)
 
@@ -106,6 +107,7 @@ export default function NearbyMap({
         selectedId={selectedId}
         onPinPress={onPinPress}
         subscribedIds={subscribedIds}
+        onMapMove={onMapMove}
       />
     </View>
   )
