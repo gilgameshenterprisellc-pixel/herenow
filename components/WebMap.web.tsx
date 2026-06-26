@@ -157,8 +157,8 @@ export default function WebMap({
     zonesRef.current.forEach(zone => {
       const tier   = getTier(zone, subscribedIdsRef.current)
       const { color, heatOpacity } = TIER_STYLE[tier]
-      const coreRadius = Math.max(zone.radius_meters ?? 150, 150)
-      const glowRadius = coreRadius * 5  // large atmospheric ring behind the pin
+      const coreRadius = zone.radius_meters ?? 20
+      const glowRadius = coreRadius * 2  // subtle atmospheric ring behind the pin
 
       // Outer atmospheric glow — visible even when zoomed out
       const outerGlow = L.circle([zone.center_lat, zone.center_lng], {
