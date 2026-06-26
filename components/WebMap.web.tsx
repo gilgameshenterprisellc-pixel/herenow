@@ -86,23 +86,34 @@ export default function WebMap({ zones, location, selectedId, onPinPress, subscr
   const circlesRef    = useRef<Map<string, any>>(new Map())
   const userMarkerRef = useRef<any>(null)
 
-  // Init map once
+  // Init map once — retry until window.L is available (CDN may load after React mounts)
   useEffect(() => {
-    const L = (window as any).L
-    if (!L || !containerRef.current || mapRef.current) return
+    let retryId: ReturnType<typeof setTimeout>
 
-    const center: [number, number] = location
-      ? [location.latitude, location.longitude]
-      : [39.9526, -75.1652]
+    const tryInit = () => {
+      const L = (window as any).L
+      if (!L) {
+        retryId = setTimeout(tryInit, 200)
+        return
+      }
+      if (!containerRef.current || mapRef.current) return
 
-    mapRef.current = L.map(containerRef.current, {
-      zoomControl: true,
-      attributionControl: false,
-    }).setView(center, 15)
+      const center: [number, number] = location
+        ? [location.latitude, location.longitude]
+        : [39.9526, -75.1652]
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-    }).addTo(mapRef.current)
+      mapRef.current = L.map(containerRef.current, {
+        zoomControl: true,
+        attributionControl: false,
+      }).setView(center, 15)
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+      }).addTo(mapRef.current)
+    }
+
+    tryInit()
+    return () => clearTimeout(retryId)
   }, [])
 
   // User location dot
