@@ -1,13 +1,14 @@
 ﻿import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, Switch,
+  ScrollView, ActivityIndicator, Platform, KeyboardAvoidingView, Switch,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import { uploadAvatarWeb } from '@/lib/uploadAvatar'
+import { useToast } from '@/contexts/ToastContext'
 
 const AGE_RANGES    = ['18–22', '23–27', '28–34', '35–45', '45+', 'Prefer not to say']
 const GENDER_OPTIONS = ['Man', 'Woman', 'Non-binary', 'Prefer not to say']
@@ -29,6 +30,7 @@ const KICKOFF_PROMPTS = [
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [loading, setLoading]         = useState(true)
   const [saving, setSaving]           = useState(false)
   const [uploading, setUploading]     = useState(false)
@@ -94,7 +96,7 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!displayName.trim()) {
-      Alert.alert('Display name required', 'Enter a name so people can recognize you.')
+      showToast('Enter a display name so people can recognize you.', 'error')
       return
     }
     setSaving(true)

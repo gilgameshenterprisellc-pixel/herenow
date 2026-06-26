@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, Platform, RefreshControl, Switch,
+  TextInput, ActivityIndicator, Platform, RefreshControl, Switch,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/contexts/ToastContext'
+import { platformConfirm } from '@/lib/confirm'
 
 interface Promotion {
   id: string
@@ -19,6 +21,7 @@ interface Promotion {
 
 export default function VenuePromotionsScreen() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [zoneId, setZoneId]         = useState<string | null>(null)
   const [promos, setPromos]         = useState<Promotion[]>([])
   const [loading, setLoading]       = useState(true)
@@ -55,7 +58,7 @@ export default function VenuePromotionsScreen() {
   const onRefresh = () => { setRefreshing(true); load() }
 
   const handleCreate = async () => {
-    if (!zoneId || !title.trim()) { Alert.alert('Title required'); return }
+    if (!zoneId || !title.trim()) { showToast('Title required.', 'error'); return }
 
     setSaving(true)
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -85,17 +88,15 @@ export default function VenuePromotionsScreen() {
   }
 
   const handleDelete = (id: string, promoTitle: string) => {
-    Alert.alert(`Delete "${promoTitle}"?`, 'This promotion will be removed immediately.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.from('venue_promotions').delete().eq('id', id)
-          setPromos((prev) => prev.filter((p) => p.id !== id))
-        },
+    platformConfirm(
+      `Delete "${promoTitle}"?`,
+      'This promotion will be removed immediately.',
+      async () => {
+        await supabase.from('venue_promotions').delete().eq('id', id)
+        setPromos((prev) => prev.filter((p) => p.id !== id))
       },
-    ])
+      { confirmText: 'Delete', destructive: true }
+    )
   }
 
   return (

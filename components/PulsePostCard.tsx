@@ -1,7 +1,8 @@
-﻿import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+﻿import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import type { PulsePost } from '@/lib/pulse'
 import { deletePulsePost } from '@/lib/pulse'
 import ExpiryLabel from './ExpiryLabel'
+import { platformConfirm } from '@/lib/confirm'
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -24,17 +25,15 @@ export default function PulsePostCard({ post, currentUserId, onDeleted, onReport
   const isOwn = post.user_id === currentUserId
 
   const handleDelete = () => {
-    Alert.alert('Remove post', 'Remove this Pulse moment?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          await deletePulsePost(post.id)
-          onDeleted?.()
-        },
+    platformConfirm(
+      'Remove post',
+      'Remove this Pulse moment?',
+      async () => {
+        await deletePulsePost(post.id)
+        onDeleted?.()
       },
-    ])
+      { confirmText: 'Remove', destructive: true }
+    )
   }
 
   return (

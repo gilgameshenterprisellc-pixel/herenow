@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Animated, Easing, Platform, ActivityIndicator, Alert,
+  Animated, Easing, Platform, ActivityIndicator,
 } from 'react-native'
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
@@ -15,6 +15,7 @@ export default function LoginScreen() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const [toggleWidth, setToggleWidth] = useState(0)
 
   // Sliding pill
@@ -41,6 +42,7 @@ export default function LoginScreen() {
 
   const switchMode = (m: Mode) => {
     setMode(m)
+    setErrorMsg('')
     Animated.spring(pillAnim, {
       toValue: m === 'venue' ? 1 : 0,
       useNativeDriver: true,
@@ -58,7 +60,7 @@ export default function LoginScreen() {
     })
     setLoading(false)
 
-    if (error) { Alert.alert('Login failed', error.message); return }
+    if (error) { setErrorMsg(error.message); return }
 
     if (mode === 'venue') {
       const { data: profile } = await supabase
@@ -69,7 +71,7 @@ export default function LoginScreen() {
       if (profile?.is_venue_owner) {
         router.replace('/venue/dashboard' as any)
       } else {
-        Alert.alert('Not a venue account', "This email isn't registered as a venue. Switch to Person or register a new venue.")
+        setErrorMsg("This email isn't registered as a venue. Switch to Person or sign up as a venue.")
       }
     } else {
       router.replace('/(tabs)')
@@ -174,13 +176,17 @@ export default function LoginScreen() {
             placeholder="Password"
             placeholderTextColor="#2B4560"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(t) => { setPassword(t); setErrorMsg('') }}
             secureTextEntry
             autoComplete="current-password"
             returnKeyType="go"
             onSubmitEditing={handleLogin}
           />
         </Reanimated.View>
+
+        {!!errorMsg && (
+          <Text style={styles.errorMsg}>{errorMsg}</Text>
+        )}
 
         <Reanimated.View entering={FadeInUp.delay(220).springify().damping(16)} style={{ width: '100%' }}>
           <TouchableOpacity
@@ -296,4 +302,5 @@ const styles = StyleSheet.create({
   },
   btnTxt: { color: '#020810', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
   footerLink: { color: '#3A5C7A', fontSize: 13, textAlign: 'center', paddingTop: 4 },
+  errorMsg: { color: '#f87171', fontSize: 13, textAlign: 'center', paddingHorizontal: 4, lineHeight: 18 },
 })
