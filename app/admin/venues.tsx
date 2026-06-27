@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
-import { geocodeAddress } from '@/lib/geocoding'
+import { geocodeAddress, fetchBuildingPolygon } from '@/lib/geocoding'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -70,11 +70,12 @@ interface LiveVenue {
 }
 
 interface GeofenceForm {
-  zoneName: string
-  zoneType: string
-  lat: string
-  lng: string
-  radius: string
+  zoneName:   string
+  zoneType:   string
+  lat:        string
+  lng:        string
+  radius:     string
+  polygonWkt: string  // empty = no polygon found, fall back to circle
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -198,11 +199,12 @@ export default function AdminVenues() {
     for (const v of mergedPending) {
       const z = v.existing_zone
       defaultForms[v.id] = {
-        zoneName: z?.name ?? v.display_name,
-        zoneType: z?.type ?? v.venue_type ?? 'venue',
-        lat:      z?.center_lat?.toString() ?? v.venue_lat?.toString()  ?? '',
-        lng:      z?.center_lng?.toString() ?? v.venue_lng?.toString()  ?? '',
-        radius:   z?.radius_meters?.toString() ?? '75',
+        zoneName:   z?.name ?? v.display_name,
+        zoneType:   z?.type ?? v.venue_type ?? 'venue',
+        lat:        z?.center_lat?.toString() ?? v.venue_lat?.toString()  ?? '',
+        lng:        z?.center_lng?.toString() ?? v.venue_lng?.toString()  ?? '',
+        radius:     z?.radius_meters?.toString() ?? '75',
+        polygonWkt: '',
       }
     }
     setForms(defaultForms)
@@ -226,11 +228,12 @@ export default function AdminVenues() {
     for (const v of liveVenues) {
       const z = v.zone
       defaultLiveForms[v.id] = {
-        zoneName: z?.name ?? v.display_name,
-        zoneType: z?.type ?? v.venue_type ?? 'venue',
-        lat:      z?.center_lat?.toString()  ?? '',
-        lng:      z?.center_lng?.toString()  ?? '',
-        radius:   z?.radius_meters?.toString() ?? '75',
+        zoneName:   z?.name ?? v.display_name,
+        zoneType:   z?.type ?? v.venue_type ?? 'venue',
+        lat:        z?.center_lat?.toString()  ?? '',
+        lng:        z?.center_lng?.toString()  ?? '',
+        radius:     z?.radius_meters?.toString() ?? '75',
+        polygonWkt: '',
       }
     }
     setLiveForms(defaultLiveForms)
@@ -264,9 +267,16 @@ export default function AdminVenues() {
         venue.venue_zip     ?? '',
       )
       if (result) {
+        // Fetch building polygon from OSM alongside coordinates
+        const polygon = await fetchBuildingPolygon(result.lat, result.lng)
         setForms((prev) => ({
           ...prev,
-          [venue.id]: { ...prev[venue.id], lat: String(result.lat), lng: String(result.lng) },
+          [venue.id]: {
+            ...prev[venue.id],
+            lat:        String(result.lat),
+            lng:        String(result.lng),
+            polygonWkt: polygon?.wkt ?? '',
+          },
         }))
         setGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'success' }))
       } else {
@@ -303,12 +313,13 @@ export default function AdminVenues() {
     const doApprove = async () => {
       setSubmitting(venue.id)
       const { error } = await supabase.rpc('admin_approve_venue', {
-        p_profile_id: venue.id,
-        p_zone_name:  form.zoneName.trim(),
-        p_zone_type:  form.zoneType,
-        p_lat:        lat,
-        p_lng:        lng,
-        p_radius:     radius,
+        p_profile_id:  venue.id,
+        p_zone_name:   form.zoneName.trim(),
+        p_zone_type:   form.zoneType,
+        p_lat:         lat,
+        p_lng:         lng,
+        p_radius:      radius,
+        p_polygon_wkt: form.polygonWkt || null,
       })
       setSubmitting(null)
       if (error) {
@@ -415,9 +426,15 @@ export default function AdminVenues() {
         venue.venue_zip    ?? '',
       )
       if (result) {
+        const polygon = await fetchBuildingPolygon(result.lat, result.lng)
         setLiveForms((prev) => ({
           ...prev,
-          [venue.id]: { ...prev[venue.id], lat: String(result.lat), lng: String(result.lng) },
+          [venue.id]: {
+            ...prev[venue.id],
+            lat:        String(result.lat),
+            lng:        String(result.lng),
+            polygonWkt: polygon?.wkt ?? '',
+          },
         }))
         setEditGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'success' }))
       } else {
@@ -446,12 +463,13 @@ export default function AdminVenues() {
     const doSave = async () => {
       setEditSubmitting(venue.id)
       const { error } = await supabase.rpc('admin_setup_zone', {
-        p_owner_id:  venue.id,
-        p_zone_name: form.zoneName.trim(),
-        p_zone_type: form.zoneType,
-        p_lat:       lat,
-        p_lng:       lng,
-        p_radius:    radius,
+        p_owner_id:    venue.id,
+        p_zone_name:   form.zoneName.trim(),
+        p_zone_type:   form.zoneType,
+        p_lat:         lat,
+        p_lng:         lng,
+        p_radius:      radius,
+        p_polygon_wkt: editForm.polygonWkt || null,
       })
       setEditSubmitting(null)
       if (error) {
@@ -544,7 +562,7 @@ export default function AdminVenues() {
           ) : (
             pending.map((venue) => {
               const isOpen = expanded === venue.id
-              const form   = forms[venue.id] ?? { zoneName: '', zoneType: 'venue', lat: '', lng: '', radius: '75' }
+              const form   = forms[venue.id] ?? { zoneName: '', zoneType: 'venue', lat: '', lng: '', radius: '75', polygonWkt: '' }
               const busy   = submitting === venue.id
               const badge = confidenceBadge(venue.venue_geocode_confidence)
               return (
@@ -622,7 +640,13 @@ export default function AdminVenues() {
                             }
                           </TouchableOpacity>
                           {geocodeStatus[venue.id] === 'success' && (
-                            <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates fetched — check lat/lng below</Text>
+                            <>
+                              <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates fetched — verify map pin below</Text>
+                              {form.polygonWkt
+                                ? <Text style={{ color: '#29B6F6', fontSize: 12, marginTop: 2 }}>🏢 Building polygon from OSM — precise check-in active</Text>
+                                : <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>⚠ No building polygon found — check-in uses {form.radius}m circle</Text>
+                              }
+                            </>
                           )}
                           {geocodeStatus[venue.id] === 'notfound' && (
                             <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 4 }}>Address not found. Enter coordinates manually via maps.google.com → right-click → copy lat/lng.</Text>
@@ -709,7 +733,7 @@ export default function AdminVenues() {
             live.map((venue) => {
               const toggling  = togglingId === venue.id
               const isEditing = editingLive === venue.id
-              const editForm  = liveForms[venue.id] ?? { zoneName: venue.display_name, zoneType: venue.venue_type ?? 'venue', lat: '', lng: '', radius: '75' }
+              const editForm  = liveForms[venue.id] ?? { zoneName: venue.display_name, zoneType: venue.venue_type ?? 'venue', lat: '', lng: '', radius: '75', polygonWkt: '' }
               const editBusy  = editSubmitting === venue.id
               return (
                 <View key={venue.id} style={styles.card}>
@@ -820,7 +844,13 @@ export default function AdminVenues() {
                                   }
                                 </TouchableOpacity>
                                 {editGeocodeStatus[venue.id] === 'success' && (
-                                  <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates updated — verify below then save</Text>
+                                  <>
+                                    <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates updated — verify below then save</Text>
+                                    {editForm.polygonWkt
+                                      ? <Text style={{ color: '#29B6F6', fontSize: 12, marginTop: 2 }}>🏢 Building polygon from OSM — precise check-in active</Text>
+                                      : <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>⚠ No building polygon found — check-in uses {editForm.radius}m circle</Text>
+                                    }
+                                  </>
                                 )}
                                 {editGeocodeStatus[venue.id] === 'notfound' && (
                                   <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 4 }}>Address not found by Mapbox — check the address on the venue profile and try again.</Text>
