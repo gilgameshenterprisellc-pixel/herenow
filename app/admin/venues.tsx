@@ -202,7 +202,7 @@ export default function AdminVenues() {
         zoneType: z?.type ?? v.venue_type ?? 'venue',
         lat:      z?.center_lat?.toString() ?? v.venue_lat?.toString()  ?? '',
         lng:      z?.center_lng?.toString() ?? v.venue_lng?.toString()  ?? '',
-        radius:   z?.radius_meters?.toString() ?? '50',
+        radius:   z?.radius_meters?.toString() ?? '75',
       }
     }
     setForms(defaultForms)
@@ -230,7 +230,7 @@ export default function AdminVenues() {
         zoneType: z?.type ?? v.venue_type ?? 'venue',
         lat:      z?.center_lat?.toString()  ?? '',
         lng:      z?.center_lng?.toString()  ?? '',
-        radius:   z?.radius_meters?.toString() ?? '50',
+        radius:   z?.radius_meters?.toString() ?? '75',
       }
     }
     setLiveForms(defaultLiveForms)
@@ -255,17 +255,18 @@ export default function AdminVenues() {
     }
     setGeocoding((prev) => ({ ...prev, [venue.id]: true }))
     setGeocodeStatus((prev) => { const next = { ...prev }; delete next[venue.id]; return next })
-    const parts = [venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean)
-    const q = encodeURIComponent(parts.join(', '))
     try {
-      const res  = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+      const result = await geocodeAddress(
+        venue.venue_address ?? '',
+        venue.venue_suite   ?? '',
+        venue.venue_city    ?? '',
+        venue.venue_state   ?? '',
+        venue.venue_zip     ?? '',
       )
-      const data = await res.json()
-      if (Array.isArray(data) && data.length > 0) {
+      if (result) {
         setForms((prev) => ({
           ...prev,
-          [venue.id]: { ...prev[venue.id], lat: data[0].lat, lng: data[0].lon },
+          [venue.id]: { ...prev[venue.id], lat: String(result.lat), lng: String(result.lng) },
         }))
         setGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'success' }))
       } else {
@@ -543,7 +544,7 @@ export default function AdminVenues() {
           ) : (
             pending.map((venue) => {
               const isOpen = expanded === venue.id
-              const form   = forms[venue.id] ?? { zoneName: '', zoneType: 'venue', lat: '', lng: '', radius: '50' }
+              const form   = forms[venue.id] ?? { zoneName: '', zoneType: 'venue', lat: '', lng: '', radius: '75' }
               const busy   = submitting === venue.id
               const badge = confidenceBadge(venue.venue_geocode_confidence)
               return (
@@ -708,7 +709,7 @@ export default function AdminVenues() {
             live.map((venue) => {
               const toggling  = togglingId === venue.id
               const isEditing = editingLive === venue.id
-              const editForm  = liveForms[venue.id] ?? { zoneName: venue.display_name, zoneType: venue.venue_type ?? 'venue', lat: '', lng: '', radius: '50' }
+              const editForm  = liveForms[venue.id] ?? { zoneName: venue.display_name, zoneType: venue.venue_type ?? 'venue', lat: '', lng: '', radius: '75' }
               const editBusy  = editSubmitting === venue.id
               return (
                 <View key={venue.id} style={styles.card}>
@@ -783,7 +784,7 @@ export default function AdminVenues() {
                           <View style={styles.editSection}>
                             <Text style={styles.formTitle}>Edit Zone Location</Text>
                             <Text style={styles.formHint}>
-                              Right-click the exact venue entrance on maps.google.com → "Copy coordinates" and paste below. Or use Re-fetch to try the geocoder again.
+                              Use Re-fetch to get Mapbox building-level coordinates from the venue's address. Verify the map pin below before saving.
                             </Text>
 
                             <Text style={styles.label}>Zone Name</Text>
