@@ -51,6 +51,58 @@ export async function geocodeAddress(
   }
 }
 
+// ── Building polygon from OpenStreetMap ───────────────────────────────────────
+//
+// Queries the Overpass API for building footprints within 75m of the given
+// point. Returns the polygon as a PostGIS WKT string ready to pass to the DB.
+// Non-fatal: if OSM has no data for the building, returns null and the zone
+// falls back to the circle radius for check-in gating.
+
+export interface BuildingPolygon {
+  wkt:        string  // PostGIS WKT: POLYGON((lng lat, ...))
+  pointCount: number
+  osmId:      number
+}
+
+export async function fetchBuildingPolygon(
+  lat: number,
+  lng: number,
+): Promise<BuildingPolygon | null> {
+  const query = `[out:json][timeout:10];(way["building"](around:75,${lat},${lng}););out geom;`
+
+  try {
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:    `data=${encodeURIComponent(query)}`,
+    })
+    if (!res.ok) return null
+
+    const json = await res.json()
+
+    // Pick the way with the most geometry nodes — most detailed polygon
+    const way = ((json.elements ?? []) as any[])
+      .filter((el) => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3)
+      .sort((a, b) => b.geometry.length - a.geometry.length)[0]
+
+    if (!way) return null
+
+    // OSM: {lat, lon} pairs → PostGIS WKT uses (lng lat) order
+    const coords: [number, number][] = way.geometry.map((n: any) => [n.lon, n.lat])
+
+    // Close the ring if not already closed (PostGIS requires this)
+    const [f0, f1] = coords[0]
+    const [l0, l1] = coords[coords.length - 1]
+    if (f0 !== l0 || f1 !== l1) coords.push([f0, f1])
+
+    const wkt = `POLYGON((${coords.map(([lo, la]) => `${lo} ${la}`).join(', ')}))`
+
+    return { wkt, pointCount: coords.length, osmId: way.id as number }
+  } catch {
+    return null
+  }
+}
+
 // Fallback when Mapbox token not configured — lower precision, no confidence score
 async function geocodeNominatim(
   address: string,

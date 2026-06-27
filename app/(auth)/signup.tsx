@@ -7,7 +7,7 @@ import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimate
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { geocodeAddress, AUTO_APPROVE_THRESHOLD } from '@/lib/geocoding'
+import { geocodeAddress, fetchBuildingPolygon, AUTO_APPROVE_THRESHOLD } from '@/lib/geocoding'
 
 type Mode = 'person' | 'venue'
 
@@ -158,13 +158,18 @@ export default function SignupScreen() {
     // If the RPC fails, venue stays pending and falls to admin queue — no orphaned approvals.
     // When Stripe is wired up, this same RPC gets called from the payment webhook instead.
     if (isVenue && highConfidence && coords) {
+      // Fetch building polygon from OSM — precise footprint for check-in gating.
+      // Non-fatal: if OSM has no data, zone falls back to 75m circle.
+      const polygon = await fetchBuildingPolygon(coords.lat, coords.lng)
+
       const { error: approveError } = await supabase.rpc('auto_approve_venue', {
-        p_profile_id: data.user.id,
-        p_lat:        coords.lat,
-        p_lng:        coords.lng,
-        p_name:       venueName.trim(),
-        p_type:       mappedType,
-        p_radius:     75,
+        p_profile_id:  data.user.id,
+        p_lat:         coords.lat,
+        p_lng:         coords.lng,
+        p_name:        venueName.trim(),
+        p_type:        mappedType,
+        p_radius:      75,
+        p_polygon_wkt: polygon?.wkt ?? null,
       })
       if (approveError) {
         console.error('[signup] auto_approve_venue failed — venue stays pending:', approveError.message)
