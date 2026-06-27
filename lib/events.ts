@@ -86,10 +86,18 @@ export async function toggleRsvp(eventId: string, currentlyRsvpd: boolean): Prom
       .eq('event_id', eventId)
       .eq('user_id', user.id)
 
-    await supabase
+    // Fetch current count and decrement, flooring at 0
+    const { data: eventData } = await supabase
       .from('venue_events')
-      .update({ rsvp_count: supabase.rpc('greatest', { a: 0, b: -1 }) as any })
+      .select('rsvp_count')
       .eq('id', eventId)
+      .maybeSingle()
+    if (eventData) {
+      await supabase
+        .from('venue_events')
+        .update({ rsvp_count: Math.max(0, (eventData.rsvp_count ?? 1) - 1) })
+        .eq('id', eventId)
+    }
   } else {
     await supabase
       .from('event_rsvps')
@@ -97,9 +105,9 @@ export async function toggleRsvp(eventId: string, currentlyRsvpd: boolean): Prom
 
     const { error: rpcError } = await supabase.rpc('increment_event_rsvp', { event_uuid: eventId })
     if (rpcError) {
-      const { data } = await supabase.from('venue_events').select('rsvp_count').eq('id', eventId).single()
+      const { data } = await supabase.from('venue_events').select('rsvp_count').eq('id', eventId).maybeSingle()
       if (data) {
-        await supabase.from('venue_events').update({ rsvp_count: data.rsvp_count + 1 }).eq('id', eventId)
+        await supabase.from('venue_events').update({ rsvp_count: (data.rsvp_count ?? 0) + 1 }).eq('id', eventId)
       }
     }
   }

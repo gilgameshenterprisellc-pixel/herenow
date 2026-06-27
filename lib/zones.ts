@@ -48,7 +48,7 @@ export async function createZone(params: {
       name: params.name,
       description: params.description ?? null,
       center: `POINT(${params.longitude} ${params.latitude})`,
-      radius_meters: params.radiusMeters ?? 500,
+      radius_meters: params.radiusMeters ?? 75,
       created_by: user.id,
     })
     .select('id, name, description, radius_meters, member_count, post_count')

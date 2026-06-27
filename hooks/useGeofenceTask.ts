@@ -27,8 +27,6 @@ if (Platform.OS !== 'web') {
       .update({ is_present: isEntering, last_seen_at: new Date().toISOString() })
       .eq('zone_id', zoneId)
       .eq('user_id', user.id)
-
-    console.log(`[geofence] ${isEntering ? 'ENTERED' : 'LEFT'} zone ${zoneId}`)
   })
 }
 
@@ -68,7 +66,6 @@ export function useGeofenceTask() {
       }))
 
       await Location.startGeofencingAsync(GEOFENCE_TASK, regions)
-      console.log('[geofence] task registered for', zones.length, 'zones')
     }
 
     register().catch(console.error)
