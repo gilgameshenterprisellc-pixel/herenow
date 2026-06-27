@@ -128,8 +128,9 @@ export default function SignupScreen() {
       display_name: isVenue ? venueName.trim() : displayName.trim(),
       username: cleanUsername,
       is_venue_owner: isVenue,
-      // High-confidence geocode → auto-approve below; otherwise goes to admin queue
-      venue_status: isVenue ? (highConfidence ? 'approved' : 'pending') : 'none',
+      // Always insert as pending — auto_approve_venue RPC sets it to approved atomically.
+      // This ensures no venue is ever marked approved without a zone existing.
+      venue_status: isVenue ? 'pending' : 'none',
       ...(isVenue ? {
         email:                    email.trim().toLowerCase(),
         venue_type:               mappedType,
@@ -152,10 +153,12 @@ export default function SignupScreen() {
       return
     }
 
-    // Auto-approve: Mapbox returned high-confidence coordinates — create the zone immediately.
+    // Auto-approve: Mapbox returned high-confidence coordinates — create the zone and
+    // flip venue_status to approved atomically inside the RPC.
+    // If the RPC fails, venue stays pending and falls to admin queue — no orphaned approvals.
     // When Stripe is wired up, this same RPC gets called from the payment webhook instead.
     if (isVenue && highConfidence && coords) {
-      await supabase.rpc('auto_approve_venue', {
+      const { error: approveError } = await supabase.rpc('auto_approve_venue', {
         p_profile_id: data.user.id,
         p_lat:        coords.lat,
         p_lng:        coords.lng,
@@ -163,6 +166,9 @@ export default function SignupScreen() {
         p_type:       mappedType,
         p_radius:     75,
       })
+      if (approveError) {
+        console.error('[signup] auto_approve_venue failed — venue stays pending:', approveError.message)
+      }
     }
 
     setLoading(false)
