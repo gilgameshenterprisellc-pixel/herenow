@@ -54,6 +54,7 @@ interface LiveVenue {
   venue_suite:   string | null
   venue_city:    string | null
   venue_state:   string | null
+  venue_zip:     string | null
   venue_type:    string | null
   zone: {
     id:            string
@@ -99,6 +100,14 @@ export default function AdminVenues() {
   // Live venue zone toggling
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
+  // Live venue zone editing
+  const [editingLive, setEditingLive]           = useState<string | null>(null)
+  const [liveForms, setLiveForms]               = useState<Record<string, GeofenceForm>>({})
+  const [editSubmitting, setEditSubmitting]     = useState<string | null>(null)
+  const [editGeocoding, setEditGeocoding]       = useState<Record<string, boolean>>({})
+  const [editGeocodeStatus, setEditGeocodeStatus] = useState<Record<string, 'success' | 'notfound' | 'error'>>({})
+
+
   // ── Load ──────────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
@@ -110,7 +119,7 @@ export default function AdminVenues() {
         .order('created_at', { ascending: true }),
       supabase
         .from('profiles')
-        .select('id, display_name, username, venue_address, venue_suite, venue_city, venue_state, venue_type')
+        .select('id, display_name, username, venue_address, venue_suite, venue_city, venue_state, venue_zip, venue_type')
         .eq('venue_status', 'approved')
         .order('display_name', { ascending: true }),
     ])
@@ -165,7 +174,7 @@ export default function AdminVenues() {
     }
     setForms(defaultForms)
 
-    setLive(approvedProfiles.map((p: any) => ({
+    const liveVenues: LiveVenue[] = approvedProfiles.map((p: any) => ({
       id:            p.id,
       display_name:  p.display_name,
       username:      p.username ?? null,
@@ -173,9 +182,25 @@ export default function AdminVenues() {
       venue_suite:   p.venue_suite   ?? null,
       venue_city:    p.venue_city    ?? null,
       venue_state:   p.venue_state   ?? null,
+      venue_zip:     p.venue_zip     ?? null,
       venue_type:    p.venue_type    ?? null,
       zone:          zoneByOwner[p.id] ?? null,
-    })))
+    }))
+    setLive(liveVenues)
+
+    // Pre-fill edit forms from current zone data
+    const defaultLiveForms: Record<string, GeofenceForm> = {}
+    for (const v of liveVenues) {
+      const z = v.zone
+      defaultLiveForms[v.id] = {
+        zoneName: z?.name ?? v.display_name,
+        zoneType: z?.type ?? v.venue_type ?? 'venue',
+        lat:      z?.center_lat?.toString()  ?? '',
+        lng:      z?.center_lng?.toString()  ?? '',
+        radius:   z?.radius_meters?.toString() ?? '50',
+      }
+    }
+    setLiveForms(defaultLiveForms)
 
     setLoading(false)
     setRefreshing(false)
@@ -332,6 +357,90 @@ export default function AdminVenues() {
       newActive ? 'success' : 'info'
     )
     load()
+  }
+
+  // ── Live zone editing ─────────────────────────────────────────────────────
+
+  const updateLiveForm = (venueId: string, field: keyof GeofenceForm, value: string) => {
+    setLiveForms((prev) => ({ ...prev, [venueId]: { ...prev[venueId], [field]: value } }))
+  }
+
+  const fetchLiveCoordinates = async (venue: LiveVenue) => {
+    if (!venue.venue_address && !venue.venue_city) {
+      setEditGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'notfound' }))
+      return
+    }
+    setEditGeocoding((prev) => ({ ...prev, [venue.id]: true }))
+    setEditGeocodeStatus((prev) => { const next = { ...prev }; delete next[venue.id]; return next })
+    const parts = [venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean)
+    const q = encodeURIComponent(parts.join(', '))
+    try {
+      const res  = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`)
+      const data = await res.json()
+      if (Array.isArray(data) && data.length > 0) {
+        setLiveForms((prev) => ({
+          ...prev,
+          [venue.id]: { ...prev[venue.id], lat: data[0].lat, lng: data[0].lon },
+        }))
+        setEditGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'success' }))
+      } else {
+        setEditGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'notfound' }))
+      }
+    } catch {
+      setEditGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'error' }))
+    } finally {
+      setEditGeocoding((prev) => ({ ...prev, [venue.id]: false }))
+    }
+  }
+
+  const handleSaveLiveZone = async (venue: LiveVenue) => {
+    const form = liveForms[venue.id]
+    if (!form) return
+
+    const lat    = parseFloat(form.lat)
+    const lng    = parseFloat(form.lng)
+    const radius = parseInt(form.radius)
+
+    if (!form.zoneName.trim()) { showToast('Zone name required.', 'error'); return }
+    if (isNaN(lat) || lat < -90 || lat > 90) { showToast('Invalid latitude.', 'error'); return }
+    if (isNaN(lng) || lng < -180 || lng > 180) { showToast('Invalid longitude.', 'error'); return }
+    if (isNaN(radius) || radius < 10 || radius > 5000) { showToast('Radius must be 10–5000 m.', 'error'); return }
+
+    const doSave = async () => {
+      setEditSubmitting(venue.id)
+      const { error } = await supabase.rpc('admin_setup_zone', {
+        p_owner_id:  venue.id,
+        p_zone_name: form.zoneName.trim(),
+        p_zone_type: form.zoneType,
+        p_lat:       lat,
+        p_lng:       lng,
+        p_radius:    radius,
+      })
+      setEditSubmitting(null)
+      if (error) {
+        showToast(error.message ?? 'Update failed. Try again.', 'error')
+      } else {
+        showToast(`${venue.display_name} zone updated!`, 'success')
+        setEditingLive(null)
+        load()
+      }
+    }
+
+    if (Platform.OS === 'web') {
+      const ok = (window as any).confirm(
+        `Update zone for "${venue.display_name}"?\n\nNew location: ${lat}, ${lng}\nRadius: ${radius}m`
+      )
+      if (ok) doSave()
+    } else {
+      Alert.alert(
+        `Update "${venue.display_name}"?`,
+        `New location: ${lat}, ${lng}\nRadius: ${radius}m`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Save', onPress: doSave },
+        ]
+      )
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -559,13 +668,16 @@ export default function AdminVenues() {
             </View>
           ) : (
             live.map((venue) => {
-              const toggling = togglingId === venue.id
+              const toggling  = togglingId === venue.id
+              const isEditing = editingLive === venue.id
+              const editForm  = liveForms[venue.id] ?? { zoneName: venue.display_name, zoneType: venue.venue_type ?? 'venue', lat: '', lng: '', radius: '50' }
+              const editBusy  = editSubmitting === venue.id
               return (
                 <View key={venue.id} style={styles.card}>
                   <View style={styles.liveCardInner}>
                     <View style={styles.liveCardHeader}>
                       <View style={[styles.liveDot, { backgroundColor: venue.zone?.is_active ? '#22c55e' : '#f59e0b' }]} />
-                      <Text style={styles.cardVenueName}>{venue.display_name}</Text>
+                      <Text style={[styles.cardVenueName, { flex: 1 }]}>{venue.display_name}</Text>
                     </View>
 
                     {(venue.venue_address || venue.venue_city) && (
@@ -604,21 +716,129 @@ export default function AdminVenues() {
                           </View>
                         </View>
 
-                        <TouchableOpacity
-                          style={[
-                            styles.toggleZoneBtn,
-                            venue.zone.is_active ? styles.toggleZoneBtnPause : styles.toggleZoneBtnResume,
-                            toggling && styles.btnDisabled,
-                          ]}
-                          onPress={() => !toggling && handleToggleZone(venue)}
-                        >
-                          {toggling
-                            ? <ActivityIndicator size="small" color="#f8fafc" />
-                            : <Text style={styles.toggleZoneBtnText}>
-                                {venue.zone.is_active ? '⏸ Pause Zone' : '▶ Resume Zone'}
-                              </Text>
-                          }
-                        </TouchableOpacity>
+                        <View style={styles.liveActions}>
+                          <TouchableOpacity
+                            style={[
+                              styles.toggleZoneBtn, { flex: 1 },
+                              venue.zone.is_active ? styles.toggleZoneBtnPause : styles.toggleZoneBtnResume,
+                              toggling && styles.btnDisabled,
+                            ]}
+                            onPress={() => !toggling && handleToggleZone(venue)}
+                          >
+                            {toggling
+                              ? <ActivityIndicator size="small" color="#f8fafc" />
+                              : <Text style={styles.toggleZoneBtnText}>
+                                  {venue.zone.is_active ? '⏸ Pause' : '▶ Resume'}
+                                </Text>
+                            }
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.editZoneBtn, isEditing && styles.editZoneBtnActive]}
+                            onPress={() => setEditingLive(isEditing ? null : venue.id)}
+                          >
+                            <Text style={styles.editZoneBtnText}>{isEditing ? '✕ Cancel' : '✎ Edit Zone'}</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        {isEditing && (
+                          <View style={styles.editSection}>
+                            <Text style={styles.formTitle}>Edit Zone Location</Text>
+                            <Text style={styles.formHint}>
+                              Right-click the exact venue entrance on maps.google.com → "Copy coordinates" and paste below. Or use Re-fetch to try the geocoder again.
+                            </Text>
+
+                            <Text style={styles.label}>Zone Name</Text>
+                            <TextInput
+                              style={styles.input}
+                              value={editForm.zoneName}
+                              onChangeText={(v) => updateLiveForm(venue.id, 'zoneName', v)}
+                              placeholderTextColor="#4A6580"
+                            />
+
+                            <Text style={styles.label}>Zone Type</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePills} keyboardShouldPersistTaps="handled">
+                              {ZONE_TYPES.map((t) => (
+                                <TouchableOpacity
+                                  key={t}
+                                  style={[styles.typePill, editForm.zoneType === t && styles.typePillActive]}
+                                  onPress={() => updateLiveForm(venue.id, 'zoneType', t)}
+                                >
+                                  <Text style={[styles.typePillText, editForm.zoneType === t && styles.typePillTextActive]}>{t}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </ScrollView>
+
+                            {(venue.venue_address || venue.venue_city) && (
+                              <>
+                                <TouchableOpacity
+                                  style={[styles.geocodeBtn, editGeocoding[venue.id] && styles.btnDisabled]}
+                                  onPress={() => !editGeocoding[venue.id] && fetchLiveCoordinates(venue)}
+                                >
+                                  {editGeocoding[venue.id]
+                                    ? <ActivityIndicator size="small" color="#050A15" />
+                                    : <Text style={styles.geocodeBtnText}>🔄 Re-fetch Coordinates from Address</Text>
+                                  }
+                                </TouchableOpacity>
+                                {editGeocodeStatus[venue.id] === 'success' && (
+                                  <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates updated — verify below then save</Text>
+                                )}
+                                {editGeocodeStatus[venue.id] === 'notfound' && (
+                                  <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 4 }}>Address not found. Paste coordinates manually from maps.google.com.</Text>
+                                )}
+                                {editGeocodeStatus[venue.id] === 'error' && (
+                                  <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>Network error — try again.</Text>
+                                )}
+                              </>
+                            )}
+
+                            <View style={styles.coordRow}>
+                              <View style={styles.coordField}>
+                                <Text style={styles.label}>Latitude</Text>
+                                <TextInput
+                                  style={styles.input}
+                                  value={editForm.lat}
+                                  onChangeText={(v) => updateLiveForm(venue.id, 'lat', v)}
+                                  placeholder="e.g. 36.18432"
+                                  placeholderTextColor="#4A6580"
+                                  keyboardType="default"
+                                />
+                              </View>
+                              <View style={styles.coordField}>
+                                <Text style={styles.label}>Longitude</Text>
+                                <TextInput
+                                  style={styles.input}
+                                  value={editForm.lng}
+                                  onChangeText={(v) => updateLiveForm(venue.id, 'lng', v)}
+                                  placeholder="e.g. -86.75332"
+                                  placeholderTextColor="#4A6580"
+                                  keyboardType="default"
+                                />
+                              </View>
+                            </View>
+
+                            <Text style={styles.label}>Radius (meters)</Text>
+                            <TextInput
+                              style={styles.input}
+                              value={editForm.radius}
+                              onChangeText={(v) => updateLiveForm(venue.id, 'radius', v)}
+                              placeholder="e.g. 50"
+                              placeholderTextColor="#4A6580"
+                              keyboardType="number-pad"
+                            />
+                            <Text style={styles.radiusHint}>Typical: 50m bar/club · 100–200m outdoor</Text>
+
+                            <TouchableOpacity
+                              style={[styles.approveBtn, editBusy && styles.btnDisabled]}
+                              onPress={() => !editBusy && handleSaveLiveZone(venue)}
+                            >
+                              {editBusy
+                                ? <ActivityIndicator color="#050A15" size="small" />
+                                : <Text style={styles.approveBtnText}>✓ Save Zone Update</Text>
+                              }
+                            </TouchableOpacity>
+                          </View>
+                        )}
                       </>
                     ) : (
                       <View style={styles.noZoneWarn}>
@@ -815,6 +1035,7 @@ const styles = StyleSheet.create({
   },
   geocodeBtnText: { fontSize: 13, fontWeight: '700', color: '#050A15' },
   inputEmpty: { borderColor: '#f59e0b50' },
+  liveActions: { flexDirection: 'row', gap: 8 },
   toggleZoneBtn: {
     borderRadius: 10, paddingVertical: 11,
     alignItems: 'center', borderWidth: 1,
@@ -822,6 +1043,19 @@ const styles = StyleSheet.create({
   toggleZoneBtnPause: { borderColor: '#f59e0b', backgroundColor: '#f59e0b10' },
   toggleZoneBtnResume: { borderColor: '#22c55e', backgroundColor: '#22c55e10' },
   toggleZoneBtnText: { fontSize: 13, fontWeight: '700', color: '#f8fafc' },
+  editZoneBtn: {
+    borderRadius: 10, paddingVertical: 11, paddingHorizontal: 14,
+    alignItems: 'center', borderWidth: 1,
+    borderColor: '#29B6F6', backgroundColor: '#29B6F610',
+  },
+  editZoneBtnActive: {
+    borderColor: '#7A93AC', backgroundColor: '#7A93AC10',
+  },
+  editZoneBtnText: { fontSize: 13, fontWeight: '700', color: '#29B6F6' },
+  editSection: {
+    borderTopWidth: 1, borderTopColor: '#1A2E4A',
+    marginTop: 8, paddingTop: 14, gap: 10,
+  },
 
   // Deny modal
   modalOverlay: {
