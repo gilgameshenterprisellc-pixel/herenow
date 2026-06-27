@@ -79,7 +79,7 @@ export async function checkOut(sessionId: string): Promise<void> {
     .select('zone_id, checked_in_at, zones(name)')
     .eq('id', sessionId)
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!session) return
 

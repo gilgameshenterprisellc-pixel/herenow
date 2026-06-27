@@ -37,14 +37,16 @@ export async function sendWeMet(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  // Hard boundary: never create a We Met request for a Not Today user
+  // Hard boundary: never create a We Met request for a Not Today user.
+  // Use maybeSingle — if recipientId is invalid, single() would throw PGRST116.
   const { data: recipientProfile } = await supabase
     .from('profiles')
     .select('mood_mode')
     .eq('id', params.recipientId)
-    .single()
+    .maybeSingle()
 
-  if (recipientProfile?.mood_mode === 'not_today') return null
+  // If recipient doesn't exist or is in not_today mode, block silently
+  if (!recipientProfile || recipientProfile.mood_mode === 'not_today') return null
 
   const { data, error } = await supabase
     .from('we_met')
@@ -83,7 +85,7 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
     .from('we_met')
     .select('initiator_id')
     .eq('id', wemetId)
-    .single()
+    .maybeSingle()
 
   // Leave expires_at as NULL — DM window opens when the user checks out of the venue
   await supabase
