@@ -7,6 +7,7 @@ import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimate
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { geocodeAddress, AUTO_APPROVE_THRESHOLD } from '@/lib/geocoding'
 
 type Mode = 'person' | 'venue'
 
@@ -61,20 +62,6 @@ export default function SignupScreen() {
     }).start()
   }
 
-  const geocodeAddress = async (address: string, suite: string, city: string, state: string, zip: string) => {
-    try {
-      const street = suite.trim() ? `${address.trim()}, ${suite.trim()}` : address.trim()
-      const q = encodeURIComponent(`${street}, ${city}, ${state} ${zip}`)
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'HereNow/1.0 (herenow.app)' } }
-      )
-      const json = await res.json()
-      if (json?.[0]) return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) }
-    } catch {}
-    return null
-  }
-
   const GENDER_OPTIONS = ['Man', 'Woman', 'Non-binary', 'Prefer not to say']
 
   const VENUE_TYPE_MAP: Record<string, string> = {
@@ -117,15 +104,15 @@ export default function SignupScreen() {
       return
     }
 
-    // Geocode the venue address (non-blocking — signup continues even if geocoding fails)
-    let coords: { lat: number; lng: number } | null = null
+    // Geocode via Mapbox (precise, building-level) with Nominatim fallback
+    let coords: { lat: number; lng: number; confidence: number } | null = null
     if (isVenue && venueAddress.trim()) {
       coords = await geocodeAddress(
         venueAddress.trim(),
         venueSuite.trim(),
         venueCity.trim(),
         venueState.trim().toUpperCase(),
-        venueZip.trim()
+        venueZip.trim(),
       )
     }
 
@@ -133,35 +120,53 @@ export default function SignupScreen() {
       ? venueName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) || `venue_${data.user.id.slice(0, 6)}`
       : username.toLowerCase().replace(/[^a-z0-9_]/g, '')
 
+    const mappedType = venueType ? (VENUE_TYPE_MAP[venueType] ?? venueType.toLowerCase()) : 'venue'
+    const highConfidence = (coords?.confidence ?? 0) >= AUTO_APPROVE_THRESHOLD
+
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
       display_name: isVenue ? venueName.trim() : displayName.trim(),
       username: cleanUsername,
       is_venue_owner: isVenue,
-      venue_status: isVenue ? 'pending' : 'none',
+      // High-confidence geocode → auto-approve below; otherwise goes to admin queue
+      venue_status: isVenue ? (highConfidence ? 'approved' : 'pending') : 'none',
       ...(isVenue ? {
-        email:         email.trim().toLowerCase(),
-        venue_type:    venueType ? (VENUE_TYPE_MAP[venueType] ?? venueType.toLowerCase()) : null,
-        venue_address: venueAddress.trim(),
-        venue_suite:   venueSuite.trim() || null,
-        venue_city:    venueCity.trim(),
-        venue_state:   venueState.trim().toUpperCase(),
-        venue_zip:     venueZip.trim(),
-        venue_lat:     coords?.lat ?? null,
-        venue_lng:     coords?.lng ?? null,
+        email:                    email.trim().toLowerCase(),
+        venue_type:               mappedType,
+        venue_address:            venueAddress.trim(),
+        venue_suite:              venueSuite.trim() || null,
+        venue_city:               venueCity.trim(),
+        venue_state:              venueState.trim().toUpperCase(),
+        venue_zip:                venueZip.trim(),
+        venue_lat:                coords?.lat ?? null,
+        venue_lng:                coords?.lng ?? null,
+        venue_geocode_confidence: coords?.confidence ?? null,
       } : {
         gender: gender || null,
       }),
     })
 
-    setLoading(false)
-
     if (profileError) {
+      setLoading(false)
       setErrorMsg(profileError.message)
       return
     }
 
-    // Venue owners go set up their zone; person users go complete their profile
+    // Auto-approve: Mapbox returned high-confidence coordinates — create the zone immediately.
+    // When Stripe is wired up, this same RPC gets called from the payment webhook instead.
+    if (isVenue && highConfidence && coords) {
+      await supabase.rpc('auto_approve_venue', {
+        p_profile_id: data.user.id,
+        p_lat:        coords.lat,
+        p_lng:        coords.lng,
+        p_name:       venueName.trim(),
+        p_type:       mappedType,
+        p_radius:     75,
+      })
+    }
+
+    setLoading(false)
+
     if (isVenue) {
       router.replace('/venue/dashboard' as any)
     } else {
