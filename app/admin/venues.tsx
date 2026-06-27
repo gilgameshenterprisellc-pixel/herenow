@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
+import { geocodeAddress } from '@/lib/geocoding'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -404,15 +405,18 @@ export default function AdminVenues() {
     }
     setEditGeocoding((prev) => ({ ...prev, [venue.id]: true }))
     setEditGeocodeStatus((prev) => { const next = { ...prev }; delete next[venue.id]; return next })
-    const parts = [venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean)
-    const q = encodeURIComponent(parts.join(', '))
     try {
-      const res  = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`)
-      const data = await res.json()
-      if (Array.isArray(data) && data.length > 0) {
+      const result = await geocodeAddress(
+        venue.venue_address ?? '',
+        venue.venue_suite  ?? '',
+        venue.venue_city   ?? '',
+        venue.venue_state  ?? '',
+        venue.venue_zip    ?? '',
+      )
+      if (result) {
         setLiveForms((prev) => ({
           ...prev,
-          [venue.id]: { ...prev[venue.id], lat: data[0].lat, lng: data[0].lon },
+          [venue.id]: { ...prev[venue.id], lat: String(result.lat), lng: String(result.lng) },
         }))
         setEditGeocodeStatus((prev) => ({ ...prev, [venue.id]: 'success' }))
       } else {
@@ -818,7 +822,7 @@ export default function AdminVenues() {
                                   <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates updated — verify below then save</Text>
                                 )}
                                 {editGeocodeStatus[venue.id] === 'notfound' && (
-                                  <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 4 }}>Address not found. Paste coordinates manually from maps.google.com.</Text>
+                                  <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 4 }}>Address not found by Mapbox — check the address on the venue profile and try again.</Text>
                                 )}
                                 {editGeocodeStatus[venue.id] === 'error' && (
                                   <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>Network error — try again.</Text>
