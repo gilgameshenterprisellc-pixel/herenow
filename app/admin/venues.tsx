@@ -36,6 +36,7 @@ interface PendingVenue {
   venue_lat:     number | null
   venue_lng:     number | null
   venue_type:    string | null
+  venue_geocode_confidence: number | null
   existing_zone: {
     id: string
     name: string
@@ -73,6 +74,36 @@ interface GeofenceForm {
   lat: string
   lng: string
   radius: string
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function confidenceBadge(score: number | null) {
+  if (score === null) return { label: 'No GPS', color: '#4A6580' }
+  if (score >= 0.9)   return { label: `${Math.round(score * 100)}% — auto-approved`, color: '#22c55e' }
+  if (score >= 0.7)   return { label: `${Math.round(score * 100)}% — needs review`,  color: '#f59e0b' }
+  return               { label: `${Math.round(score * 100)}% — low confidence`,      color: '#ef4444' }
+}
+
+// OSM iframe map preview — web only, no API key needed
+function MapPreview({ lat, lng }: { lat: string; lng: string }) {
+  const latN = parseFloat(lat)
+  const lngN = parseFloat(lng)
+  if (Platform.OS !== 'web' || isNaN(latN) || isNaN(lngN)) return null
+  const delta = 0.003
+  const src =
+    `https://www.openstreetmap.org/export/embed.html` +
+    `?bbox=${lngN - delta},${latN - delta},${lngN + delta},${latN + delta}` +
+    `&layer=mapnik&marker=${latN},${lngN}`
+  return (
+    // @ts-ignore — iframe is web-only
+    <iframe
+      key={src}
+      src={src}
+      style={{ width: '100%', height: 200, border: 'none', borderRadius: 10, marginTop: 4 }}
+      title="Venue location preview"
+    />
+  )
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -114,7 +145,7 @@ export default function AdminVenues() {
     const [pendingRes, approvedRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, email, display_name, username, created_at, venue_address, venue_suite, venue_city, venue_state, venue_zip, venue_lat, venue_lng, venue_type')
+        .select('id, email, display_name, username, created_at, venue_address, venue_suite, venue_city, venue_state, venue_zip, venue_lat, venue_lng, venue_type, venue_geocode_confidence')
         .eq('venue_status', 'pending')
         .order('created_at', { ascending: true }),
       supabase
@@ -148,14 +179,15 @@ export default function AdminVenues() {
       display_name:  p.display_name,
       username:      p.username ?? null,
       created_at:    p.created_at,
-      venue_address: p.venue_address ?? null,
-      venue_suite:   p.venue_suite   ?? null,
-      venue_city:    p.venue_city    ?? null,
-      venue_state:   p.venue_state   ?? null,
-      venue_zip:     p.venue_zip     ?? null,
-      venue_lat:     p.venue_lat     ?? null,
-      venue_lng:     p.venue_lng     ?? null,
-      venue_type:    p.venue_type    ?? null,
+      venue_address:            p.venue_address            ?? null,
+      venue_suite:              p.venue_suite              ?? null,
+      venue_city:               p.venue_city               ?? null,
+      venue_state:              p.venue_state              ?? null,
+      venue_zip:                p.venue_zip                ?? null,
+      venue_lat:                p.venue_lat                ?? null,
+      venue_lng:                p.venue_lng                ?? null,
+      venue_type:               p.venue_type               ?? null,
+      venue_geocode_confidence: p.venue_geocode_confidence ?? null,
       existing_zone: zoneByOwner[p.id] ?? null,
     }))
 
@@ -509,6 +541,7 @@ export default function AdminVenues() {
               const isOpen = expanded === venue.id
               const form   = forms[venue.id] ?? { zoneName: '', zoneType: 'venue', lat: '', lng: '', radius: '50' }
               const busy   = submitting === venue.id
+              const badge = confidenceBadge(venue.venue_geocode_confidence)
               return (
                 <View key={venue.id} style={styles.card}>
                   <TouchableOpacity
@@ -516,14 +549,11 @@ export default function AdminVenues() {
                     onPress={() => setExpanded(isOpen ? null : venue.id)}
                   >
                     <View style={styles.cardLeft}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <Text style={styles.cardVenueName}>{venue.display_name}</Text>
-                        {(venue.venue_lat && venue.venue_lng)
-                          ? <Text style={{ fontSize: 11, color: '#22c55e' }}>● GPS ready</Text>
-                          : venue.venue_address
-                            ? <Text style={{ fontSize: 11, color: '#f59e0b' }}>● Address on file</Text>
-                            : <Text style={{ fontSize: 11, color: '#ef4444' }}>● No address</Text>
-                        }
+                        <Text style={{ fontSize: 11, color: badge.color, fontWeight: '700' }}>
+                          ● {badge.label}
+                        </Text>
                       </View>
                       {(venue.venue_address || venue.venue_city) && (
                         <Text style={styles.cardAddress}>
@@ -541,11 +571,13 @@ export default function AdminVenues() {
                     <View style={styles.formSection}>
                       <Text style={styles.formTitle}>Geofencing Setup</Text>
                       <Text style={styles.formHint}>
-                        {(venue.venue_lat && venue.venue_lng)
-                          ? "✓ Coordinates auto-filled from the venue's submission. Verify they look right, then approve."
-                          : venue.venue_address
-                            ? `Address on file: ${[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')} — geocoding failed, enter coordinates manually via maps.google.com → right-click → copy lat/lng.`
-                            : 'No address on file. Find coordinates at maps.google.com → right-click the venue → copy lat/lng.'
+                        {(venue.venue_geocode_confidence ?? 0) >= 0.9
+                          ? `✓ Mapbox returned ${Math.round((venue.venue_geocode_confidence ?? 0) * 100)}% confidence — coordinates are precise. Verify the map pin is on the right building, then approve.`
+                          : (venue.venue_lat && venue.venue_lng)
+                            ? `⚠ Geocoder returned low confidence (${Math.round((venue.venue_geocode_confidence ?? 0) * 100)}%). Verify the map pin below — move it manually if it's off.`
+                            : venue.venue_address
+                              ? `Address on file: ${[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')} — geocoding failed. Use Re-fetch or enter coordinates manually.`
+                              : 'No address on file. Enter coordinates manually.'
                         }
                       </Text>
 
@@ -621,17 +653,19 @@ export default function AdminVenues() {
                         </View>
                       </View>
 
+                      <MapPreview lat={form.lat} lng={form.lng} />
+
                       <Text style={styles.label}>Check-in Radius (meters)</Text>
                       <TextInput
                         style={styles.input}
                         value={form.radius}
                         onChangeText={(v) => updateForm(venue.id, 'radius', v)}
-                        placeholder="e.g. 50"
+                        placeholder="e.g. 75"
                         placeholderTextColor="#4A6580"
                         keyboardType="number-pad"
                       />
                       <Text style={styles.radiusHint}>
-                        Typical: 50m for a bar/club, 100–200m for a park or outdoor venue.
+                        Typical: 75m for a bar/club, 150–200m for a park or outdoor venue.
                       </Text>
 
                       <View style={styles.actions}>
@@ -817,16 +851,18 @@ export default function AdminVenues() {
                               </View>
                             </View>
 
+                            <MapPreview lat={editForm.lat} lng={editForm.lng} />
+
                             <Text style={styles.label}>Radius (meters)</Text>
                             <TextInput
                               style={styles.input}
                               value={editForm.radius}
                               onChangeText={(v) => updateLiveForm(venue.id, 'radius', v)}
-                              placeholder="e.g. 50"
+                              placeholder="e.g. 75"
                               placeholderTextColor="#4A6580"
                               keyboardType="number-pad"
                             />
-                            <Text style={styles.radiusHint}>Typical: 50m bar/club · 100–200m outdoor</Text>
+                            <Text style={styles.radiusHint}>Typical: 75m bar/club · 150–200m outdoor</Text>
 
                             <TouchableOpacity
                               style={[styles.approveBtn, editBusy && styles.btnDisabled]}
