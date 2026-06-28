@@ -469,7 +469,7 @@ export default function AdminVenues() {
         p_lat:         lat,
         p_lng:         lng,
         p_radius:      radius,
-        p_polygon_wkt: editForm.polygonWkt || null,
+        p_polygon_wkt: form.polygonWkt || null,
       })
       setEditSubmitting(null)
       if (error) {
