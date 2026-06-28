@@ -136,12 +136,19 @@ export default function ProfileScreen() {
   }
 
   // Build nav items dynamically — only venue owners see the venue item
-  const baseNav: NavItem[] = [
-    { label: 'We Met',      route: '/we-met',    icon: 'people-outline' },
-    { label: 'Messages',   route: '/messages',   icon: 'chatbubble-ellipses-outline' },
-    { label: 'My Venues',  route: '/my-venues',  icon: 'business-outline' },
-    { label: 'Badges',     route: '/badges',     icon: 'ribbon-outline' },
-  ]
+  const isVenueOwner = !!profile?.is_venue_owner
+
+  const baseNav: NavItem[] = isVenueOwner
+    ? [
+        { label: 'Messages',  route: '/messages',  icon: 'chatbubble-ellipses-outline' },
+        { label: 'My Venues', route: '/my-venues', icon: 'business-outline' },
+      ]
+    : [
+        { label: 'We Met',    route: '/we-met',    icon: 'people-outline' },
+        { label: 'Messages',  route: '/messages',  icon: 'chatbubble-ellipses-outline' },
+        { label: 'My Venues', route: '/my-venues', icon: 'business-outline' },
+        { label: 'Badges',    route: '/badges',    icon: 'ribbon-outline' },
+      ]
 
   const venueNav: NavItem | null = profile?.is_venue_owner
     ? {
@@ -194,30 +201,33 @@ export default function ProfileScreen() {
         )}
       </Reanimated.View>
 
-      {/* Stats row — Connections | Check-ins | Venues | Badges */}
-      <Reanimated.View entering={FadeInDown.delay(80).duration(450)} style={styles.statsRow}>
-        <TouchableOpacity style={styles.stat} onPress={() => router.push('/we-met')}>
-          <Text style={styles.statNum}>{connectionCount}</Text>
-          <Text style={styles.statLabel}>Connections</Text>
-        </TouchableOpacity>
-        <View style={styles.statDivider} />
-        <View style={styles.stat}>
-          <Text style={styles.statNum}>{checkinCount}</Text>
-          <Text style={styles.statLabel}>Check-ins</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.stat}>
-          <Text style={styles.statNum}>{venueCount}</Text>
-          <Text style={styles.statLabel}>Venues</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <TouchableOpacity style={styles.stat} onPress={() => router.push('/badges')}>
-          <Text style={styles.statNum}>{badgeCount}</Text>
-          <Text style={styles.statLabel}>Badges</Text>
-        </TouchableOpacity>
-      </Reanimated.View>
+      {/* Stats row — simplified for venue owners */}
+      {!isVenueOwner && (
+        <Reanimated.View entering={FadeInDown.delay(80).duration(450)} style={styles.statsRow}>
+          <TouchableOpacity style={styles.stat} onPress={() => router.push('/we-met')}>
+            <Text style={styles.statNum}>{connectionCount}</Text>
+            <Text style={styles.statLabel}>Connections</Text>
+          </TouchableOpacity>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}>
+            <Text style={styles.statNum}>{checkinCount}</Text>
+            <Text style={styles.statLabel}>Check-ins</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}>
+            <Text style={styles.statNum}>{venueCount}</Text>
+            <Text style={styles.statLabel}>Venues</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <TouchableOpacity style={styles.stat} onPress={() => router.push('/badges')}>
+            <Text style={styles.statNum}>{badgeCount}</Text>
+            <Text style={styles.statLabel}>Badges</Text>
+          </TouchableOpacity>
+        </Reanimated.View>
+      )}
 
-      {/* Mode quick-toggle */}
+      {/* Mode quick-toggle — not relevant for venue accounts */}
+      {!isVenueOwner && (
       <Reanimated.View entering={FadeInDown.delay(110).duration(450)} style={styles.modeCard}>
         <Text style={styles.modeSectionTitle}>My Mode</Text>
         <Text style={styles.modeSectionSub}>Active now · shown when you check in</Text>
@@ -264,6 +274,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Reanimated.View>
+      )}
 
       {/* Active session card */}
       {activeSession && (

@@ -15,7 +15,11 @@
         "NSLocationWhenInUseUsageDescription": "HereNow uses your location to show you zones nearby and let you join them.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "HereNow uses your location in the background to notify you when you enter or leave a zone.",
         "NSLocationAlwaysUsageDescription": "HereNow uses your location in the background to notify you when you enter or leave a zone.",
-        "UIBackgroundModes": ["location", "fetch"]
+        "NSPhotoLibraryUsageDescription": "HereNow lets venue owners add photos to announcements and events.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -32,7 +36,9 @@
         "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -65,6 +71,13 @@
           "icon": "./assets/icon.png",
           "color": "#050A15",
           "sounds": []
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "HereNow lets venue owners add photos to announcements and events."
         }
       ]
     ],
