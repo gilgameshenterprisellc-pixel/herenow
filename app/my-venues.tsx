@@ -39,7 +39,7 @@ export default function MyVenuesScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>My Venues</Text>

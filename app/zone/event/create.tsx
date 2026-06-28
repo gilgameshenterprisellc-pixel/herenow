@@ -96,13 +96,13 @@ export default function CreateEventScreen() {
     setCreating(false)
 
     if (!event) { showToast('Could not create the event. Try again.', 'error'); return }
-    router.back()
+    router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId}` as any)
   }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId}` as any)} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Create Event</Text>
