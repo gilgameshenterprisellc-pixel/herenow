@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Platform, RefreshControl, Switch,
+  Image, Alert,
 } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -13,6 +15,7 @@ interface Announcement {
   id: string
   message: string
   post_to_feed: boolean
+  image_url: string | null
   created_at: string
 }
 
@@ -24,9 +27,12 @@ export default function VenueAnnouncementsScreen() {
   const [loading, setLoading]       = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [sending, setSending]       = useState(false)
+  const [uploading, setUploading]   = useState(false)
 
-  const [message, setMessage]       = useState('')
-  const [postToFeed, setPostToFeed] = useState(false)
+  const [message, setMessage]         = useState('')
+  const [postToFeed, setPostToFeed]   = useState(false)
+  const [localImageUri, setLocalImageUri] = useState<string | null>(null)
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -40,7 +46,7 @@ export default function VenueAnnouncementsScreen() {
 
     const { data } = await supabase
       .from('venue_announcements')
-      .select('id, message, post_to_feed, created_at')
+      .select('id, message, post_to_feed, image_url, created_at')
       .eq('zone_id', zone.id)
       .order('created_at', { ascending: false })
       .limit(30)
@@ -53,8 +59,62 @@ export default function VenueAnnouncementsScreen() {
   useEffect(() => { load() }, [load])
   const onRefresh = () => { setRefreshing(true); load() }
 
+  const pickImage = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Allow photo access to attach images to announcements.')
+        return
+      }
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    })
+
+    if (result.canceled || !result.assets[0]) return
+
+    const asset = result.assets[0]
+    setLocalImageUri(asset.uri)
+    setUploading(true)
+
+    try {
+      const response = await fetch(asset.uri)
+      const blob = await response.blob()
+      const ext = asset.uri.split('.').pop() ?? 'jpg'
+      const fileName = `announcement-${Date.now()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('venue-media')
+        .upload(fileName, blob, { contentType: blob.type || 'image/jpeg' })
+
+      if (uploadError) {
+        showToast('Image upload failed. Try again.', 'error')
+        setLocalImageUri(null)
+      } else {
+        const { data: urlData } = supabase.storage
+          .from('venue-media')
+          .getPublicUrl(fileName)
+        setUploadedImageUrl(urlData.publicUrl)
+      }
+    } catch {
+      showToast('Image upload failed. Try again.', 'error')
+      setLocalImageUri(null)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removeImage = () => {
+    setLocalImageUri(null)
+    setUploadedImageUrl(null)
+  }
+
   const handleSend = async () => {
     if (!zoneId || !message.trim()) { showToast('Message required.', 'error'); return }
+    if (uploading) { showToast('Image still uploading, please wait.', 'error'); return }
 
     setSending(true)
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -67,14 +127,17 @@ export default function VenueAnnouncementsScreen() {
         created_by:   authUser.id,
         message:      message.trim(),
         post_to_feed: postToFeed,
+        image_url:    uploadedImageUrl ?? null,
       })
-      .select('id, message, post_to_feed, created_at')
+      .select('id, message, post_to_feed, image_url, created_at')
       .single()
 
     if (!error && data) {
       setAnnos((prev) => [data as Announcement, ...prev])
       setMessage('')
       setPostToFeed(false)
+      setLocalImageUri(null)
+      setUploadedImageUrl(null)
       showToast('Announcement sent to your followers!', 'success')
     }
     setSending(false)
@@ -122,7 +185,7 @@ export default function VenueAnnouncementsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
       >
         <Text style={styles.hint}>
-          Announcements go straight to your followers' feeds — use them for last-minute updates, schedule changes, or shoutouts.
+          Announcements go straight to your followers' feeds — use them for last-minute updates, schedule changes, or flyers.
         </Text>
 
         {/* Compose */}
@@ -140,6 +203,34 @@ export default function VenueAnnouncementsScreen() {
           />
           <Text style={styles.charCount}>{message.length}/280</Text>
 
+          {/* Image attachment */}
+          {localImageUri ? (
+            <View style={styles.imagePreviewWrap}>
+              <Image source={{ uri: localImageUri }} style={styles.imagePreview} resizeMode="cover" />
+              {uploading && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.uploadingText}>Uploading...</Text>
+                </View>
+              )}
+              {!uploading && (
+                <TouchableOpacity style={styles.removeImageBtn} onPress={removeImage}>
+                  <Text style={styles.removeImageText}>✕</Text>
+                </TouchableOpacity>
+              )}
+              {!uploading && uploadedImageUrl && (
+                <View style={styles.uploadedBadge}>
+                  <Text style={styles.uploadedBadgeText}>✓ Ready</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
+              <Text style={styles.addImageEmoji}>📷</Text>
+              <Text style={styles.addImageText}>Add flyer or photo</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={styles.feedRow}>
             <View style={styles.feedRowText}>
               <Text style={styles.feedLabel}>Post to universal feed</Text>
@@ -154,9 +245,9 @@ export default function VenueAnnouncementsScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.sendBtn, (!message.trim() || sending) && styles.sendBtnDisabled]}
+            style={[styles.sendBtn, (!message.trim() || sending || uploading) && styles.sendBtnDisabled]}
             onPress={handleSend}
-            disabled={!message.trim() || sending}
+            disabled={!message.trim() || sending || uploading}
           >
             {sending
               ? <ActivityIndicator color="#050A15" size="small" />
@@ -185,6 +276,13 @@ export default function VenueAnnouncementsScreen() {
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.annoMessage}>{a.message}</Text>
+                {a.image_url && (
+                  <Image
+                    source={{ uri: a.image_url }}
+                    style={styles.annoImage}
+                    resizeMode="cover"
+                  />
+                )}
               </View>
             ))}
           </View>
@@ -218,6 +316,37 @@ const styles = StyleSheet.create({
   },
   multiline:  { minHeight: 100, textAlignVertical: 'top' },
   charCount:  { fontSize: 11, color: '#4A6580', textAlign: 'right' },
+
+  addImageBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#0D1B2E', borderRadius: 10, padding: 14,
+    borderWidth: 1, borderColor: '#1A2E4A', borderStyle: 'dashed',
+  },
+  addImageEmoji: { fontSize: 18 },
+  addImageText: { fontSize: 14, color: '#7A93AC', fontWeight: '500' },
+
+  imagePreviewWrap: { borderRadius: 12, overflow: 'hidden', position: 'relative' },
+  imagePreview: { width: '100%', height: 180, borderRadius: 12 },
+  uploadingOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  uploadingText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  removeImageBtn: {
+    position: 'absolute', top: 8, right: 8,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  removeImageText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  uploadedBadge: {
+    position: 'absolute', bottom: 8, left: 8,
+    backgroundColor: '#22c55eCC', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  uploadedBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
   feedRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#0D1B2E', borderRadius: 12, padding: 14,
@@ -247,4 +376,7 @@ const styles = StyleSheet.create({
   deleteBtn:     { padding: 4 },
   deleteBtnText: { fontSize: 14, color: '#7A93AC' },
   annoMessage:   { fontSize: 14, color: '#D0E8F5', lineHeight: 20 },
+  annoImage: {
+    width: '100%', height: 200, borderRadius: 10, marginTop: 4,
+  },
 })

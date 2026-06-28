@@ -397,6 +397,9 @@ export default function AdminVenues() {
       .eq('id', venue.zone.id)
     setTogglingId(null)
     if (error) { showToast('Failed to update zone.', 'error'); return }
+    setLive((prev) => prev.map((v) =>
+      v.id === venue.id && v.zone ? { ...v, zone: { ...v.zone, is_active: newActive } } : v
+    ))
     showToast(
       newActive ? `${venue.display_name} zone is live.` : `${venue.display_name} zone paused.`,
       newActive ? 'success' : 'info'

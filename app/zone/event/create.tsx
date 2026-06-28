@@ -1,8 +1,10 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import {
-  View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, TouchableOpacity,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView,
+  Platform, Modal, TextInput,
 } from 'react-native'
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { createEvent } from '@/lib/events'
@@ -18,66 +20,68 @@ const EVENT_TYPES = [
   { id: 'general',    emoji: '📅', label: 'General' },
 ]
 
-function getDefaultStart(): string {
-  const d = new Date()
-  d.setMinutes(0, 0, 0)
-  d.setHours(d.getHours() + 1)
-  return d.toISOString().slice(0, 16) // "YYYY-MM-DDTHH:MM"
-}
-
-function localToISO(localStr: string): string | null {
-  // Accepts "YYYY-MM-DDTHH:MM" or "YYYY-MM-DD HH:MM"
-  const cleaned = localStr.replace(' ', 'T')
-  const d = new Date(cleaned)
-  if (isNaN(d.getTime())) return null
-  return d.toISOString()
-}
-
-function friendlyDate(isoLocal: string): string {
-  const cleaned = isoLocal.replace('T', ' ')
-  const d = new Date(isoLocal)
-  if (isNaN(d.getTime())) return isoLocal
-  return d.toLocaleString([], {
+function formatDateTime(date: Date): string {
+  return date.toLocaleString([], {
     weekday: 'short', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
 }
 
+type PickerTarget = 'start' | 'end' | null
+
 export default function CreateEventScreen() {
   const insets = useSafeAreaInsets()
   const { showToast } = useToast()
-  const { zoneId }        = useLocalSearchParams<{ zoneId: string }>()
-  const [title, setTitle] = useState('')
-  const [desc, setDesc]   = useState('')
+  const { zoneId } = useLocalSearchParams<{ zoneId: string }>()
+
+  const defaultStart = new Date(Date.now() + 60 * 60 * 1000)
+  defaultStart.setMinutes(0, 0, 0)
+
+  const [title, setTitle]         = useState('')
+  const [desc, setDesc]           = useState('')
   const [eventType, setEventType] = useState('general')
-  const [startsAt, setStartsAt]   = useState(getDefaultStart())
-  const [endsAt, setEndsAt]       = useState('')
+  const [startDate, setStartDate] = useState<Date>(defaultStart)
+  const [endDate, setEndDate]     = useState<Date | null>(null)
+  const [hasEndDate, setHasEndDate] = useState(false)
   const [creating, setCreating]   = useState(false)
 
+  // Picker state
+  const [pickerTarget, setPickerTarget]   = useState<PickerTarget>(null)
+  const [iosPendingDate, setIosPendingDate] = useState<Date>(defaultStart)
+  const [showIOSModal, setShowIOSModal]   = useState(false)
+
+  const openPicker = (target: PickerTarget) => {
+    setPickerTarget(target)
+    const current = target === 'end'
+      ? (endDate ?? new Date(startDate.getTime() + 2 * 60 * 60 * 1000))
+      : startDate
+    setIosPendingDate(current)
+    if (Platform.OS === 'ios') setShowIOSModal(true)
+  }
+
+  const onPickerChange = (_event: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') {
+      setPickerTarget(null)
+      if (_event.type === 'set' && selected) {
+        if (pickerTarget === 'start') setStartDate(selected)
+        else { setEndDate(selected); setHasEndDate(true) }
+      }
+    } else {
+      if (selected) setIosPendingDate(selected)
+    }
+  }
+
+  const confirmIOSDate = () => {
+    if (pickerTarget === 'start') setStartDate(iosPendingDate)
+    else { setEndDate(iosPendingDate); setHasEndDate(true) }
+    setShowIOSModal(false)
+    setPickerTarget(null)
+  }
+
   const handleCreate = async () => {
-    if (!title.trim()) {
-      showToast('Give your event a name.', 'error')
-      return
-    }
-
-    const startISO = localToISO(startsAt)
-    if (!startISO) {
-      showToast('Use format: YYYY-MM-DDTHH:MM (e.g. 2026-06-17T20:00)', 'error')
-      return
-    }
-
-    let endISO: string | undefined
-    if (endsAt.trim()) {
-      const parsed = localToISO(endsAt)
-      if (!parsed) {
-        showToast('End time: use format YYYY-MM-DDTHH:MM', 'error')
-        return
-      }
-      if (new Date(parsed) <= new Date(startISO)) {
-        showToast('End time must be after start time.', 'error')
-        return
-      }
-      endISO = parsed
+    if (!title.trim()) { showToast('Give your event a name.', 'error'); return }
+    if (hasEndDate && endDate && endDate <= startDate) {
+      showToast('End time must be after start time.', 'error'); return
     }
 
     setCreating(true)
@@ -86,16 +90,12 @@ export default function CreateEventScreen() {
       title: title.trim(),
       description: desc.trim() || undefined,
       eventType,
-      startsAt: startISO,
-      endsAt: endISO,
+      startsAt: startDate.toISOString(),
+      endsAt: (hasEndDate && endDate) ? endDate.toISOString() : undefined,
     })
     setCreating(false)
 
-    if (!event) {
-      showToast('Could not create the event. Try again.', 'error')
-      return
-    }
-
+    if (!event) { showToast('Could not create the event. Try again.', 'error'); return }
     router.back()
   }
 
@@ -163,32 +163,44 @@ export default function CreateEventScreen() {
         {/* Start time */}
         <View style={styles.field}>
           <Text style={styles.label}>Starts At *</Text>
-          <TextInput
-            style={styles.input}
-            value={startsAt}
-            onChangeText={setStartsAt}
-            placeholder="YYYY-MM-DDTHH:MM"
-            placeholderTextColor="#4A6580"
-            autoCapitalize="none"
-          />
-          {startsAt && localToISO(startsAt) && (
-            <Text style={styles.preview}>📅 {friendlyDate(startsAt)}</Text>
+          <TouchableOpacity style={styles.dateBtn} onPress={() => openPicker('start')}>
+            <Text style={styles.dateBtnEmoji}>📅</Text>
+            <Text style={styles.dateBtnText}>{formatDateTime(startDate)}</Text>
+          </TouchableOpacity>
+          {Platform.OS === 'android' && pickerTarget === 'start' && (
+            <DateTimePicker
+              value={startDate}
+              mode="datetime"
+              display="default"
+              onChange={onPickerChange}
+            />
           )}
         </View>
 
         {/* End time */}
         <View style={styles.field}>
           <Text style={styles.label}>Ends At (optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={endsAt}
-            onChangeText={setEndsAt}
-            placeholder="YYYY-MM-DDTHH:MM"
-            placeholderTextColor="#4A6580"
-            autoCapitalize="none"
-          />
-          {endsAt && localToISO(endsAt) && (
-            <Text style={styles.preview}>📅 {friendlyDate(endsAt)}</Text>
+          <TouchableOpacity
+            style={[styles.dateBtn, !hasEndDate && styles.dateBtnMuted]}
+            onPress={() => openPicker('end')}
+          >
+            <Text style={styles.dateBtnEmoji}>🏁</Text>
+            <Text style={[styles.dateBtnText, !hasEndDate && styles.dateBtnTextMuted]}>
+              {hasEndDate && endDate ? formatDateTime(endDate) : 'Tap to set end time'}
+            </Text>
+          </TouchableOpacity>
+          {hasEndDate && (
+            <TouchableOpacity onPress={() => { setHasEndDate(false); setEndDate(null) }}>
+              <Text style={styles.clearEnd}>Remove end time</Text>
+            </TouchableOpacity>
+          )}
+          {Platform.OS === 'android' && pickerTarget === 'end' && (
+            <DateTimePicker
+              value={endDate ?? new Date(startDate.getTime() + 2 * 60 * 60 * 1000)}
+              mode="datetime"
+              display="default"
+              onChange={onPickerChange}
+            />
           )}
         </View>
 
@@ -203,6 +215,44 @@ export default function CreateEventScreen() {
           }
         </TouchableOpacity>
       </ScrollView>
+
+      {/* iOS DateTimePicker — bottom sheet modal */}
+      {Platform.OS === 'ios' && (
+        <Modal
+          transparent
+          animationType="slide"
+          visible={showIOSModal}
+          onRequestClose={() => { setShowIOSModal(false); setPickerTarget(null) }}
+        >
+          <TouchableOpacity
+            style={styles.pickerOverlay}
+            activeOpacity={1}
+            onPress={() => { setShowIOSModal(false); setPickerTarget(null) }}
+          >
+            <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
+              <View style={styles.pickerHeader}>
+                <TouchableOpacity onPress={() => { setShowIOSModal(false); setPickerTarget(null) }}>
+                  <Text style={styles.pickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerTitle}>
+                  {pickerTarget === 'start' ? 'Start Time' : 'End Time'}
+                </Text>
+                <TouchableOpacity onPress={confirmIOSDate}>
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={iosPendingDate}
+                mode="datetime"
+                display="spinner"
+                onChange={onPickerChange}
+                style={styles.iosPicker}
+                textColor="#f8fafc"
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -236,7 +286,6 @@ const styles = StyleSheet.create({
     borderColor: '#1A2E4A',
   },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
-  preview: { fontSize: 12, color: '#29B6F6', fontWeight: '600' },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   typeCard: {
     backgroundColor: '#0D1B2E',
@@ -252,6 +301,21 @@ const styles = StyleSheet.create({
   typeEmoji: { fontSize: 18 },
   typeLabel: { fontSize: 11, color: '#7A93AC', fontWeight: '600' },
   typeLabelActive: { color: '#29B6F6' },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#0D1B2E',
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#29B6F6',
+  },
+  dateBtnMuted: { borderColor: '#1A2E4A' },
+  dateBtnEmoji: { fontSize: 18 },
+  dateBtnText: { fontSize: 15, color: '#f8fafc', fontWeight: '600', flex: 1 },
+  dateBtnTextMuted: { color: '#4A6580', fontWeight: '400' },
+  clearEnd: { fontSize: 12, color: '#ef4444', textAlign: 'right', paddingRight: 4 },
   createBtn: {
     backgroundColor: '#29B6F6',
     borderRadius: 14,
@@ -261,4 +325,32 @@ const styles = StyleSheet.create({
   },
   createBtnDisabled: { opacity: 0.4 },
   createBtnText: { color: '#050A15', fontWeight: '800', fontSize: 16 },
+
+  // iOS modal picker
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: '#0D1B2E',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderColor: '#1A2E4A',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A2E4A',
+  },
+  pickerTitle: { fontSize: 15, fontWeight: '700', color: '#f8fafc' },
+  pickerCancelText: { fontSize: 15, color: '#7A93AC' },
+  pickerDoneText: { fontSize: 15, fontWeight: '700', color: '#29B6F6' },
+  iosPicker: { backgroundColor: '#0D1B2E' },
 })

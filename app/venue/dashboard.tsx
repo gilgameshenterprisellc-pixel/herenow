@@ -26,6 +26,16 @@ interface AggregateStats {
   interests: Record<string, number>
 }
 
+interface DayCount { label: string; count: number }
+
+interface Analytics {
+  totalCheckins: number
+  eventCount: number
+  annoCount: number
+  weekChart: DayCount[]
+  peakHours: string[]
+}
+
 export default function VenueDashboard() {
   const insets = useSafeAreaInsets()
   const [loading, setLoading]         = useState(true)
@@ -36,6 +46,7 @@ export default function VenueDashboard() {
   const [venueStatus, setVenueStatus]     = useState<string | null>(null)
   const [denialReason, setDenialReason]   = useState<string | null>(null)
   const [subscriberCount, setSubscriberCount] = useState(0)
+  const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -89,6 +100,48 @@ export default function VenueDashboard() {
         setStats({ total, ageRanges, interests })
         const subCount = await fetchSubscriberCount(z.id)
         setSubscriberCount(subCount)
+
+        // Analytics queries — run in parallel
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        const [totalRes, weekRes, eventsRes, annoRes] = await Promise.all([
+          supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('zone_id', z.id),
+          supabase.from('sessions').select('checked_in_at').eq('zone_id', z.id).gte('checked_in_at', weekAgo),
+          supabase.from('venue_events').select('id', { count: 'exact', head: true }).eq('zone_id', z.id),
+          supabase.from('venue_announcements').select('id', { count: 'exact', head: true }).eq('zone_id', z.id),
+        ])
+
+        // Build 7-day chart (Sun–Sat labels)
+        const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const dayCounts: Record<number, number> = {}
+        const hourCounts: Record<number, number> = {}
+        for (const row of (weekRes.data ?? []) as any[]) {
+          const d = new Date(row.checked_in_at)
+          dayCounts[d.getDay()] = (dayCounts[d.getDay()] ?? 0) + 1
+          hourCounts[d.getHours()] = (hourCounts[d.getHours()] ?? 0) + 1
+        }
+        const weekChart: DayCount[] = DAY_LABELS.map((label, i) => ({
+          label,
+          count: dayCounts[i] ?? 0,
+        }))
+
+        // Peak hours — top 3
+        const peakHours = Object.entries(hourCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([h]) => {
+            const hr = parseInt(h, 10)
+            const suffix = hr >= 12 ? 'pm' : 'am'
+            const display = hr % 12 === 0 ? 12 : hr % 12
+            return `${display}${suffix}`
+          })
+
+        setAnalytics({
+          totalCheckins: totalRes.count ?? 0,
+          eventCount: eventsRes.count ?? 0,
+          annoCount: annoRes.count ?? 0,
+          weekChart,
+          peakHours,
+        })
       }
     } finally {
       setLoading(false)
@@ -316,6 +369,65 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        {/* Analytics */}
+        {analytics && (
+          <>
+            {/* Metrics row */}
+            <View style={styles.metricsRow}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricNum}>{analytics.totalCheckins}</Text>
+                <Text style={styles.metricLabel}>Total{'\n'}Check-ins</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricNum}>{analytics.eventCount}</Text>
+                <Text style={styles.metricLabel}>Events{'\n'}Hosted</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricNum}>{analytics.annoCount}</Text>
+                <Text style={styles.metricLabel}>Announce-{'\n'}ments Sent</Text>
+              </View>
+            </View>
+
+            {/* 7-day chart */}
+            {analytics.weekChart.some((d) => d.count > 0) && (() => {
+              const maxCount = Math.max(...analytics.weekChart.map((d) => d.count), 1)
+              return (
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>Check-ins — Last 7 Days</Text>
+                  <View style={styles.chartRow}>
+                    {analytics.weekChart.map((day) => {
+                      const pct = day.count / maxCount
+                      return (
+                        <View key={day.label} style={styles.chartCol}>
+                          <Text style={styles.chartBarCount}>{day.count > 0 ? day.count : ''}</Text>
+                          <View style={styles.chartBarTrack}>
+                            <View style={[styles.chartBarFill, { height: `${Math.max(pct * 100, 4)}%` as any }]} />
+                          </View>
+                          <Text style={styles.chartDayLabel}>{day.label}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              )
+            })()}
+
+            {/* Peak hours */}
+            {analytics.peakHours.length > 0 && (
+              <View style={styles.peakCard}>
+                <Text style={styles.peakTitle}>⏰ Peak Hours</Text>
+                <View style={styles.peakPills}>
+                  {analytics.peakHours.map((h, i) => (
+                    <View key={h} style={[styles.peakPill, i === 0 && styles.peakPillTop]}>
+                      <Text style={[styles.peakPillText, i === 0 && styles.peakPillTextTop]}>{h}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </>
+        )}
+
         {/* Quick actions */}
         <View style={styles.actionsGrid}>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/edit' as any)}>
@@ -461,6 +573,41 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 13, fontWeight: '700', color: '#8EADC7' },
 
   privacyNote: { fontSize: 11, color: '#2A3F55', textAlign: 'center', lineHeight: 16, paddingHorizontal: 8 },
+
+  metricsRow: { flexDirection: 'row', gap: 10 },
+  metricCard: {
+    flex: 1, backgroundColor: '#0D1B2E', borderRadius: 14,
+    padding: 14, alignItems: 'center', gap: 4,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  metricNum:   { fontSize: 26, fontWeight: '900', color: '#29B6F6' },
+  metricLabel: { fontSize: 10, color: '#7A93AC', textAlign: 'center', lineHeight: 14 },
+
+  chartRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 100 },
+  chartCol: { flex: 1, alignItems: 'center', gap: 4, height: '100%' as any, justifyContent: 'flex-end' },
+  chartBarCount: { fontSize: 9, color: '#29B6F6', fontWeight: '700', minHeight: 12 },
+  chartBarTrack: {
+    flex: 1, width: '80%', justifyContent: 'flex-end',
+    backgroundColor: '#1A2E4A', borderRadius: 4, overflow: 'hidden',
+  },
+  chartBarFill: { backgroundColor: '#29B6F6', borderRadius: 4, width: '100%' },
+  chartDayLabel: { fontSize: 9, color: '#4A6580', fontWeight: '600', marginTop: 4 },
+
+  peakCard: {
+    backgroundColor: '#0D1B2E', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#1A2E4A', gap: 10,
+    flexDirection: 'row', alignItems: 'center',
+  },
+  peakTitle: { fontSize: 13, fontWeight: '700', color: '#8EADC7', flex: 1 },
+  peakPills: { flexDirection: 'row', gap: 6 },
+  peakPill: {
+    backgroundColor: '#0A1628', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  peakPillTop: { backgroundColor: '#29B6F618', borderColor: '#29B6F640' },
+  peakPillText: { fontSize: 12, color: '#7A93AC', fontWeight: '700' },
+  peakPillTextTop: { color: '#29B6F6' },
   subStatCard: {
     backgroundColor: '#0D1B2E', borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: '#29B6F625', alignItems: 'center', gap: 2,
