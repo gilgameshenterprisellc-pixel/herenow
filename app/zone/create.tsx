@@ -149,7 +149,7 @@ export default function CreateZoneScreen() {
       <View style={styles.container}>
         <View style={styles.pendingGlow} />
         <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any)} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#f8fafc" />
           </TouchableOpacity>
           <Text style={styles.title}>Venue Application</Text>
