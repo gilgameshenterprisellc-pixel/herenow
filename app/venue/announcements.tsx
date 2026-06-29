@@ -82,14 +82,16 @@ export default function VenueAnnouncementsScreen() {
     setUploading(true)
 
     try {
-      const response = await fetch(asset.uri)
-      const blob = await response.blob()
-      const ext = asset.uri.split('.').pop() ?? 'jpg'
+      const ext = (asset.uri.split('.').pop() ?? 'jpg').toLowerCase()
+      const mimeType = asset.mimeType || `image/${ext === 'jpg' ? 'jpeg' : ext}`
       const fileName = `announcement-${Date.now()}.${ext}`
+
+      const response = await fetch(asset.uri)
+      const arrayBuffer = await response.arrayBuffer()
 
       const { error: uploadError } = await supabase.storage
         .from('venue-media')
-        .upload(fileName, blob, { contentType: blob.type || 'image/jpeg' })
+        .upload(fileName, arrayBuffer, { contentType: mimeType })
 
       if (uploadError) {
         showToast('Image upload failed. Try again.', 'error')
