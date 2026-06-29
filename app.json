@@ -59,6 +59,14 @@
       "orientation": "portrait"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-location",
@@ -83,7 +91,8 @@
           "photosPermission": "HereNow lets venue owners add photos to announcements and events.",
           "cameraPermission": "HereNow lets you take a photo for your profile or attach one to an announcement."
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "extra": {
       "eas": {
