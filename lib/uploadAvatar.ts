@@ -2,8 +2,11 @@ import { Platform } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { supabase } from './supabase'
 
-export async function uploadAvatarWeb(userId: string): Promise<string | null> {
-  if (Platform.OS !== 'web') return uploadAvatarNative(userId)
+export async function uploadAvatarWeb(
+  userId: string,
+  source: 'library' | 'camera' = 'library',
+): Promise<string | null> {
+  if (Platform.OS !== 'web') return uploadAvatarNative(userId, source)
 
   return new Promise((resolve) => {
     const input = document.createElement('input')
@@ -32,8 +35,7 @@ export async function uploadAvatarWeb(userId: string): Promise<string | null> {
         return
       }
 
-      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-      const path = `${userId}/avatar.${ext}`
+      const path = `${userId}/avatar.jpg`
 
       const { error } = await supabase.storage
         .from('avatars')
@@ -49,23 +51,37 @@ export async function uploadAvatarWeb(userId: string): Promise<string | null> {
   })
 }
 
-async function uploadAvatarNative(userId: string): Promise<string | null> {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-  if (status !== 'granted') return null
+async function uploadAvatarNative(
+  userId: string,
+  source: 'library' | 'camera',
+): Promise<string | null> {
+  let result: ImagePicker.ImagePickerResult
 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 0.8,
-  })
+  if (source === 'camera') {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync()
+    if (status !== 'granted') return null
+    result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    })
+  } else {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') return null
+    result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    })
+  }
 
   if (result.canceled || !result.assets[0]) return null
 
   const asset = result.assets[0]
-  const ext = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg'
-  const mimeType = asset.mimeType || `image/${ext === 'jpg' ? 'jpeg' : ext}`
-  const path = `${userId}/avatar.${ext}`
+  // Always upload to the same path so upsert reliably replaces the old photo
+  const path = `${userId}/avatar.jpg`
+  const mimeType = asset.mimeType || 'image/jpeg'
 
   const response = await fetch(asset.uri)
   const arrayBuffer = await response.arrayBuffer()
