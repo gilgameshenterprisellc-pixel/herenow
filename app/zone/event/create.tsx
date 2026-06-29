@@ -46,25 +46,42 @@ export default function CreateEventScreen() {
   const [creating, setCreating]   = useState(false)
 
   // Picker state
-  const [pickerTarget, setPickerTarget]   = useState<PickerTarget>(null)
-  const [iosPendingDate, setIosPendingDate] = useState<Date>(defaultStart)
-  const [showIOSModal, setShowIOSModal]   = useState(false)
+  const [pickerTarget, setPickerTarget]       = useState<PickerTarget>(null)
+  const [iosPendingDate, setIosPendingDate]   = useState<Date>(defaultStart)
+  const [showIOSModal, setShowIOSModal]       = useState(false)
+  // Android two-step: pick date first, then time
+  const [androidStep, setAndroidStep]         = useState<'date' | 'time'>('date')
+  const [androidPendingDate, setAndroidPendingDate] = useState<Date>(defaultStart)
 
   const openPicker = (target: PickerTarget) => {
-    setPickerTarget(target)
     const current = target === 'end'
       ? (endDate ?? new Date(startDate.getTime() + 2 * 60 * 60 * 1000))
       : startDate
+    setPickerTarget(target)
     setIosPendingDate(current)
+    setAndroidPendingDate(current)
+    setAndroidStep('date')
     if (Platform.OS === 'ios') setShowIOSModal(true)
   }
 
   const onPickerChange = (_event: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
-      setPickerTarget(null)
-      if (_event.type === 'set' && selected) {
-        if (pickerTarget === 'start') setStartDate(selected)
-        else { setEndDate(selected); setHasEndDate(true) }
+      if (_event.type !== 'set' || !selected) {
+        setPickerTarget(null)
+        setAndroidStep('date')
+        return
+      }
+      if (androidStep === 'date') {
+        setAndroidPendingDate(selected)
+        setAndroidStep('time')
+      } else {
+        // Combine date from step 1 with time from step 2
+        const combined = new Date(androidPendingDate)
+        combined.setHours(selected.getHours(), selected.getMinutes(), 0, 0)
+        if (pickerTarget === 'start') setStartDate(combined)
+        else { setEndDate(combined); setHasEndDate(true) }
+        setPickerTarget(null)
+        setAndroidStep('date')
       }
     } else {
       if (selected) setIosPendingDate(selected)
@@ -169,8 +186,8 @@ export default function CreateEventScreen() {
           </TouchableOpacity>
           {Platform.OS === 'android' && pickerTarget === 'start' && (
             <DateTimePicker
-              value={startDate}
-              mode="datetime"
+              value={androidStep === 'date' ? startDate : androidPendingDate}
+              mode={androidStep}
               display="default"
               onChange={onPickerChange}
             />
@@ -196,8 +213,10 @@ export default function CreateEventScreen() {
           )}
           {Platform.OS === 'android' && pickerTarget === 'end' && (
             <DateTimePicker
-              value={endDate ?? new Date(startDate.getTime() + 2 * 60 * 60 * 1000)}
-              mode="datetime"
+              value={androidStep === 'date'
+                ? (endDate ?? new Date(startDate.getTime() + 2 * 60 * 60 * 1000))
+                : androidPendingDate}
+              mode={androidStep}
               display="default"
               onChange={onPickerChange}
             />
@@ -247,7 +266,7 @@ export default function CreateEventScreen() {
                 display="spinner"
                 onChange={onPickerChange}
                 style={styles.iosPicker}
-                textColor="#f8fafc"
+                themeVariant="dark"
               />
             </View>
           </TouchableOpacity>

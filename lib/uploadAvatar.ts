@@ -63,14 +63,16 @@ async function uploadAvatarNative(userId: string): Promise<string | null> {
   if (result.canceled || !result.assets[0]) return null
 
   const asset = result.assets[0]
-  const response = await fetch(asset.uri)
-  const blob = await response.blob()
   const ext = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg'
+  const mimeType = asset.mimeType || `image/${ext === 'jpg' ? 'jpeg' : ext}`
   const path = `${userId}/avatar.${ext}`
+
+  const response = await fetch(asset.uri)
+  const arrayBuffer = await response.arrayBuffer()
 
   const { error } = await supabase.storage
     .from('avatars')
-    .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' })
+    .upload(path, arrayBuffer, { upsert: true, contentType: mimeType })
 
   if (error) { console.error('[uploadAvatar native]', error.message); return null }
 
