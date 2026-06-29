@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Platform, RefreshControl, Switch,
-  Image, Alert,
+  Image, Alert, ActionSheetIOS,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -60,20 +60,26 @@ export default function VenueAnnouncementsScreen() {
   useEffect(() => { load() }, [load])
   const onRefresh = () => { setRefreshing(true); load() }
 
-  const pickImage = async () => {
+  const doPickImage = async (source: 'library' | 'camera') => {
     if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Allow photo access to attach images to announcements.')
-        return
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync()
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Allow camera access to take photos for announcements.')
+          return
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Allow photo access to attach images to announcements.')
+          return
+        }
       }
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      quality: 0.8,
-    })
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 })
 
     if (result.canceled || !result.assets[0]) return
 
@@ -84,7 +90,7 @@ export default function VenueAnnouncementsScreen() {
     try {
       const ext = (asset.uri.split('.').pop() ?? 'jpg').toLowerCase()
       const mimeType = asset.mimeType || `image/${ext === 'jpg' ? 'jpeg' : ext}`
-      const fileName = `announcement-${Date.now()}.${ext}`
+      const fileName = `announcement-${Date.now()}.jpg`
 
       const response = await fetch(asset.uri)
       const arrayBuffer = await response.arrayBuffer()
@@ -107,6 +113,21 @@ export default function VenueAnnouncementsScreen() {
       setLocalImageUri(null)
     } finally {
       setUploading(false)
+    }
+  }
+
+  const pickImage = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        (i) => { if (i === 1) doPickImage('camera'); else if (i === 2) doPickImage('library') },
+      )
+    } else {
+      Alert.alert('Add Photo', 'How would you like to add a photo?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => doPickImage('camera') },
+        { text: 'Choose from Library', onPress: () => doPickImage('library') },
+      ])
     }
   }
 

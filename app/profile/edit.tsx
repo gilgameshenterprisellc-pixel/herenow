@@ -2,6 +2,7 @@
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   ScrollView, ActivityIndicator, Platform, KeyboardAvoidingView, Switch,
+  ActionSheetIOS, Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -72,15 +73,31 @@ export default function EditProfileScreen() {
     load()
   }, [])
 
-  const handlePhotoUpload = async () => {
+  const handlePhotoUpload = () => {
     if (!userId) return
-    setUploading(true)
-    const url = await uploadAvatarWeb(userId)
-    if (url) {
-      await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
-      setAvatarUrl(url)
+
+    const pick = async (source: 'library' | 'camera') => {
+      setUploading(true)
+      const url = await uploadAvatarWeb(userId, source)
+      if (url) {
+        await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
+        setAvatarUrl(url)
+      }
+      setUploading(false)
     }
-    setUploading(false)
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        (i) => { if (i === 1) pick('camera'); else if (i === 2) pick('library') },
+      )
+    } else {
+      Alert.alert('Profile Photo', 'How would you like to add a photo?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => pick('camera') },
+        { text: 'Choose from Library', onPress: () => pick('library') },
+      ])
+    }
   }
 
   const toggleInterest = (tag: string) => {

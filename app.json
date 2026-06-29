@@ -16,6 +16,7 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "HereNow uses your location in the background to notify you when you enter or leave a zone.",
         "NSLocationAlwaysUsageDescription": "HereNow uses your location in the background to notify you when you enter or leave a zone.",
         "NSPhotoLibraryUsageDescription": "HereNow lets venue owners add photos to announcements and events.",
+        "NSCameraUsageDescription": "HereNow lets you take a photo for your profile or attach one to an announcement.",
         "UIBackgroundModes": [
           "location",
           "fetch"
@@ -37,6 +38,7 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
+        "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE"
       ]
@@ -77,7 +79,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "HereNow lets venue owners add photos to announcements and events."
+          "photosPermission": "HereNow lets venue owners add photos to announcements and events.",
+          "cameraPermission": "HereNow lets you take a photo for your profile or attach one to an announcement."
         }
       ]
     ],
