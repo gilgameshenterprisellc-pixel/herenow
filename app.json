@@ -1,13 +1,13 @@
 {
   "expo": {
     "name": "HereNow",
-    "slug": "herenow",
+    "slug": "jbost",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "herenow",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.gilgameshenterprise.herenow",
@@ -40,7 +40,8 @@
         "android.permission.VIBRATE",
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -91,6 +92,7 @@
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "gilgameshenterprisellc"
   }
 }
