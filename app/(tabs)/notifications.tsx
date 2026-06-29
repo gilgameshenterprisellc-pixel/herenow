@@ -13,12 +13,13 @@ import AnimatedBackground from '@/components/AnimatedBackground'
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
 const TYPE_META: Record<string, { icon: IoniconsName; color: string }> = {
-  wemet_request:   { icon: 'people-outline',           color: '#29B6F6' },
-  wemet_confirmed: { icon: 'checkmark-circle-outline', color: '#22c55e' },
-  message:         { icon: 'mail-outline',             color: '#3b82f6' },
-  event_rsvp:      { icon: 'calendar-outline',         color: '#a855f7' },
-  badge_earned:    { icon: 'ribbon-outline',           color: '#f59e0b' },
-  system:          { icon: 'radio-outline',            color: '#7A93AC' },
+  wemet_request:      { icon: 'people-outline',           color: '#29B6F6' },
+  wemet_confirmed:    { icon: 'checkmark-circle-outline', color: '#22c55e' },
+  message:            { icon: 'mail-outline',             color: '#3b82f6' },
+  event_rsvp:         { icon: 'calendar-outline',         color: '#a855f7' },
+  badge_earned:       { icon: 'ribbon-outline',           color: '#f59e0b' },
+  venue_announcement: { icon: 'megaphone-outline',        color: '#f97316' },
+  system:             { icon: 'radio-outline',            color: '#7A93AC' },
 }
 
 function timeAgo(iso: string): string {

@@ -163,7 +163,7 @@ export default function EditProfileScreen() {
           <TouchableOpacity
             style={styles.photoWrap}
             onPress={handlePhotoUpload}
-            disabled={uploading || Platform.OS !== 'web'}
+            disabled={uploading}
           >
             <AvatarImage uri={avatarUrl} name={displayName || '?'} size={80} />
             <View style={styles.photoOverlay}>
@@ -175,11 +175,7 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
           <View style={styles.photoMeta}>
             <Text style={styles.photoTitle}>Profile Photo</Text>
-            <Text style={styles.photoHint}>
-              {Platform.OS === 'web'
-                ? 'Tap to upload · JPG, PNG, or WebP · max 5MB'
-                : 'Open on web to upload a photo'}
-            </Text>
+            <Text style={styles.photoHint}>Tap to upload · JPG, PNG, or WebP · max 5MB</Text>
           </View>
         </View>
 

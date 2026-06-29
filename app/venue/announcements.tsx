@@ -10,6 +10,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
+import { sendNotification } from '@/lib/notifications'
 
 interface Announcement {
   id: string
@@ -139,6 +140,26 @@ export default function VenueAnnouncementsScreen() {
       setLocalImageUri(null)
       setUploadedImageUrl(null)
       showToast('Announcement sent to your followers!', 'success')
+
+      // Notify all subscribers (best-effort, non-blocking)
+      supabase
+        .from('venue_subscriptions')
+        .select('user_id')
+        .eq('zone_id', zoneId)
+        .then(({ data: subs }) => {
+          if (!subs) return
+          const preview = message.trim().slice(0, 80)
+          subs.forEach(({ user_id }) => {
+            if (user_id === authUser.id) return
+            sendNotification({
+              userId: user_id,
+              type: 'venue_announcement',
+              title: '📣 New announcement',
+              body: preview,
+              data: { zone_id: zoneId },
+            }).catch(() => {})
+          })
+        })
     }
     setSending(false)
   }
