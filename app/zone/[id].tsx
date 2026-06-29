@@ -478,12 +478,7 @@ export default function ZoneScreen() {
           {isCheckedIn && (
             <View style={styles.pulseCompose}>
               {showVibePicker && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.vibeScroll}
-                  contentContainerStyle={styles.vibePills}
-                >
+                <View style={styles.vibePillsWrap}>
                   {VIBE_TAGS.map((v) => (
                     <TouchableOpacity
                       key={v}
@@ -493,7 +488,7 @@ export default function ZoneScreen() {
                       <Text style={styles.vibePillText}>{v}</Text>
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
+                </View>
               )}
               <View style={[styles.pulseRow, { paddingBottom: insets.bottom + 10 }]}>
                 <TouchableOpacity
@@ -687,8 +682,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#0D1B2E',
     gap: 0,
   },
-  vibeScroll: { maxHeight: 44 },
-  vibePills: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, flexDirection: 'row' },
+  vibePillsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   vibePill: {
     backgroundColor: '#0D1B2E',
     borderRadius: 16,

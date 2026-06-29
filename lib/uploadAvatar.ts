@@ -1,25 +1,22 @@
 import { Platform } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
 import { supabase } from './supabase'
 
 export async function uploadAvatarWeb(userId: string): Promise<string | null> {
-  if (Platform.OS !== 'web') return null
+  if (Platform.OS !== 'web') return uploadAvatarNative(userId)
 
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/jpeg,image/png,image/webp'
 
-    // Guard so we only resolve once (cancel + onchange can both fire in some browsers)
     let settled = false
     const settle = (v: string | null) => { if (!settled) { settled = true; resolve(v) } }
 
-    // Modern browsers (Chrome 114+, Firefox 113+) emit 'cancel' when picker is dismissed
     input.addEventListener('cancel', () => settle(null))
 
-    // Safari / older browser fallback: window regains focus after picker closes
     const onFocus = () => {
       window.removeEventListener('focus', onFocus)
-      // Give onchange time to fire first if the user did select a file
       setTimeout(() => settle(null), 300)
     }
     window.addEventListener('focus', onFocus)
@@ -42,11 +39,7 @@ export async function uploadAvatarWeb(userId: string): Promise<string | null> {
         .from('avatars')
         .upload(path, file, { upsert: true, contentType: file.type })
 
-      if (error) {
-        console.error('[uploadAvatar]', error.message)
-        settle(null)
-        return
-      }
+      if (error) { console.error('[uploadAvatar]', error.message); settle(null); return }
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(path)
       settle(`${data.publicUrl}?v=${Date.now()}`)
@@ -54,4 +47,33 @@ export async function uploadAvatarWeb(userId: string): Promise<string | null> {
 
     input.click()
   })
+}
+
+async function uploadAvatarNative(userId: string): Promise<string | null> {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+  if (status !== 'granted') return null
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.8,
+  })
+
+  if (result.canceled || !result.assets[0]) return null
+
+  const asset = result.assets[0]
+  const response = await fetch(asset.uri)
+  const blob = await response.blob()
+  const ext = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg'
+  const path = `${userId}/avatar.${ext}`
+
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' })
+
+  if (error) { console.error('[uploadAvatar native]', error.message); return null }
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  return `${data.publicUrl}?v=${Date.now()}`
 }
