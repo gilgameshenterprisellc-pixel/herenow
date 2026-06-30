@@ -121,6 +121,22 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
             />
           </View>
         </View>
+
+        {/* Venue chips */}
+        {(zone.chips ?? []).length > 0 && (
+          <View style={styles.chipsRow}>
+            {(zone.chips ?? []).slice(0, 4).map((c) => (
+              <View key={c} style={styles.chip}>
+                <Text style={styles.chipText}>{c}</Text>
+              </View>
+            ))}
+            {(zone.chips ?? []).length > 4 && (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>+{(zone.chips ?? []).length - 4}</Text>
+              </View>
+            )}
+          </View>
+        )}
       </Animated.View>
     </TouchableOpacity>
   )
@@ -179,4 +195,11 @@ const styles = StyleSheet.create({
   heatTrack: { flex: 1, height: 3, backgroundColor: '#0D1B2E', borderRadius: 2, overflow: 'hidden', marginLeft: 6 },
   heatFill: { height: '100%' as any, backgroundColor: '#1A3A5A', borderRadius: 2 },
   heatFillLive: { backgroundColor: '#22c55e' },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  chip: {
+    backgroundColor: '#0A1628', borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  chipText: { fontSize: 10, color: '#5A7A9A', fontWeight: '600' },
 })

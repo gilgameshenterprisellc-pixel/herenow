@@ -19,6 +19,7 @@ export default function SignupScreen() {
   const [username, setUsername]       = useState('')
   const [email, setEmail]             = useState('')
   const [password, setPassword]       = useState('')
+  const [showPw, setShowPw]           = useState(false)
   const [venueName, setVenueName]     = useState('')
   const [venueType, setVenueType]     = useState<string | null>(null)
   const [venueAddress, setVenueAddress] = useState('')
@@ -311,15 +312,23 @@ export default function SignupScreen() {
                 keyboardType="email-address"
                 autoComplete="email"
               />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#2B4560"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="new-password"
-              />
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={[styles.input, { paddingRight: 46 }]}
+                  placeholder="Password"
+                  placeholderTextColor="#2B4560"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPw}
+                  autoComplete="new-password"
+                />
+                <TouchableOpacity
+                  style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+                  onPress={() => setShowPw(v => !v)}
+                >
+                  <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
+                </TouchableOpacity>
+              </View>
             </Reanimated.View>
           )}
 
@@ -402,15 +411,23 @@ export default function SignupScreen() {
                 keyboardType="email-address"
                 autoComplete="email"
               />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#2B4560"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="new-password"
-              />
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={[styles.input, { paddingRight: 46 }]}
+                  placeholder="Password"
+                  placeholderTextColor="#2B4560"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPw}
+                  autoComplete="new-password"
+                />
+                <TouchableOpacity
+                  style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+                  onPress={() => setShowPw(v => !v)}
+                >
+                  <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
+                </TouchableOpacity>
+              </View>
             </Reanimated.View>
           )}
 

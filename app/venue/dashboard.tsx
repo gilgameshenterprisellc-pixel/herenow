@@ -34,6 +34,10 @@ interface Analytics {
   annoCount: number
   weekChart: DayCount[]
   peakHours: string[]
+  todayCount: number
+  yesterdayCount: number
+  newVisitors: number
+  returningVisitors: number
 }
 
 export default function VenueDashboard() {
@@ -102,12 +106,19 @@ export default function VenueDashboard() {
         setSubscriberCount(subCount)
 
         // Analytics queries — run in parallel
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-        const [totalRes, weekRes, eventsRes, annoRes] = await Promise.all([
+        const weekAgo   = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+        const yestStart  = new Date(todayStart); yestStart.setDate(yestStart.getDate() - 1)
+
+        const [totalRes, weekRes, eventsRes, annoRes, todayRes, yestRes, allTimeRes] = await Promise.all([
           supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('zone_id', z.id),
           supabase.from('sessions').select('checked_in_at').eq('zone_id', z.id).gte('checked_in_at', weekAgo),
           supabase.from('venue_events').select('id', { count: 'exact', head: true }).eq('zone_id', z.id),
           supabase.from('venue_announcements').select('id', { count: 'exact', head: true }).eq('zone_id', z.id),
+          supabase.from('sessions').select('user_id').eq('zone_id', z.id).gte('checked_in_at', todayStart.toISOString()),
+          supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('zone_id', z.id)
+            .gte('checked_in_at', yestStart.toISOString()).lt('checked_in_at', todayStart.toISOString()),
+          supabase.from('sessions').select('user_id, checked_in_at').eq('zone_id', z.id).lt('checked_in_at', todayStart.toISOString()),
         ])
 
         // Build 7-day chart (Sun–Sat labels)
@@ -135,12 +146,22 @@ export default function VenueDashboard() {
             return `${display}${suffix}`
           })
 
+        // Customer mix: users who checked in today, split by whether they've visited before
+        const todayUserIds = new Set((todayRes.data ?? []).map((r: any) => r.user_id))
+        const prevUserIds  = new Set((allTimeRes.data ?? []).map((r: any) => r.user_id))
+        let newVisitors = 0, returningVisitors = 0
+        todayUserIds.forEach((uid) => { prevUserIds.has(uid) ? returningVisitors++ : newVisitors++ })
+
         setAnalytics({
           totalCheckins: totalRes.count ?? 0,
           eventCount: eventsRes.count ?? 0,
           annoCount: annoRes.count ?? 0,
           weekChart,
           peakHours,
+          todayCount:       todayUserIds.size,
+          yesterdayCount:   yestRes.count ?? 0,
+          newVisitors,
+          returningVisitors,
         })
       }
     } finally {
@@ -372,6 +393,64 @@ export default function VenueDashboard() {
         {/* Analytics */}
         {analytics && (
           <>
+            {/* Today's Activity */}
+            {(() => {
+              const diff = analytics.todayCount - analytics.yesterdayCount
+              const pct  = analytics.yesterdayCount > 0
+                ? Math.round(Math.abs(diff / analytics.yesterdayCount) * 100)
+                : null
+              return (
+                <View style={styles.todayCard}>
+                  <View style={styles.todayLeft}>
+                    <Text style={styles.todayLabel}>TODAY'S CHECK-INS</Text>
+                    <Text style={styles.todayCount}>{analytics.todayCount}</Text>
+                  </View>
+                  {analytics.yesterdayCount > 0 && pct !== null && (
+                    <View style={[styles.todayBadge, diff >= 0 ? styles.todayBadgeUp : styles.todayBadgeDown]}>
+                      <Text style={[styles.todayBadgeText, diff >= 0 ? styles.todayBadgeTextUp : styles.todayBadgeTextDown]}>
+                        {diff >= 0 ? '↑' : '↓'} {pct}% vs yesterday
+                      </Text>
+                    </View>
+                  )}
+                  {analytics.yesterdayCount === 0 && (
+                    <Text style={styles.todayYest}>— yesterday</Text>
+                  )}
+                </View>
+              )
+            })()}
+
+            {/* Customer Mix */}
+            {analytics.todayCount > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Customer Mix — Today</Text>
+                <View style={styles.mixRow}>
+                  <View style={styles.mixItem}>
+                    <Text style={styles.mixNum}>{analytics.newVisitors}</Text>
+                    <Text style={styles.mixLabel}>New Visitors</Text>
+                    <Text style={styles.mixSub}>First time here</Text>
+                  </View>
+                  <View style={styles.mixDivider} />
+                  <View style={styles.mixItem}>
+                    <Text style={[styles.mixNum, styles.mixNumReturn]}>{analytics.returningVisitors}</Text>
+                    <Text style={styles.mixLabel}>Returning</Text>
+                    <Text style={styles.mixSub}>Been here before</Text>
+                  </View>
+                </View>
+                {analytics.todayCount > 0 && (
+                  <View style={styles.mixBar}>
+                    <View style={[
+                      styles.mixBarNew,
+                      { flex: analytics.newVisitors || 1 },
+                    ]} />
+                    <View style={[
+                      styles.mixBarReturn,
+                      { flex: analytics.returningVisitors || 0.001 },
+                    ]} />
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Metrics row */}
             <View style={styles.metricsRow}>
               <View style={styles.metricCard}>
@@ -596,6 +675,31 @@ const styles = StyleSheet.create({
 
   privacyNote: { fontSize: 11, color: '#2A3F55', textAlign: 'center', lineHeight: 16, paddingHorizontal: 8 },
 
+  todayCard: {
+    backgroundColor: '#0D1B2E', borderRadius: 16, padding: 18,
+    borderWidth: 1, borderColor: '#1A2E4A',
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+  },
+  todayLeft:  { flex: 1, gap: 2 },
+  todayLabel: { fontSize: 10, fontWeight: '700', color: '#4A6580', letterSpacing: 1 },
+  todayCount: { fontSize: 40, fontWeight: '900', color: '#f8fafc', lineHeight: 46 },
+  todayYest:  { fontSize: 12, color: '#4A6580' },
+  todayBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1 },
+  todayBadgeUp:       { backgroundColor: '#22c55e18', borderColor: '#22c55e40' },
+  todayBadgeDown:     { backgroundColor: '#ef444418', borderColor: '#ef444440' },
+  todayBadgeText:     { fontSize: 12, fontWeight: '700' },
+  todayBadgeTextUp:   { color: '#22c55e' },
+  todayBadgeTextDown: { color: '#ef4444' },
+  mixRow:     { flexDirection: 'row', alignItems: 'center' },
+  mixItem:    { flex: 1, alignItems: 'center', gap: 2 },
+  mixDivider: { width: 1, height: 48, backgroundColor: '#1A2E4A' },
+  mixNum:     { fontSize: 32, fontWeight: '900', color: '#29B6F6' },
+  mixNumReturn: { color: '#a855f7' },
+  mixLabel:   { fontSize: 12, fontWeight: '700', color: '#f8fafc' },
+  mixSub:     { fontSize: 11, color: '#4A6580' },
+  mixBar:     { height: 6, borderRadius: 3, flexDirection: 'row', overflow: 'hidden', marginTop: 8 },
+  mixBarNew:    { backgroundColor: '#29B6F6' },
+  mixBarReturn: { backgroundColor: '#a855f7' },
   metricsRow: { flexDirection: 'row', gap: 10 },
   metricCard: {
     flex: 1, backgroundColor: '#0D1B2E', borderRadius: 14,

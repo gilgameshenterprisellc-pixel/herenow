@@ -14,6 +14,7 @@ export default function LoginScreen() {
   const [mode, setMode]         = useState<Mode>('person')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw]     = useState(false)
   const [loading, setLoading]   = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [toggleWidth, setToggleWidth] = useState(0)
@@ -171,17 +172,25 @@ export default function LoginScreen() {
             autoComplete="email"
             returnKeyType="next"
           />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#2B4560"
-            value={password}
-            onChangeText={(t) => { setPassword(t); setErrorMsg('') }}
-            secureTextEntry
-            autoComplete="current-password"
-            returnKeyType="go"
-            onSubmitEditing={handleLogin}
-          />
+          <View style={{ position: 'relative' }}>
+            <TextInput
+              style={[styles.input, { paddingRight: 46 }]}
+              placeholder="Password"
+              placeholderTextColor="#2B4560"
+              value={password}
+              onChangeText={(t) => { setPassword(t); setErrorMsg('') }}
+              secureTextEntry={!showPw}
+              autoComplete="current-password"
+              returnKeyType="go"
+              onSubmitEditing={handleLogin}
+            />
+            <TouchableOpacity
+              style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+              onPress={() => setShowPw(v => !v)}
+            >
+              <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
+            </TouchableOpacity>
+          </View>
         </Reanimated.View>
 
         {!!errorMsg && (
@@ -205,6 +214,12 @@ export default function LoginScreen() {
               ? <ActivityIndicator color="#050A15" />
               : <Text style={styles.btnTxt}>{isVenue ? 'Sign In to Venue Dashboard' : 'Sign In'}</Text>
             }
+          </TouchableOpacity>
+        </Reanimated.View>
+
+        <Reanimated.View entering={FadeInUp.delay(260).springify().damping(16)}>
+          <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')} style={{ alignItems: 'center' }}>
+            <Text style={[styles.footerLink, { color: '#29B6F6' }]}>Forgot password?</Text>
           </TouchableOpacity>
         </Reanimated.View>
 

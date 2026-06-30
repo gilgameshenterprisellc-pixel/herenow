@@ -15,6 +15,13 @@ const RADIUS_OPTIONS = [
   { label: 'Large (venue, event space)', meters: 300 },
 ]
 
+const ALL_CHIPS = [
+  'Cocktails', 'Draft Beer', 'Wine Bar', 'Full Menu', 'Late Night Bites',
+  'Live Music', 'DJ', 'Karaoke', 'Trivia Night', 'Sports TV',
+  'Billiards', 'Patio', 'Dance Floor', 'Rooftop',
+  'Happy Hour', '21+', 'Dog Friendly', 'Reservations',
+]
+
 interface VenueZone {
   id: string
   name: string
@@ -38,6 +45,7 @@ export default function VenueEditScreen() {
   const [lat, setLat]             = useState<number | null>(null)
   const [lng, setLng]             = useState<number | null>(null)
   const [radius, setRadius]       = useState(RADIUS_OPTIONS[0].meters)
+  const [chips, setChips]         = useState<string[]>([])
 
   useEffect(() => {
     const load = async () => {
@@ -47,7 +55,7 @@ export default function VenueEditScreen() {
 
       const { data: zones } = await supabase
         .from('zones')
-        .select('id, name, description, center_lat, center_lng, radius_meters')
+        .select('id, name, description, center_lat, center_lng, radius_meters, chips')
         .eq('owner_id', user.id)
         .limit(1)
 
@@ -59,6 +67,7 @@ export default function VenueEditScreen() {
         setLat(z.center_lat)
         setLng(z.center_lng)
         setRadius(z.radius_meters)
+        setChips((z as any).chips ?? [])
       } else {
         // Pre-fill name from profile display_name (which we set to venue name on signup)
         const { data: profile } = await supabase
@@ -133,6 +142,7 @@ export default function VenueEditScreen() {
           center_lat: lat,
           center_lng: lng,
           radius_meters: radius,
+          chips,
         })
         .eq('id', existingZone.id)
 
@@ -148,6 +158,7 @@ export default function VenueEditScreen() {
           center_lat: lat,
           center_lng: lng,
           radius_meters: radius,
+          chips,
           created_by: userId,
           owner_id: userId,
           is_active: true,
@@ -282,6 +293,30 @@ export default function VenueEditScreen() {
           <Text style={styles.charCount}>{description.length}/200</Text>
         </View>
 
+        {/* Venue Chips */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Venue Vibes</Text>
+          <Text style={styles.sectionHint}>
+            Tag what makes your spot unique — shown on your venue card and in search.
+          </Text>
+          <View style={styles.chipsGrid}>
+            {ALL_CHIPS.map((chip) => {
+              const active = chips.includes(chip)
+              return (
+                <TouchableOpacity
+                  key={chip}
+                  style={[styles.chipPill, active && styles.chipPillActive]}
+                  onPress={() => setChips((prev) =>
+                    prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip]
+                  )}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{chip}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        </View>
+
         {/* Info card */}
         <View style={styles.infoCard}>
           <Text style={styles.infoText}>
@@ -321,6 +356,15 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 28, paddingBottom: 60 },
 
   section: { gap: 10 },
+  chipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipPill: {
+    backgroundColor: '#0D1B2E', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  chipPillActive: { backgroundColor: '#29B6F618', borderColor: '#29B6F6' },
+  chipText:       { fontSize: 13, color: '#7A93AC', fontWeight: '600' },
+  chipTextActive: { color: '#29B6F6', fontWeight: '700' },
   sectionLabel: {
     fontSize: 13, fontWeight: '800', color: '#8EADC7',
     textTransform: 'uppercase', letterSpacing: 0.5,

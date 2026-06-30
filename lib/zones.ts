@@ -10,6 +10,7 @@ export interface Zone {
   post_count: number
   center_lat: number
   center_lng: number
+  chips: string[]
 }
 
 export async function fetchNearbyZones(

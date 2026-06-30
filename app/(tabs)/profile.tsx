@@ -29,6 +29,13 @@ interface Profile {
   is_admin: boolean | null
   social_mode: string | null
   mood_mode: string | null
+  created_at: string | null
+}
+
+function formatJoined(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return `Joined ${d.toLocaleString('default', { month: 'long' })} ${d.getFullYear()}`
 }
 
 interface NavItem {
@@ -66,7 +73,7 @@ export default function ProfileScreen() {
     if (!user) { router.replace('/(auth)/login'); return }
 
     const [profileRes, earned, sessRes, connRes, venueRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('*, created_at').eq('id', user.id).maybeSingle(),
       fetchUserBadges(user.id),
       supabase.from('sessions')
         .select('*', { count: 'exact', head: true })
@@ -142,12 +149,14 @@ export default function ProfileScreen() {
     ? [
         { label: 'Messages',  route: '/messages',  icon: 'chatbubble-ellipses-outline' },
         { label: 'My Venues', route: '/my-venues', icon: 'business-outline' },
+        { label: 'Settings',  route: '/settings',  icon: 'settings-outline' },
       ]
     : [
         { label: 'We Met',    route: '/we-met',    icon: 'people-outline' },
         { label: 'Messages',  route: '/messages',  icon: 'chatbubble-ellipses-outline' },
         { label: 'My Venues', route: '/my-venues', icon: 'business-outline' },
         { label: 'Badges',    route: '/badges',    icon: 'ribbon-outline' },
+        { label: 'Settings',  route: '/settings',  icon: 'settings-outline' },
       ]
 
   const venueNav: NavItem | null = profile?.is_venue_owner
@@ -184,6 +193,9 @@ export default function ProfileScreen() {
         </TouchableOpacity>
         <Text style={styles.displayName}>{profile?.display_name}</Text>
         <Text style={styles.username}>@{profile?.username}</Text>
+        {profile?.created_at && (
+          <Text style={styles.joinedDate}>{formatJoined(profile.created_at)}</Text>
+        )}
         {profile?.bio && <Text style={styles.bio}>{profile.bio}</Text>}
         {profile?.kickoffs?.[0] && (
           <View style={styles.kickoffBubble}>
@@ -226,9 +238,23 @@ export default function ProfileScreen() {
         </Reanimated.View>
       )}
 
+      {/* Ghost Mode active banner */}
+      {!isVenueOwner && profile?.mood_mode === 'not_today' && (
+        <Reanimated.View entering={FadeInDown.delay(100).duration(350)} style={styles.ghostBanner}>
+          <Text style={styles.ghostBannerIcon}>👻</Text>
+          <View style={styles.ghostBannerText}>
+            <Text style={styles.ghostBannerTitle}>Ghost Mode Active</Text>
+            <Text style={styles.ghostBannerSub}>No one can approach, tag, or DM you.</Text>
+          </View>
+        </Reanimated.View>
+      )}
+
       {/* Mode quick-toggle — not relevant for venue accounts */}
       {!isVenueOwner && (
-      <Reanimated.View entering={FadeInDown.delay(110).duration(450)} style={styles.modeCard}>
+      <Reanimated.View entering={FadeInDown.delay(110).duration(450)} style={[
+        styles.modeCard,
+        profile?.mood_mode === 'not_today' && styles.modeCardGhost,
+      ]}>
         <Text style={styles.modeSectionTitle}>My Mode</Text>
         <Text style={styles.modeSectionSub}>Active now · shown when you check in</Text>
 
@@ -355,7 +381,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   displayName: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
-  username: { fontSize: 14, color: '#7A93AC' },
+  username:   { fontSize: 14, color: '#7A93AC' },
+  joinedDate: { fontSize: 12, color: '#3D5A73', marginTop: 1 },
   bio: { fontSize: 14, color: '#8EADC7', textAlign: 'center', lineHeight: 20, marginTop: 4 },
   kickoffBubble: {
     backgroundColor: '#0D1B2E',
@@ -390,6 +417,21 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 18, fontWeight: '800', color: '#f8fafc' },
   statLabel: { fontSize: 10, color: '#7A93AC' },
   statDivider: { width: 1, height: 28, backgroundColor: '#1A2E4A' },
+  ghostBanner: {
+    marginHorizontal: 16,
+    backgroundColor: '#1a0a0a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ef444440',
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  ghostBannerIcon: { fontSize: 28 },
+  ghostBannerText: { flex: 1, gap: 2 },
+  ghostBannerTitle: { fontSize: 14, fontWeight: '800', color: '#ef4444' },
+  ghostBannerSub:   { fontSize: 12, color: '#7A4444', lineHeight: 16 },
   modeCard: {
     marginHorizontal: 16,
     backgroundColor: '#0D1B2E',
@@ -398,6 +440,10 @@ const styles = StyleSheet.create({
     borderColor: '#1A2E4A',
     padding: 14,
     gap: 12,
+  },
+  modeCardGhost: {
+    backgroundColor: '#150808',
+    borderColor: '#ef444430',
   },
   modeSectionTitle: { fontSize: 13, fontWeight: '700', color: '#f8fafc' },
   modeSectionSub: { fontSize: 11, color: '#4A6580', marginTop: -8 },
