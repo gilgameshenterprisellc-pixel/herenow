@@ -65,9 +65,13 @@ export async function createZone(params: {
 
   return {
     ...data,
-    distance_meters: null,
-    center_lat: params.latitude,
-    center_lng: params.longitude,
+    distance_meters:      null,
+    center_lat:           params.latitude,
+    center_lng:           params.longitude,
+    chips:                [],
+    opening_hours:        null,
+    next_event_title:     null,
+    next_event_starts_at: null,
   }
 }
 
@@ -84,7 +88,14 @@ export async function searchZonesByName(query: string): Promise<Zone[]> {
     return []
   }
 
-  return (data ?? []).map(z => ({ ...z, distance_meters: null }))
+  return (data ?? []).map(z => ({
+    ...z,
+    distance_meters:      null,
+    chips:                (z as any).chips ?? [],
+    opening_hours:        (z as any).opening_hours ?? null,
+    next_event_title:     null,
+    next_event_starts_at: null,
+  }))
 }
 
 export async function checkUserInZone(

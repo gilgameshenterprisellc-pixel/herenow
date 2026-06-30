@@ -28,6 +28,7 @@ const TIER_STYLE: Record<Tier, { color: string; size: number; glow: number; heat
 }
 
 function makeIcon(L: any, zone: Zone, isSelected: boolean, subscribedIds: Set<string>) {
+  ensureMapStyles()
   const tier              = getTier(zone, subscribedIds)
   const { color, size, glow } = TIER_STYLE[tier]
   const tailH             = Math.round(size * 0.22)
@@ -45,16 +46,6 @@ function makeIcon(L: any, zone: Zone, isSelected: boolean, subscribedIds: Set<st
 
   return L.divIcon({
     html: `
-      <style>
-        @keyframes hn-pulse-live {
-          0%,100%{box-shadow:0 0 ${glow}px ${color}55,0 0 6px ${color}33;}
-          50%    {box-shadow:0 0 ${glow * 2}px ${color}bb,0 0 ${glow}px ${color}66;}
-        }
-        @keyframes hn-pulse-subscribed {
-          0%,100%{box-shadow:0 0 ${glow}px ${color}55,0 0 6px ${color}33;}
-          50%    {box-shadow:0 0 ${glow * 2}px ${color}bb,0 0 ${glow}px ${color}66;}
-        }
-      </style>
       <div style="position:relative;width:${size}px;height:${h}px;">
         <div style="
           width:${size}px;height:${size}px;
@@ -91,17 +82,36 @@ function makeUserIcon(L: any) {
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
           width:13px;height:13px;background:#29B6F6;border:2.5px solid #050A15;
           border-radius:50%;box-shadow:0 0 12px rgba(41,182,246,0.9);"></div>
-        <style>
-          @keyframes uPulse {
-            0%   { transform:scale(1);opacity:0.8; }
-            100% { transform:scale(2.6);opacity:0; }
-          }
-        </style>
       </div>`,
     className: '',
     iconSize:   [22, 22],
     iconAnchor: [11, 11],
   })
+}
+
+// Inject map animation keyframes once globally — avoids duplicate <style> tags
+// every time makeIcon() is called for live/subscribed venue markers.
+let _mapStylesInjected = false
+function ensureMapStyles() {
+  if (_mapStylesInjected || typeof document === 'undefined') return
+  _mapStylesInjected = true
+  const el = document.createElement('style')
+  el.id = 'hn-map-keyframes'
+  el.textContent = `
+    @keyframes hn-pulse-live {
+      0%,100% { box-shadow: 0 0 14px #22c55e55, 0 0 6px #22c55e33; }
+      50%      { box-shadow: 0 0 28px #22c55ebb, 0 0 14px #22c55e66; }
+    }
+    @keyframes hn-pulse-subscribed {
+      0%,100% { box-shadow: 0 0 22px #f59e0b55, 0 0 8px #f59e0b33; }
+      50%      { box-shadow: 0 0 40px #f59e0bbb, 0 0 22px #f59e0b66; }
+    }
+    @keyframes uPulse {
+      0%   { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }
+  `
+  document.head.appendChild(el)
 }
 
 // Self-inject Leaflet CSS + JS so we don't depend on web/index.html template
