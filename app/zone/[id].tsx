@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, FlatList, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
 } from 'react-native'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
@@ -72,6 +72,9 @@ export default function ZoneScreen() {
   // Highlights
   const [highlights, setHighlights] = useState<VenueHighlight[]>([])
 
+  // Gallery
+  const [photos, setPhotos] = useState<{ id: string; public_url: string; caption: string | null }[]>([])
+
   // Subscription
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [subLoading, setSubLoading]     = useState(false)
@@ -85,7 +88,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips')
         .eq('id', id)
         .maybeSingle()
 
@@ -99,6 +102,15 @@ export default function ZoneScreen() {
       // Load highlights (visible to all)
       const hl = await fetchHighlights(id)
       setHighlights(hl)
+
+      // Load gallery photos (visible to all)
+      const { data: photoData } = await supabase
+        .from('venue_photos')
+        .select('id, public_url, caption')
+        .eq('zone_id', id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      setPhotos(photoData ?? [])
 
       // Check subscription state
       if (user) {
@@ -348,7 +360,7 @@ export default function ZoneScreen() {
         <View style={styles.headerInfo}>
           <Text style={styles.zoneName}>{zone?.name}</Text>
           <Text style={styles.zoneMeta}>
-            {zone?.radius_meters}m radius
+            {zone?.opening_hours ?? `${zone?.radius_meters}m radius`}
           </Text>
         </View>
         <TouchableOpacity
@@ -395,6 +407,27 @@ export default function ZoneScreen() {
                 <Text style={styles.highlightEmoji}>{h.emoji ?? '⭐'}</Text>
                 <Text style={styles.highlightTitle} numberOfLines={1}>{h.title}</Text>
                 {h.body ? <Text style={styles.highlightBody} numberOfLines={2}>{h.body}</Text> : null}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Gallery photo strip — visible to all */}
+      {photos.length > 0 && (
+        <View style={styles.galleryWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.galleryList}
+          >
+            {photos.map((p) => (
+              <View key={p.id} style={styles.galleryThumb}>
+                <Image
+                  source={{ uri: p.public_url }}
+                  style={styles.galleryImg}
+                  resizeMode="cover"
+                />
               </View>
             ))}
           </ScrollView>
@@ -824,4 +857,8 @@ const styles = StyleSheet.create({
   highlightEmoji: { fontSize: 20 },
   highlightTitle: { fontSize: 13, fontWeight: '700', color: '#f8fafc' },
   highlightBody:  { fontSize: 12, color: '#8EADC7', lineHeight: 16 },
+  galleryWrap:  { borderBottomWidth: 1, borderBottomColor: '#0D1B2E', paddingVertical: 10 },
+  galleryList:  { paddingHorizontal: 14, gap: 8, flexDirection: 'row' },
+  galleryThumb: { borderRadius: 10, overflow: 'hidden' },
+  galleryImg:   { width: 90, height: 90, borderRadius: 10 },
 })
