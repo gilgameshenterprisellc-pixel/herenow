@@ -79,11 +79,27 @@ export default function EditProfileScreen() {
     const pick = async (source: 'library' | 'camera') => {
       setUploading(true)
       const url = await uploadAvatarWeb(userId, source)
-      if (url) {
-        await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
-        setAvatarUrl(url)
-      }
       setUploading(false)
+
+      if (!url) {
+        if (source === 'camera') {
+          showToast(
+            'Camera upload failed. Check that Expo Go has camera access in iPhone Settings → Expo Go → Camera.',
+            'error',
+          )
+        } else {
+          showToast('Photo upload failed. Try again or pick a different image.', 'error')
+        }
+        return
+      }
+
+      const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
+      if (error) {
+        showToast('Failed to save photo. Try again.', 'error')
+        return
+      }
+      setAvatarUrl(url)
+      showToast('Profile photo updated!', 'success')
     }
 
     if (Platform.OS === 'ios') {

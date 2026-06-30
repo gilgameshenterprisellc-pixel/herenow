@@ -108,11 +108,17 @@ export default function CheckInScreen() {
 
   const doCheckIn = async () => {
     setLoading(true)
-    const session = await checkIn(zoneId, socialMode!, moodMode)
+    const result = await checkIn(zoneId, socialMode!, moodMode)
     setLoading(false)
 
-    if (!session) {
-      showToast('Check-in failed — something went wrong. Try again.', 'error')
+    if (!result.ok) {
+      if (result.reason === 'not_in_zone') {
+        showToast("You're not at this venue yet — check in once you arrive.", 'error')
+      } else if (result.reason === 'location_unavailable') {
+        showToast('Turn on location access to check in.', 'error')
+      } else {
+        showToast('Check-in failed — something went wrong. Try again.', 'error')
+      }
       return
     }
 
