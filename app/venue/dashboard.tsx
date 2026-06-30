@@ -28,6 +28,9 @@ interface AggregateStats {
 
 interface DayCount { label: string; count: number }
 
+interface PromoPerf { id: string; title: string; discount_label: string | null; views: number }
+interface EventPerf  { id: string; title: string; starts_at: string; rsvps: number; checkins: number }
+
 interface Analytics {
   totalCheckins: number
   eventCount: number
@@ -38,6 +41,8 @@ interface Analytics {
   yesterdayCount: number
   newVisitors: number
   returningVisitors: number
+  promoPerf: PromoPerf[]
+  eventPerf: EventPerf[]
 }
 
 export default function VenueDashboard() {
@@ -106,11 +111,12 @@ export default function VenueDashboard() {
         setSubscriberCount(subCount)
 
         // Analytics queries — run in parallel
-        const weekAgo   = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        const weekAgo    = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        const ninetyAgo  = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
         const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
         const yestStart  = new Date(todayStart); yestStart.setDate(yestStart.getDate() - 1)
 
-        const [totalRes, weekRes, eventsRes, annoRes, todayRes, yestRes, allTimeRes] = await Promise.all([
+        const [totalRes, weekRes, eventsRes, annoRes, todayRes, yestRes, allTimeRes, promosRes, promoViewsRes, eventPerfRes, pastSessionsRes] = await Promise.all([
           supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('zone_id', z.id),
           supabase.from('sessions').select('checked_in_at').eq('zone_id', z.id).gte('checked_in_at', weekAgo),
           supabase.from('venue_events').select('id', { count: 'exact', head: true }).eq('zone_id', z.id),
@@ -119,6 +125,10 @@ export default function VenueDashboard() {
           supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('zone_id', z.id)
             .gte('checked_in_at', yestStart.toISOString()).lt('checked_in_at', todayStart.toISOString()),
           supabase.from('sessions').select('user_id, checked_in_at').eq('zone_id', z.id).lt('checked_in_at', todayStart.toISOString()),
+          supabase.from('venue_promotions').select('id, title, discount_label').eq('zone_id', z.id).order('created_at', { ascending: false }),
+          supabase.from('promo_views').select('promotion_id').eq('zone_id', z.id),
+          supabase.from('venue_events').select('id, title, starts_at, ends_at, rsvp_count').eq('zone_id', z.id).order('starts_at', { ascending: false }).limit(5),
+          supabase.from('sessions').select('checked_in_at').eq('zone_id', z.id).gte('checked_in_at', ninetyAgo),
         ])
 
         // Build 7-day chart (Sun–Sat labels)
@@ -146,11 +156,35 @@ export default function VenueDashboard() {
             return `${display}${suffix}`
           })
 
-        // Customer mix: users who checked in today, split by whether they've visited before
+        // Customer mix
         const todayUserIds = new Set((todayRes.data ?? []).map((r: any) => r.user_id))
         const prevUserIds  = new Set((allTimeRes.data ?? []).map((r: any) => r.user_id))
         let newVisitors = 0, returningVisitors = 0
         todayUserIds.forEach((uid) => { prevUserIds.has(uid) ? returningVisitors++ : newVisitors++ })
+
+        // Promo performance — view count per promo
+        const viewCountMap: Record<string, number> = {}
+        for (const v of (promoViewsRes.data ?? []) as any[]) {
+          viewCountMap[v.promotion_id] = (viewCountMap[v.promotion_id] ?? 0) + 1
+        }
+        const promoPerf: PromoPerf[] = (promosRes.data ?? []).map((p: any) => ({
+          id: p.id, title: p.title, discount_label: p.discount_label,
+          views: viewCountMap[p.id] ?? 0,
+        })).sort((a: PromoPerf, b: PromoPerf) => b.views - a.views)
+
+        // Event performance — RSVPs + check-ins during event window (from 90-day session cache)
+        const pastSessions = (pastSessionsRes.data ?? []) as { checked_in_at: string }[]
+        const eventPerf: EventPerf[] = (eventPerfRes.data ?? []).map((e: any) => {
+          const start = new Date(e.starts_at).getTime()
+          const end   = e.ends_at
+            ? new Date(e.ends_at).getTime()
+            : start + 4 * 60 * 60 * 1000
+          const checkins = pastSessions.filter(s => {
+            const t = new Date(s.checked_in_at).getTime()
+            return t >= start && t <= end
+          }).length
+          return { id: e.id, title: e.title, starts_at: e.starts_at, rsvps: e.rsvp_count ?? 0, checkins }
+        })
 
         setAnalytics({
           totalCheckins: totalRes.count ?? 0,
@@ -162,6 +196,8 @@ export default function VenueDashboard() {
           yesterdayCount:   yestRes.count ?? 0,
           newVisitors,
           returningVisitors,
+          promoPerf,
+          eventPerf,
         })
       }
     } finally {
@@ -504,6 +540,51 @@ export default function VenueDashboard() {
                 </View>
               </View>
             )}
+            {/* Promotion Performance */}
+            {analytics.promoPerf.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Promotion Performance</Text>
+                {analytics.promoPerf.map((p) => (
+                  <View key={p.id} style={styles.perfRow}>
+                    <View style={styles.perfLeft}>
+                      <Text style={styles.perfTitle} numberOfLines={1}>{p.title}</Text>
+                      {p.discount_label && <Text style={styles.perfSub}>{p.discount_label}</Text>}
+                    </View>
+                    <View style={styles.perfStat}>
+                      <Text style={styles.perfNum}>{p.views}</Text>
+                      <Text style={styles.perfLabel}>views</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Event Performance */}
+            {analytics.eventPerf.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Event Performance</Text>
+                {analytics.eventPerf.map((e) => (
+                  <View key={e.id} style={styles.perfRow}>
+                    <View style={styles.perfLeft}>
+                      <Text style={styles.perfTitle} numberOfLines={1}>{e.title}</Text>
+                      <Text style={styles.perfSub}>
+                        {new Date(e.starts_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </Text>
+                    </View>
+                    <View style={styles.perfStats}>
+                      <View style={styles.perfStat}>
+                        <Text style={styles.perfNum}>{e.rsvps}</Text>
+                        <Text style={styles.perfLabel}>RSVPs</Text>
+                      </View>
+                      <View style={styles.perfStat}>
+                        <Text style={[styles.perfNum, { color: '#22c55e' }]}>{e.checkins}</Text>
+                        <Text style={styles.perfLabel}>showed up</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
           </>
         )}
 
@@ -730,6 +811,17 @@ const styles = StyleSheet.create({
   },
   peakTitle: { fontSize: 13, fontWeight: '700', color: '#8EADC7', flex: 1 },
   peakPills: { flexDirection: 'row', gap: 6 },
+  perfRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#0D1B2E',
+  },
+  perfLeft:   { flex: 1, gap: 2 },
+  perfTitle:  { fontSize: 13, fontWeight: '700', color: '#f8fafc' },
+  perfSub:    { fontSize: 11, color: '#4A6580' },
+  perfStats:  { flexDirection: 'row', gap: 16 },
+  perfStat:   { alignItems: 'center', gap: 1 },
+  perfNum:    { fontSize: 18, fontWeight: '900', color: '#29B6F6' },
+  perfLabel:  { fontSize: 10, color: '#4A6580' },
   peakPill: {
     backgroundColor: '#0A1628', borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 5,

@@ -8,6 +8,7 @@ import {
   Platform,
   TouchableOpacity,
   Animated,
+  ScrollView,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -263,15 +264,43 @@ export default function NearbyScreen() {
               />
             </Reanimated.View>
           )}
-          ListHeaderComponent={
-            filteredZones.length > 0 ? (
-              <Text style={styles.listLabel}>
-                {searchQuery
-                  ? `${filteredZones.length} result${filteredZones.length !== 1 ? 's' : ''} for "${searchQuery}"`
-                  : `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} nearby`}
-              </Text>
-            ) : null
-          }
+          ListHeaderComponent={(() => {
+            const trending = zones
+              .filter(z => (z.member_count ?? 0) > 0)
+              .sort((a, b) => (b.member_count ?? 0) - (a.member_count ?? 0))
+              .slice(0, 5)
+
+            return (
+              <View>
+                {trending.length > 0 && (
+                  <View style={styles.trendingWrap}>
+                    <Text style={styles.trendingTitle}>🔥 Trending Now</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingScroll}>
+                      {trending.map(z => (
+                        <TouchableOpacity
+                          key={z.id}
+                          style={styles.trendingPill}
+                          onPress={() => router.push(`/zone/${z.id}`)}
+                          activeOpacity={0.75}
+                        >
+                          <View style={styles.trendingDot} />
+                          <Text style={styles.trendingName} numberOfLines={1}>{z.name}</Text>
+                          <Text style={styles.trendingCount}>{z.member_count}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+                {filteredZones.length > 0 && (
+                  <Text style={styles.listLabel}>
+                    {searchQuery
+                      ? `${filteredZones.length} result${filteredZones.length !== 1 ? 's' : ''} for "${searchQuery}"`
+                      : `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} nearby`}
+                  </Text>
+                )}
+              </View>
+            )
+          })()}
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={styles.emptyIcon}>
@@ -374,6 +403,19 @@ const styles = StyleSheet.create({
     }),
   },
   listLabel:  { fontSize: 12, color: '#4A6580', fontWeight: '600', paddingBottom: 8, paddingHorizontal: 2 },
+  trendingWrap:   { gap: 8, paddingBottom: 14 },
+  trendingTitle:  { fontSize: 13, fontWeight: '800', color: '#f8fafc', paddingHorizontal: 2 },
+  trendingScroll: { gap: 8, flexDirection: 'row' },
+  trendingPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: '#22c55e0D', borderRadius: 22,
+    paddingHorizontal: 14, paddingVertical: 9,
+    borderWidth: 1, borderColor: '#22c55e35',
+    maxWidth: 160,
+  },
+  trendingDot:   { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e', flexShrink: 0 },
+  trendingName:  { fontSize: 13, fontWeight: '700', color: '#f8fafc', flex: 1 },
+  trendingCount: { fontSize: 12, fontWeight: '800', color: '#22c55e', flexShrink: 0 },
   empty:      { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyIcon:  { width: 64, height: 64, borderRadius: 20, backgroundColor: '#29B6F610', borderWidth: 1, borderColor: '#29B6F620', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#f8fafc' },

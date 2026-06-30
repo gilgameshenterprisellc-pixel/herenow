@@ -36,19 +36,33 @@ function makeIcon(L: any, zone: Zone, isSelected: boolean, subscribedIds: Set<st
   const pinBg             = isSelected ? '#fff'  : color
   const labelColor        = isSelected ? color   : '#050A15'
   const border            = isSelected ? color   : '#050A15'
-  const glowStyle         = isSelected
+  const glowStyle = isSelected
     ? `0 0 ${glow + 10}px ${color}ee, 0 0 ${glow}px ${color}bb`
     : `0 0 ${glow}px ${color}66`
+  // Live + subscribed pins pulse their glow so the map feels alive
+  const animClass = (tier === 'live' || tier === 'subscribed') && !isSelected ? `hn-pulse-${tier}` : ''
+  const animStyle = animClass ? `animation:${animClass} 2.2s ease-in-out infinite;` : ''
 
   return L.divIcon({
     html: `
+      <style>
+        @keyframes hn-pulse-live {
+          0%,100%{box-shadow:0 0 ${glow}px ${color}55,0 0 6px ${color}33;}
+          50%    {box-shadow:0 0 ${glow * 2}px ${color}bb,0 0 ${glow}px ${color}66;}
+        }
+        @keyframes hn-pulse-subscribed {
+          0%,100%{box-shadow:0 0 ${glow}px ${color}55,0 0 6px ${color}33;}
+          50%    {box-shadow:0 0 ${glow * 2}px ${color}bb,0 0 ${glow}px ${color}66;}
+        }
+      </style>
       <div style="position:relative;width:${size}px;height:${h}px;">
         <div style="
           width:${size}px;height:${size}px;
           background:${pinBg};border:2.5px solid ${border};
           border-radius:50% 50% 50% 0;transform:rotate(-45deg);
           display:flex;align-items:center;justify-content:center;
-          box-shadow:${glowStyle};cursor:pointer;transition:all 0.15s;
+          box-shadow:${glowStyle};cursor:pointer;transition:box-shadow 0.3s;
+          ${animStyle}
         ">
           <span style="transform:rotate(45deg);color:${labelColor};
             font-weight:900;font-size:${tier === 'subscribed' ? 16 : 13}px;
