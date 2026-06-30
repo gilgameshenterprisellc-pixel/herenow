@@ -430,6 +430,18 @@ export default function VenueDashboard() {
 
         {/* Quick actions */}
         <View style={styles.actionsGrid}>
+          <TouchableOpacity
+            style={[styles.actionCard, styles.actionCardLive]}
+            onPress={() => router.push('/venue/people' as any)}
+          >
+            <Text style={styles.actionEmoji}>👥</Text>
+            <Text style={[styles.actionLabel, styles.actionLabelLive]}>Live People</Text>
+            {stats.total > 0 && (
+              <View style={styles.actionLiveBadge}>
+                <Text style={styles.actionLiveBadgeText}>{stats.total}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/edit' as any)}>
             <Text style={styles.actionEmoji}>✏️</Text>
             <Text style={styles.actionLabel}>Edit Venue</Text>
@@ -568,9 +580,19 @@ const styles = StyleSheet.create({
   actionCard: {
     flex: 1, minWidth: '45%', backgroundColor: '#0D1B2E', borderRadius: 14,
     padding: 18, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#1A2E4A',
+    position: 'relative',
   },
+  actionCardLive: { borderColor: '#22c55e40', backgroundColor: '#091a0f' },
   actionEmoji: { fontSize: 24 },
   actionLabel: { fontSize: 13, fontWeight: '700', color: '#8EADC7' },
+  actionLabelLive: { color: '#22c55e' },
+  actionLiveBadge: {
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: '#22c55e', borderRadius: 10,
+    paddingHorizontal: 7, paddingVertical: 2,
+    minWidth: 22, alignItems: 'center',
+  },
+  actionLiveBadgeText: { fontSize: 11, fontWeight: '800', color: '#050A15' },
 
   privacyNote: { fontSize: 11, color: '#2A3F55', textAlign: 'center', lineHeight: 16, paddingHorizontal: 8 },
 

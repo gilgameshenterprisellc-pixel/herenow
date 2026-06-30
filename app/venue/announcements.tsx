@@ -156,6 +156,12 @@ export default function VenueAnnouncementsScreen() {
       .select('id, message, post_to_feed, image_url, created_at')
       .single()
 
+    if (error) {
+      showToast('Failed to send announcement. Try again.', 'error')
+      setSending(false)
+      return
+    }
+
     if (!error && data) {
       setAnnos((prev) => [data as Announcement, ...prev])
       setMessage('')

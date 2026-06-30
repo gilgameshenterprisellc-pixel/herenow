@@ -27,6 +27,30 @@ function formatDistance(meters: number) {
   return `${(meters / 1000).toFixed(1)}km away`
 }
 
+// Haversine: straight-line surface distance between two lat/lng points in meters
+function haversineMeters(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number,
+): number {
+  const R = 6_371_000
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Re-pins distance_meters to the user's real GPS position so it never
+// changes as the user pans/zooms the map.
+function withRealDistance(zones: Zone[], userLat: number, userLng: number): Zone[] {
+  return zones.map(z => ({
+    ...z,
+    distance_meters: haversineMeters(userLat, userLng, z.center_lat, z.center_lng),
+  }))
+}
+
 function TypeLabel({ type }: { type?: string | null }) {
   if (!type) return null
   const labels: Record<string, string> = {
@@ -107,7 +131,11 @@ export default function NearbyScreen() {
     if (!pos) return
     setLoading(true)
     const nearby = await fetchNearbyZones(pos.latitude, pos.longitude, 50)
-    setZones(nearby)
+    // Re-anchor all distances to the user's actual GPS fix, not the fetch center.
+    // Without this, zone distances change as the user pans/zooms the map since
+    // zones_near() computes distance from the map-center point it was given.
+    const userPos = location ?? pos
+    setZones(withRealDistance(nearby, userPos.latitude, userPos.longitude))
     setLoading(false)
   }
 
@@ -139,11 +167,13 @@ export default function NearbyScreen() {
   const selectedZone =
     [...zones, ...searchResults].find(z => z.id === selectedId) ?? null
 
-  // When user pans the map, refetch venues centered on the new position
+  // When user pans the map, refetch venues centered on the new position.
+  // Always re-anchor distances to the user's real GPS fix so they don't change on zoom.
   const handleMapMove = async (lat: number, lng: number) => {
     if (searchQuery.trim()) return  // don't clobber search results
     const nearby = await fetchNearbyZones(lat, lng, 50)
-    setZones(nearby)
+    const userPos = location
+    setZones(userPos ? withRealDistance(nearby, userPos.latitude, userPos.longitude) : nearby)
   }
 
   const handlePinPress = (zone: Zone) => {

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Session } from '@/lib/sessions'
+import type { Session, CheckInResult } from '@/lib/sessions'
 import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut } from '@/lib/sessions'
 import type { SocialMode, MoodMode } from '@/lib/sessions'
 
@@ -8,7 +8,7 @@ interface SessionContextValue {
   activeSession: Session | null
   loading: boolean
   refresh: () => Promise<void>
-  checkIn: (zoneId: string, socialMode: SocialMode, moodMode: MoodMode) => Promise<Session | null>
+  checkIn: (zoneId: string, socialMode: SocialMode, moodMode: MoodMode) => Promise<CheckInResult>
   checkOut: () => Promise<void>
 }
 
@@ -16,7 +16,7 @@ const SessionContext = createContext<SessionContextValue>({
   activeSession: null,
   loading: true,
   refresh: async () => {},
-  checkIn: async () => null,
+  checkIn: async () => ({ ok: false, reason: 'failed' }),
   checkOut: async () => {},
 })
 
@@ -44,10 +44,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     zoneId: string,
     socialMode: SocialMode,
     moodMode: MoodMode
-  ): Promise<Session | null> => {
-    const session = await doCheckIn({ zoneId, socialMode, moodMode })
-    setActiveSession(session)
-    return session
+  ): Promise<CheckInResult> => {
+    const result = await doCheckIn({ zoneId, socialMode, moodMode })
+    if (result.ok) setActiveSession(result.session)
+    return result
   }, [])
 
   const checkOut = useCallback(async () => {

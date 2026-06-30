@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, ActivityIndicator, KeyboardAvoidingView,
-  Platform, Modal, TextInput,
+  Platform, TextInput,
 } from 'react-native'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -48,7 +48,6 @@ export default function CreateEventScreen() {
   // Picker state
   const [pickerTarget, setPickerTarget]       = useState<PickerTarget>(null)
   const [iosPendingDate, setIosPendingDate]   = useState<Date>(defaultStart)
-  const [showIOSModal, setShowIOSModal]       = useState(false)
   // Android two-step: pick date first, then time
   const [androidStep, setAndroidStep]         = useState<'date' | 'time'>('date')
   const [androidPendingDate, setAndroidPendingDate] = useState<Date>(defaultStart)
@@ -61,7 +60,6 @@ export default function CreateEventScreen() {
     setIosPendingDate(current)
     setAndroidPendingDate(current)
     setAndroidStep('date')
-    if (Platform.OS === 'ios') setShowIOSModal(true)
   }
 
   const onPickerChange = (_event: DateTimePickerEvent, selected?: Date) => {
@@ -91,7 +89,6 @@ export default function CreateEventScreen() {
   const confirmIOSDate = () => {
     if (pickerTarget === 'start') setStartDate(iosPendingDate)
     else { setEndDate(iosPendingDate); setHasEndDate(true) }
-    setShowIOSModal(false)
     setPickerTarget(null)
   }
 
@@ -192,6 +189,25 @@ export default function CreateEventScreen() {
               onChange={onPickerChange}
             />
           )}
+          {Platform.OS === 'ios' && pickerTarget === 'start' && (
+            <View style={styles.iosPickerInline}>
+              <DateTimePicker
+                value={iosPendingDate}
+                mode="datetime"
+                display="spinner"
+                onChange={onPickerChange}
+                themeVariant="dark"
+              />
+              <View style={styles.iosPickerActions}>
+                <TouchableOpacity onPress={() => setPickerTarget(null)}>
+                  <Text style={styles.pickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={confirmIOSDate}>
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* End time */}
@@ -221,6 +237,25 @@ export default function CreateEventScreen() {
               onChange={onPickerChange}
             />
           )}
+          {Platform.OS === 'ios' && pickerTarget === 'end' && (
+            <View style={styles.iosPickerInline}>
+              <DateTimePicker
+                value={iosPendingDate}
+                mode="datetime"
+                display="spinner"
+                onChange={onPickerChange}
+                themeVariant="dark"
+              />
+              <View style={styles.iosPickerActions}>
+                <TouchableOpacity onPress={() => setPickerTarget(null)}>
+                  <Text style={styles.pickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={confirmIOSDate}>
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
@@ -234,44 +269,6 @@ export default function CreateEventScreen() {
           }
         </TouchableOpacity>
       </ScrollView>
-
-      {/* iOS DateTimePicker — bottom sheet modal */}
-      {Platform.OS === 'ios' && (
-        <Modal
-          transparent
-          animationType="slide"
-          visible={showIOSModal}
-          onRequestClose={() => { setShowIOSModal(false); setPickerTarget(null) }}
-        >
-          <TouchableOpacity
-            style={styles.pickerOverlay}
-            activeOpacity={1}
-            onPress={() => { setShowIOSModal(false); setPickerTarget(null) }}
-          >
-            <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
-              <View style={styles.pickerHeader}>
-                <TouchableOpacity onPress={() => { setShowIOSModal(false); setPickerTarget(null) }}>
-                  <Text style={styles.pickerCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <Text style={styles.pickerTitle}>
-                  {pickerTarget === 'start' ? 'Start Time' : 'End Time'}
-                </Text>
-                <TouchableOpacity onPress={confirmIOSDate}>
-                  <Text style={styles.pickerDoneText}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={iosPendingDate}
-                mode="datetime"
-                display="spinner"
-                onChange={onPickerChange}
-                style={styles.iosPicker}
-                themeVariant="dark"
-              />
-            </View>
-          </TouchableOpacity>
-        </Modal>
-      )}
     </KeyboardAvoidingView>
   )
 }
@@ -345,31 +342,23 @@ const styles = StyleSheet.create({
   createBtnDisabled: { opacity: 0.4 },
   createBtnText: { color: '#050A15', fontWeight: '800', fontSize: 16 },
 
-  // iOS modal picker
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  pickerSheet: {
+  // iOS inline picker (replaces old Modal-based sheet — eliminates touch-capture issues)
+  iosPickerInline: {
     backgroundColor: '#0D1B2E',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 32,
-    borderTopWidth: 1,
+    borderRadius: 14,
+    borderWidth: 1,
     borderColor: '#1A2E4A',
+    overflow: 'hidden',
+    marginTop: 4,
   },
-  pickerHeader: {
+  iosPickerActions: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A2E4A',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#1A2E4A',
   },
-  pickerTitle: { fontSize: 15, fontWeight: '700', color: '#f8fafc' },
   pickerCancelText: { fontSize: 15, color: '#7A93AC' },
   pickerDoneText: { fontSize: 15, fontWeight: '700', color: '#29B6F6' },
-  iosPicker: { backgroundColor: '#0D1B2E' },
 })

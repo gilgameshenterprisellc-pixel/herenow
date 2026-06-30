@@ -1,5 +1,7 @@
 import { supabase } from './supabase'
 import { unlockWeMetsOnCheckout } from './weMet'
+import { getCurrentCoords } from './location'
+import { checkUserInZone } from './zones'
 
 export type SocialMode = 'dating' | 'friends' | 'networking' | 'just_vibes'
 export type MoodMode   = 'open' | 'selective' | 'not_today'
@@ -27,13 +29,26 @@ export interface ActivePerson {
   checked_in_at: string
 }
 
+export type CheckInResult =
+  | { ok: true; session: Session }
+  | { ok: false; reason: 'not_in_zone' | 'location_unavailable' | 'failed' }
+
 export async function checkIn(params: {
   zoneId: string
   socialMode: SocialMode
   moodMode: MoodMode
-}): Promise<Session | null> {
+}): Promise<CheckInResult> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user) return { ok: false, reason: 'failed' }
+
+  // Geofence verification — must be physically at the venue to check in.
+  // Without this, check-in is just a button anyone can tap from anywhere,
+  // which breaks the whole "only visible to people actually here" promise.
+  const coords = await getCurrentCoords()
+  if (!coords) return { ok: false, reason: 'location_unavailable' }
+
+  const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude)
+  if (!inZone) return { ok: false, reason: 'not_in_zone' }
 
   // Check out of any existing active session first
   await supabase
@@ -56,7 +71,7 @@ export async function checkIn(params: {
 
   if (error) {
     console.error('[sessions] checkIn error:', error.message)
-    return null
+    return { ok: false, reason: 'failed' }
   }
 
   // Also ensure zone_member record exists
@@ -67,7 +82,7 @@ export async function checkIn(params: {
       { onConflict: 'zone_id,user_id' }
     )
 
-  return data
+  return { ok: true, session: data }
 }
 
 export async function checkOut(sessionId: string): Promise<void> {
