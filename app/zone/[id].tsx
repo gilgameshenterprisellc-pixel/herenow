@@ -418,7 +418,29 @@ export default function ZoneScreen() {
       </View>
 
       {/* Tab content */}
-      {tab === 'people' && (
+
+      {/* Gate: People / Pulse / Chat require physical check-in */}
+      {(tab === 'people' || tab === 'pulse' || tab === 'chat') && !isCheckedIn && (
+        <View style={styles.gateWall}>
+          <Text style={styles.gateEmoji}>📍</Text>
+          <Text style={styles.gateTitle}>Check in to join</Text>
+          <Text style={styles.gateSub}>
+            {tab === 'people'
+              ? "You can only see who's here once you're actually here."
+              : tab === 'pulse'
+              ? 'The Pulse is only visible to people in the venue.'
+              : 'Live Chat is only open to people currently checked in.'}
+          </Text>
+          <TouchableOpacity
+            style={styles.gateBtn}
+            onPress={() => router.push(`/check-in/${id}`)}
+          >
+            <Text style={styles.gateBtnText}>Check In →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {tab === 'people' && isCheckedIn && (
         <FlatList
           data={people}
           keyExtractor={(p) => p.session_id}
@@ -450,7 +472,7 @@ export default function ZoneScreen() {
         />
       )}
 
-      {tab === 'pulse' && (
+      {tab === 'pulse' && isCheckedIn && (
         <View style={styles.flex}>
           <FlatList
             data={pulsePosts}
@@ -521,7 +543,7 @@ export default function ZoneScreen() {
         </View>
       )}
 
-      {tab === 'chat' && (
+      {tab === 'chat' && isCheckedIn && (
         <View style={styles.flex}>
           <FlatList
             ref={chatListRef}
@@ -673,6 +695,18 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 11, color: '#7A93AC', fontWeight: '600' },
   tabLabelActive: { color: '#29B6F6' },
   list: { padding: 14, gap: 10 },
+  gateWall: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, gap: 12,
+  },
+  gateEmoji:   { fontSize: 44 },
+  gateTitle:   { fontSize: 18, fontWeight: '800', color: '#f8fafc', textAlign: 'center' },
+  gateSub:     { fontSize: 14, color: '#7A93AC', textAlign: 'center', lineHeight: 20 },
+  gateBtn: {
+    backgroundColor: '#29B6F6', borderRadius: 12,
+    paddingHorizontal: 28, paddingVertical: 14, marginTop: 8,
+  },
+  gateBtnText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyEmoji: { fontSize: 36 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#f8fafc' },

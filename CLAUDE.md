@@ -243,6 +243,9 @@ Both login and signup use the same electric premium design:
 | #16–#20 | feat/pwa-highlights-admin-moderation | PWA manifest + service worker, venue highlights (pin up to 5 items on zone page), admin panel (user list, venue approval queue, content reports), content moderation (hide pulse posts + chat messages at query level), full mobile sweep (safe-area, KAV, .maybeSingle fixes). |
 | #21 | feat/venue-subs-privacy-feed-sweep | **Venue subscriptions** — users follow venues, get promos/announcements in feed. **MY VENUES** chip row + **FROM YOUR VENUES** feed section. **Venue promotions** (`/venue/promotions`) — title, discount label, description, feed toggle, delete. **Venue announcements** (`/venue/announcements`) — 280-char, feed toggle, history. **My Venues screen** (`/my-venues`). **Check-in privacy toggle** (Full vs Minimal, saved to `checkin_visibility` on profiles). **Venue dashboard subscriber count**. Content moderation wired into `fetchPulse` + `fetchChat`. Login Enter key fix. 4 screens safe-area fixed. 2 screens KAV added. `.maybeSingle()` on afterglow + check-in. Messages list bottom padding. 2 redundant `getUser()` calls removed. `docs/herenow-scope-june2026.html` scope document added. |
 | #22 | chore/eas-push-claudemd-update | EAS project ID wired into `app.json` (ID: `961a1251-c044-441c-802e-1e3f7711bcf4`, project: `@gilgameshenterprisellc/jbost` on expo.dev). `push_token TEXT` column added to profiles (SQL applied June 23). Push notifications now fully active — tokens register on every sign-in. CLAUDE.md updated. Master doc updated. |
+| #47 | feat/mapbox-precision-auto-approve | Mapbox geocoding integrated (replaces Nominatim), `auto_approve_venue` RPC, confidence badge in admin panel. Only first commit merged to main — two sweep commits were cherry-picked into PR #48. |
+| #48 | fix/full-sweep-june27 | Full codebase sweep: cherry-picked two commits from #47, fixed broken RSVP decrement in `lib/events.ts` (was storing a Promise as column value), `.single()` → `.maybeSingle()` across weMet/sessions/events, default zone radius 500 → 75m in `lib/zones.ts`, removed debug console.logs from `useGeofenceTask.ts`. **OPEN — not yet merged to main.** |
+| #49 | feat/polygon-geofencing | Building polygon geofencing via OpenStreetMap Overpass API. `fetchBuildingPolygon()` in `lib/geocoding.ts`. `supabase/polygon_geofencing.sql` run in Supabase (supersedes `mapbox_precision.sql`). `user_in_zone()` now polygon-first with circle fallback. Admin panel shows polygon badge. Auto-approve path fetches polygon at signup. Background geofence uses `Math.max(radius_meters, 150)`. **Merged June 27, 2026.** |
 
 ---
 
@@ -273,6 +276,26 @@ VALUES (
   true
 );
 ```
+
+---
+
+## Polygon Geofencing (shipped June 27, 2026 — PR #49)
+
+**SQL applied:** `supabase/polygon_geofencing.sql` — run this, NOT `mapbox_precision.sql` (superseded).
+
+New columns:
+- `zones.building_polygon geography(POLYGON, 4326)` — OSM building footprint
+- `zones.polygon_source TEXT` — `'osm'` when polygon fetched, NULL for circle fallback
+- `profiles.venue_geocode_confidence FLOAT` — Mapbox relevance score stored at signup
+
+How it works:
+- At venue approval or Re-fetch, `fetchBuildingPolygon(lat, lng)` queries Overpass API for building ways within 75m and returns PostGIS WKT
+- Polygon stored on zone. Admin panel shows blue badge (polygon active) or amber badge (circle fallback)
+- `user_in_zone()` checks `building_polygon IS NOT NULL` first — uses `ST_Contains` for polygon, `ST_DWithin` for circle fallback
+- Background geofence (`useGeofenceTask.ts`) uses `Math.max(radius_meters, 150)` for OS wakeup — generous circle so app wakes before user reaches door. Precise check runs at tap time via DB.
+- Non-fatal: if Overpass returns nothing, zone still works via circle radius
+
+**Martha My Dear (2503 Gallatin Ave Nashville TN):** OSM building footprint drawn by Joshua on June 27, 2026 at openstreetmap.org. Jacob must go to Admin → Live tab → Martha My Dear → Re-fetch Coordinates → Save to activate the polygon. Wait a few hours after June 27 for OSM to propagate to Overpass before re-fetching.
 
 ---
 
