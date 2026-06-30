@@ -52,6 +52,35 @@ function withRealDistance(zones: Zone[], userLat: number, userLng: number): Zone
   }))
 }
 
+function TrendingStrip({ zones, onPress }: { zones: Zone[]; onPress: (id: string) => void }) {
+  const trending = zones
+    .filter(z => (z.member_count ?? 0) > 0)
+    .sort((a, b) => (b.member_count ?? 0) - (a.member_count ?? 0))
+    .slice(0, 5)
+
+  if (trending.length === 0) return null
+
+  return (
+    <View style={styles.trendingWrap}>
+      <Text style={styles.trendingTitle}>🔥 Trending Now</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingScroll}>
+        {trending.map(z => (
+          <TouchableOpacity
+            key={z.id}
+            style={styles.trendingPill}
+            onPress={() => onPress(z.id)}
+            activeOpacity={0.75}
+          >
+            <View style={styles.trendingDot} />
+            <Text style={styles.trendingName} numberOfLines={1}>{z.name}</Text>
+            <Text style={styles.trendingCount}>{z.member_count}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  )
+}
+
 function TypeLabel({ type }: { type?: string | null }) {
   if (!type) return null
   const labels: Record<string, string> = {
@@ -264,43 +293,18 @@ export default function NearbyScreen() {
               />
             </Reanimated.View>
           )}
-          ListHeaderComponent={(() => {
-            const trending = zones
-              .filter(z => (z.member_count ?? 0) > 0)
-              .sort((a, b) => (b.member_count ?? 0) - (a.member_count ?? 0))
-              .slice(0, 5)
-
-            return (
-              <View>
-                {trending.length > 0 && (
-                  <View style={styles.trendingWrap}>
-                    <Text style={styles.trendingTitle}>🔥 Trending Now</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingScroll}>
-                      {trending.map(z => (
-                        <TouchableOpacity
-                          key={z.id}
-                          style={styles.trendingPill}
-                          onPress={() => router.push(`/zone/${z.id}`)}
-                          activeOpacity={0.75}
-                        >
-                          <View style={styles.trendingDot} />
-                          <Text style={styles.trendingName} numberOfLines={1}>{z.name}</Text>
-                          <Text style={styles.trendingCount}>{z.member_count}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-                {filteredZones.length > 0 && (
-                  <Text style={styles.listLabel}>
-                    {searchQuery
-                      ? `${filteredZones.length} result${filteredZones.length !== 1 ? 's' : ''} for "${searchQuery}"`
-                      : `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} nearby`}
-                  </Text>
-                )}
-              </View>
-            )
-          })()}
+          ListHeaderComponent={
+            <View>
+              <TrendingStrip zones={zones} onPress={(id) => router.push(`/zone/${id}`)} />
+              {filteredZones.length > 0 && (
+                <Text style={styles.listLabel}>
+                  {searchQuery
+                    ? `${filteredZones.length} result${filteredZones.length !== 1 ? 's' : ''} for "${searchQuery}"`
+                    : `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} nearby`}
+                </Text>
+              )}
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={styles.emptyIcon}>

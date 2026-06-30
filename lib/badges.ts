@@ -92,42 +92,38 @@ export async function checkAndAwardBadges(
     if (hour >= 0 && hour < 5 && !earned.has('night_owl')) await awardBadge('night_owl')
     if (hour >= 5 && hour < 9 && !earned.has('early_bird')) await awardBadge('early_bird')
 
+    // Single query — get zone_id + checked_in_at so we can compute all thresholds in JS.
+    // Using .lt('extract(...)') is invalid PostgREST syntax; JS filtering avoids that.
     const { data: sessions, count: checkinCount } = await supabase
       .from('sessions')
-      .select('zone_id', { count: 'exact' })
+      .select('zone_id, checked_in_at', { count: 'exact' })
       .eq('user_id', user.id)
 
     const total = checkinCount ?? 0
+    const rows  = sessions ?? []
 
-    if (total >= 1  && !earned.has('first_checkin'))   await awardBadge('first_checkin')
-    if (total >= 5  && !earned.has('venue_explorer'))  await awardBadge('venue_explorer')
-    if (total >= 15 && !earned.has('explorer_ii'))     await awardBadge('explorer_ii')
-    if (total >= 50 && !earned.has('explorer_iii'))    await awardBadge('explorer_iii')
+    if (total >= 1  && !earned.has('first_checkin'))  await awardBadge('first_checkin')
+    if (total >= 5  && !earned.has('venue_explorer')) await awardBadge('venue_explorer')
+    if (total >= 15 && !earned.has('explorer_ii'))    await awardBadge('explorer_ii')
+    if (total >= 50 && !earned.has('explorer_iii'))   await awardBadge('explorer_iii')
 
     // Adventurer: visited 3+ distinct venues
-    const distinctVenues = new Set((sessions ?? []).map(s => s.zone_id)).size
+    const distinctVenues = new Set(rows.map((s: any) => s.zone_id)).size
     if (distinctVenues >= 3 && !earned.has('adventurer')) await awardBadge('adventurer')
 
     // Venue Regular: 5+ check-ins at the same venue
     if (opts?.zoneId && !earned.has('venue_regular')) {
-      const { count: venueCount } = await supabase
-        .from('sessions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('zone_id', opts.zoneId)
-
-      if ((venueCount ?? 0) >= 5) await awardBadge('venue_regular')
+      const venueCount = rows.filter((s: any) => s.zone_id === opts.zoneId).length
+      if (venueCount >= 5) await awardBadge('venue_regular')
     }
 
-    // Night Owl II: 5+ late-night check-ins (midnight-5am)
-    if (!earned.has('night_regular') && hour >= 0 && hour < 5) {
-      const { count: nightCount } = await supabase
-        .from('sessions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .lt('extract(hour from checked_in_at)', '5')
-
-      if ((nightCount ?? 0) >= 5) await awardBadge('night_regular')
+    // Night Owl II: 5+ check-ins between midnight and 5am — computed in JS from fetched rows
+    if (!earned.has('night_regular')) {
+      const nightCount = rows.filter((s: any) => {
+        const h = new Date(s.checked_in_at).getHours()
+        return h >= 0 && h < 5
+      }).length
+      if (nightCount >= 5) await awardBadge('night_regular')
     }
   }
 
