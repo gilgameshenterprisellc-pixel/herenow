@@ -77,7 +77,8 @@ export default function CheckInScreen() {
   const [zoneName, setZoneName]     = useState('')
   const [socialMode, setSocialMode] = useState<SocialMode | null>(null)
   const [moodMode, setMoodMode]     = useState<MoodMode>('selective')
-  const [loading, setLoading]       = useState(false)
+  const [loading, setLoading]         = useState(false)
+  const [loadingMsg, setLoadingMsg]   = useState('')
 
   const { checkIn, activeSession } = useSessionContext()
   const { showToast } = useToast()
@@ -108,7 +109,9 @@ export default function CheckInScreen() {
 
   const doCheckIn = async () => {
     setLoading(true)
+    setLoadingMsg('Verifying your location…')
     const result = await checkIn(zoneId, socialMode!, moodMode)
+    setLoadingMsg('')
     setLoading(false)
 
     if (!result.ok) {
@@ -218,10 +221,14 @@ export default function CheckInScreen() {
           disabled={!socialMode || loading}
           activeOpacity={0.85}
         >
-          {loading
-            ? <ActivityIndicator color="#050A15" />
-            : <Text style={styles.checkInBtnText}>I'm Here 📍</Text>
-          }
+          {loading ? (
+            <View style={{ alignItems: 'center', gap: 4 }}>
+              <ActivityIndicator color="#050A15" />
+              {!!loadingMsg && <Text style={{ fontSize: 11, color: '#050A15', opacity: 0.7 }}>{loadingMsg}</Text>}
+            </View>
+          ) : (
+            <Text style={styles.checkInBtnText}>I'm Here 📍</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

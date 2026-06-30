@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Switch, Alert, Platform, Linking,
@@ -55,6 +55,24 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets()
   const [ghostMode, setGhostMode] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      setUserId(user.id)
+      supabase.from('profiles').select('mood_mode').eq('id', user.id).maybeSingle()
+        .then(({ data }) => setGhostMode(data?.mood_mode === 'not_today'))
+    })
+  }, [])
+
+  const toggleGhostMode = async (val: boolean) => {
+    setGhostMode(val)
+    if (!userId) return
+    await supabase.from('profiles')
+      .update({ mood_mode: val ? 'not_today' : 'selective' })
+      .eq('id', userId)
+  }
 
   const handleDeleteAccount = () => {
     const confirmDelete = async () => {
@@ -116,7 +134,7 @@ export default function SettingsScreen() {
             icon="eye-off-outline"
             label="Ghost Mode"
             value={ghostMode}
-            onValueChange={setGhostMode}
+            onValueChange={toggleGhostMode}
           />
           <View style={styles.divider} />
           <SettingsRow
