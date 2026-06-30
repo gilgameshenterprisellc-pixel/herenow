@@ -541,6 +541,10 @@ export default function VenueDashboard() {
             <Text style={styles.actionEmoji}>📣</Text>
             <Text style={styles.actionLabel}>Announce</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/gallery' as any)}>
+            <Text style={styles.actionEmoji}>📸</Text>
+            <Text style={styles.actionLabel}>Gallery</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Footer note */}

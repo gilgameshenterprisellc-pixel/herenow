@@ -48,9 +48,25 @@ const dot = StyleSheet.create({
   core: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22c55e', borderWidth: 1, borderColor: '#050A15' },
 })
 
+function formatEventTime(iso: string): string {
+  const d = new Date(iso)
+  const now = Date.now()
+  const diffMin = Math.round((d.getTime() - now) / 60000)
+  if (diffMin < 60) return `in ${diffMin}m`
+  const hrs = d.getHours() % 12 || 12
+  const mins = d.getMinutes().toString().padStart(2, '0')
+  const ampm = d.getHours() >= 12 ? 'pm' : 'am'
+  return `${hrs}:${mins}${ampm}`
+}
+
 export default function ZoneCard({ zone, onPress, selected }: Props) {
   const pressScale = useRef(new Animated.Value(1)).current
   const isLive = (zone.member_count ?? 0) > 0
+
+  // Show next event only if it starts within 6 hours
+  const nextEventSoon = zone.next_event_starts_at
+    ? (new Date(zone.next_event_starts_at).getTime() - Date.now()) < 6 * 60 * 60 * 1000
+    : false
 
   const onPressIn  = () => Animated.spring(pressScale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start()
   const onPressOut = () => Animated.spring(pressScale, { toValue: 1,    useNativeDriver: true, speed: 40, bounciness: 4 }).start()
@@ -121,6 +137,32 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
             />
           </View>
         </View>
+
+        {/* Activity preview */}
+        {(isLive || nextEventSoon) && (
+          <View style={styles.activityRow}>
+            {isLive && (
+              <View style={styles.activityPill}>
+                <View style={styles.activityDot} />
+                <Text style={styles.activityText}>
+                  {zone.member_count} {zone.member_count === 1 ? 'person' : 'people'} here right now
+                </Text>
+              </View>
+            )}
+            {nextEventSoon && zone.next_event_title && zone.next_event_starts_at && (
+              <View style={styles.eventPill}>
+                <Text style={styles.eventText}>
+                  📅 {zone.next_event_title} · {formatEventTime(zone.next_event_starts_at)}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Operating hours */}
+        {!!zone.opening_hours && (
+          <Text style={styles.hoursText}>🕐 {zone.opening_hours}</Text>
+        )}
 
         {/* Venue chips */}
         {(zone.chips ?? []).length > 0 && (
@@ -195,6 +237,22 @@ const styles = StyleSheet.create({
   heatTrack: { flex: 1, height: 3, backgroundColor: '#0D1B2E', borderRadius: 2, overflow: 'hidden', marginLeft: 6 },
   heatFill: { height: '100%' as any, backgroundColor: '#1A3A5A', borderRadius: 2 },
   heatFillLive: { backgroundColor: '#22c55e' },
+  activityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  activityPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#22c55e0F', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1, borderColor: '#22c55e30',
+  },
+  activityDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
+  activityText: { fontSize: 11, color: '#22c55e', fontWeight: '600' },
+  eventPill: {
+    backgroundColor: '#29B6F60F', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1, borderColor: '#29B6F630',
+  },
+  eventText: { fontSize: 11, color: '#29B6F6', fontWeight: '600' },
+  hoursText: { fontSize: 11, color: '#4A6580' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
   chip: {
     backgroundColor: '#0A1628', borderRadius: 10,

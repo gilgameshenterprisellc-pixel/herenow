@@ -40,12 +40,13 @@ export default function VenueEditScreen() {
   const [userId, setUserId]       = useState<string | null>(null)
   const [existingZone, setExistingZone] = useState<VenueZone | null>(null)
 
-  const [name, setName]           = useState('')
+  const [name, setName]               = useState('')
   const [description, setDescription] = useState('')
-  const [lat, setLat]             = useState<number | null>(null)
-  const [lng, setLng]             = useState<number | null>(null)
-  const [radius, setRadius]       = useState(RADIUS_OPTIONS[0].meters)
-  const [chips, setChips]         = useState<string[]>([])
+  const [openingHours, setOpeningHours] = useState('')
+  const [lat, setLat]               = useState<number | null>(null)
+  const [lng, setLng]               = useState<number | null>(null)
+  const [radius, setRadius]         = useState(RADIUS_OPTIONS[0].meters)
+  const [chips, setChips]           = useState<string[]>([])
 
   useEffect(() => {
     const load = async () => {
@@ -55,7 +56,7 @@ export default function VenueEditScreen() {
 
       const { data: zones } = await supabase
         .from('zones')
-        .select('id, name, description, center_lat, center_lng, radius_meters, chips')
+        .select('id, name, description, center_lat, center_lng, radius_meters, chips, opening_hours')
         .eq('owner_id', user.id)
         .limit(1)
 
@@ -64,6 +65,7 @@ export default function VenueEditScreen() {
         setExistingZone(z)
         setName(z.name)
         setDescription(z.description ?? '')
+        setOpeningHours((z as any).opening_hours ?? '')
         setLat(z.center_lat)
         setLng(z.center_lng)
         setRadius(z.radius_meters)
@@ -138,6 +140,7 @@ export default function VenueEditScreen() {
         .update({
           name: name.trim(),
           description: description.trim() || null,
+          opening_hours: openingHours.trim() || null,
           center: centerWkt,
           center_lat: lat,
           center_lng: lng,
@@ -154,6 +157,7 @@ export default function VenueEditScreen() {
         .insert({
           name: name.trim(),
           description: description.trim() || null,
+          opening_hours: openingHours.trim() || null,
           center: centerWkt,
           center_lat: lat,
           center_lng: lng,
@@ -291,6 +295,20 @@ export default function VenueEditScreen() {
             maxLength={200}
           />
           <Text style={styles.charCount}>{description.length}/200</Text>
+        </View>
+
+        {/* Operating Hours */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Operating Hours</Text>
+          <TextInput
+            style={styles.input}
+            value={openingHours}
+            onChangeText={setOpeningHours}
+            placeholder="e.g. Mon–Thu 5pm–2am · Fri–Sat 3pm–3am · Closed Sun"
+            placeholderTextColor="#4A6580"
+            maxLength={120}
+          />
+          <Text style={styles.sectionHint}>Shown on your venue card so guests know when you're open.</Text>
         </View>
 
         {/* Venue Chips */}

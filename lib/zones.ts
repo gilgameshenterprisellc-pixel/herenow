@@ -11,6 +11,9 @@ export interface Zone {
   center_lat: number
   center_lng: number
   chips: string[]
+  opening_hours: string | null
+  next_event_title: string | null
+  next_event_starts_at: string | null
 }
 
 export async function fetchNearbyZones(
