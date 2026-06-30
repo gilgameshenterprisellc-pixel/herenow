@@ -74,7 +74,10 @@ export async function awardBadge(slug: string): Promise<void> {
   })
 }
 
-export async function checkAndAwardBadges(trigger: 'checkin' | 'wemet_confirmed' | 'pulse_post' | 'chat_message'): Promise<void> {
+export async function checkAndAwardBadges(
+  trigger: 'checkin' | 'wemet_confirmed' | 'pulse_post' | 'chat_message' | 'gallery_upload',
+  opts?: { zoneId?: string }
+): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
@@ -89,13 +92,42 @@ export async function checkAndAwardBadges(trigger: 'checkin' | 'wemet_confirmed'
     if (hour >= 0 && hour < 5 && !earned.has('night_owl')) await awardBadge('night_owl')
     if (hour >= 5 && hour < 9 && !earned.has('early_bird')) await awardBadge('early_bird')
 
-    const { count: checkinCount } = await supabase
+    const { data: sessions, count: checkinCount } = await supabase
       .from('sessions')
-      .select('*', { count: 'exact', head: true })
+      .select('zone_id', { count: 'exact' })
       .eq('user_id', user.id)
 
-    if ((checkinCount ?? 0) >= 5 && !earned.has('venue_explorer')) {
-      await awardBadge('venue_explorer')
+    const total = checkinCount ?? 0
+
+    if (total >= 1  && !earned.has('first_checkin'))   await awardBadge('first_checkin')
+    if (total >= 5  && !earned.has('venue_explorer'))  await awardBadge('venue_explorer')
+    if (total >= 15 && !earned.has('explorer_ii'))     await awardBadge('explorer_ii')
+    if (total >= 50 && !earned.has('explorer_iii'))    await awardBadge('explorer_iii')
+
+    // Adventurer: visited 3+ distinct venues
+    const distinctVenues = new Set((sessions ?? []).map(s => s.zone_id)).size
+    if (distinctVenues >= 3 && !earned.has('adventurer')) await awardBadge('adventurer')
+
+    // Venue Regular: 5+ check-ins at the same venue
+    if (opts?.zoneId && !earned.has('venue_regular')) {
+      const { count: venueCount } = await supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('zone_id', opts.zoneId)
+
+      if ((venueCount ?? 0) >= 5) await awardBadge('venue_regular')
+    }
+
+    // Night Owl II: 5+ late-night check-ins (midnight-5am)
+    if (!earned.has('night_regular') && hour >= 0 && hour < 5) {
+      const { count: nightCount } = await supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .lt('extract(hour from checked_in_at)', '5')
+
+      if ((nightCount ?? 0) >= 5) await awardBadge('night_regular')
     }
   }
 
@@ -108,12 +140,9 @@ export async function checkAndAwardBadges(trigger: 'checkin' | 'wemet_confirmed'
       .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .eq('status', 'confirmed')
 
-    if ((wemetCount ?? 0) >= 5 && !earned.has('social_butterfly')) {
-      await awardBadge('social_butterfly')
-    }
-    if ((wemetCount ?? 0) >= 10 && !earned.has('connector')) {
-      await awardBadge('connector')
-    }
+    if ((wemetCount ?? 0) >= 5  && !earned.has('social_butterfly')) await awardBadge('social_butterfly')
+    if ((wemetCount ?? 0) >= 10 && !earned.has('connector'))        await awardBadge('connector')
+    if ((wemetCount ?? 0) >= 25 && !earned.has('social_legend'))    await awardBadge('social_legend')
   }
 
   if (trigger === 'pulse_post') {
@@ -122,9 +151,8 @@ export async function checkAndAwardBadges(trigger: 'checkin' | 'wemet_confirmed'
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
 
-    if ((count ?? 0) >= 10 && !earned.has('vibe_setter')) {
-      await awardBadge('vibe_setter')
-    }
+    if ((count ?? 0) >= 10 && !earned.has('vibe_setter'))  await awardBadge('vibe_setter')
+    if ((count ?? 0) >= 50 && !earned.has('pulse_master')) await awardBadge('pulse_master')
   }
 
   if (trigger === 'chat_message') {
@@ -133,8 +161,10 @@ export async function checkAndAwardBadges(trigger: 'checkin' | 'wemet_confirmed'
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
 
-    if ((count ?? 0) >= 25 && !earned.has('chat_regular')) {
-      await awardBadge('chat_regular')
-    }
+    if ((count ?? 0) >= 25 && !earned.has('chat_regular')) await awardBadge('chat_regular')
+  }
+
+  if (trigger === 'gallery_upload') {
+    if (!earned.has('first_gallery')) await awardBadge('first_gallery')
   }
 }

@@ -122,7 +122,7 @@ export default function CheckInScreen() {
       return
     }
 
-    await checkAndAwardBadges('checkin')
+    await checkAndAwardBadges('checkin', { zoneId })
     router.replace(`/zone/${zoneId}`)
   }
 

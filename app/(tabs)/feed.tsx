@@ -77,6 +77,17 @@ export default function FeedScreen() {
           .limit(20),
       ])
 
+      // Log promo views (fire-and-forget, deduplicated by UNIQUE constraint)
+      const { data: { user: feedUser } } = await supabase.auth.getUser()
+      if (feedUser && (promos ?? []).length > 0) {
+        const viewRows = (promos ?? []).map((p: any) => ({
+          promotion_id: p.id,
+          zone_id:      p.zone_id,
+          user_id:      feedUser.id,
+        }))
+        supabase.from('promo_views').upsert(viewRows, { onConflict: 'promotion_id,user_id', ignoreDuplicates: true }).then(() => {})
+      }
+
       const promoItems: VenueFeedItem[] = (promos ?? []).map((p: any) => ({
         id:             `promo-${p.id}`,
         zone_id:        p.zone_id,

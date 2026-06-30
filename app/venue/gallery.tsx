@@ -10,6 +10,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 interface Photo {
   id: string
@@ -115,6 +116,7 @@ export default function VenueGalleryScreen() {
 
       setPhotos((prev) => [inserted as Photo, ...prev])
       showToast('Photo added to gallery!', 'success')
+      checkAndAwardBadges('gallery_upload').catch(() => {})
     } catch {
       showToast('Upload failed. Try again.', 'error')
     } finally {
