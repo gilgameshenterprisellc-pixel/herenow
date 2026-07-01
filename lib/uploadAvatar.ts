@@ -1,4 +1,4 @@
-import { Platform } from 'react-native'
+import { Platform, Alert } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { supabase } from './supabase'
 
@@ -59,7 +59,10 @@ async function uploadAvatarNative(
 
   if (source === 'camera') {
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
-    if (status !== 'granted') return null
+    if (status !== 'granted') {
+      Alert.alert('Camera access needed', 'Go to iPhone Settings → Expo Go → Camera and allow access, then try again.')
+      return null
+    }
     result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
@@ -67,7 +70,10 @@ async function uploadAvatarNative(
     })
   } else {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') return null
+    if (status !== 'granted') {
+      Alert.alert('Photo library access needed', 'Go to iPhone Settings → Expo Go → Photos and allow access, then try again.')
+      return null
+    }
     result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -90,7 +96,11 @@ async function uploadAvatarNative(
     .from('avatars')
     .upload(path, arrayBuffer, { upsert: true, contentType: mimeType })
 
-  if (error) { console.error('[uploadAvatar native]', error.message); return null }
+  if (error) {
+    console.error('[uploadAvatar native]', error.message)
+    Alert.alert('Upload failed', error.message || 'Could not save your photo. Check your connection and try again.')
+    return null
+  }
 
   const { data } = supabase.storage.from('avatars').getPublicUrl(path)
   return `${data.publicUrl}?v=${Date.now()}`

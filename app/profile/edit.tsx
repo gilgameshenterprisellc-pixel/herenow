@@ -82,14 +82,7 @@ export default function EditProfileScreen() {
       setUploading(false)
 
       if (!url) {
-        if (source === 'camera') {
-          showToast(
-            'Camera upload failed. Check that Expo Go has camera access in iPhone Settings → Expo Go → Camera.',
-            'error',
-          )
-        } else {
-          showToast('Photo upload failed. Try again or pick a different image.', 'error')
-        }
+        // uploadAvatarNative already showed an Alert with specific guidance
         return
       }
 
