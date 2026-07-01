@@ -24,6 +24,7 @@ export default function VenueAnnouncementsScreen() {
   const insets = useSafeAreaInsets()
   const { showToast } = useToast()
   const [zoneId, setZoneId]         = useState<string | null>(null)
+  const [noZone, setNoZone]         = useState(false)
   const [annos, setAnnos]           = useState<Announcement[]>([])
   const [loading, setLoading]       = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -42,7 +43,7 @@ export default function VenueAnnouncementsScreen() {
     const { data: zone } = await supabase
       .from('zones').select('id').eq('owner_id', user.id).maybeSingle()
 
-    if (!zone) { setLoading(false); setRefreshing(false); return }
+    if (!zone) { setNoZone(true); setLoading(false); setRefreshing(false); return }
     setZoneId(zone.id)
 
     const { data } = await supabase
@@ -137,7 +138,8 @@ export default function VenueAnnouncementsScreen() {
   }
 
   const handleSend = async () => {
-    if (!zoneId || !message.trim()) { showToast('Message required.', 'error'); return }
+    if (!zoneId) { showToast('Venue zone not found. Contact support.', 'error'); return }
+    if (!message.trim()) { showToast('Message required.', 'error'); return }
     if (uploading) { showToast('Image still uploading, please wait.', 'error'); return }
 
     setSending(true)
@@ -238,8 +240,18 @@ export default function VenueAnnouncementsScreen() {
           Announcements go straight to your followers' feeds — use them for last-minute updates, schedule changes, or flyers.
         </Text>
 
+        {noZone ? (
+          <View style={styles.section}>
+            <View style={{ backgroundColor: '#0D1B2E', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#1A2E4A', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 28 }}>📣</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#f8fafc', textAlign: 'center' }}>Announcements not available</Text>
+              <Text style={{ fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 }}>Your venue isn't set up yet or your account isn't linked as the venue owner. Contact support if this looks wrong.</Text>
+            </View>
+          </View>
+        ) : null}
+
         {/* Compose */}
-        <View style={styles.section}>
+        {!noZone && <View style={styles.section}>
           <Text style={styles.sectionLabel}>SEND ANNOUNCEMENT</Text>
 
           <TextInput
@@ -304,7 +316,7 @@ export default function VenueAnnouncementsScreen() {
               : <Text style={styles.sendBtnText}>📣 Send Announcement</Text>
             }
           </TouchableOpacity>
-        </View>
+        </View>}
 
         {/* History */}
         {loading ? (

@@ -93,6 +93,7 @@ export default function CreateEventScreen() {
   }
 
   const handleCreate = async () => {
+    if (!zoneId) { showToast('Venue ID missing — go back and try again.', 'error'); return }
     if (!title.trim()) { showToast('Give your event a name.', 'error'); return }
     if (hasEndDate && endDate && endDate <= startDate) {
       showToast('End time must be after start time.', 'error'); return
@@ -100,7 +101,7 @@ export default function CreateEventScreen() {
 
     setCreating(true)
     const event = await createEvent({
-      zoneId,
+      zoneId: zoneId as string,
       title: title.trim(),
       description: desc.trim() || undefined,
       eventType,
@@ -109,7 +110,7 @@ export default function CreateEventScreen() {
     })
     setCreating(false)
 
-    if (!event) { showToast('Could not create the event. Try again.', 'error'); return }
+    if (!event) { showToast('Could not save the event. Check your connection and try again.', 'error'); return }
     router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId}` as any)
   }
 

@@ -29,6 +29,7 @@ export default function VenueGalleryScreen() {
   const [loading, setLoading]   = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [noZone, setNoZone]     = useState(false)
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -37,7 +38,7 @@ export default function VenueGalleryScreen() {
 
     const { data: zone } = await supabase
       .from('zones').select('id').eq('owner_id', user.id).maybeSingle()
-    if (!zone) { setLoading(false); setRefreshing(false); return }
+    if (!zone) { setNoZone(true); setLoading(false); setRefreshing(false); return }
     setZoneId(zone.id)
 
     const { data } = await supabase
@@ -68,7 +69,7 @@ export default function VenueGalleryScreen() {
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
       if (status !== 'granted') {
-        showToast('Photo library access needed.', 'error')
+        showToast('Photo library access needed. Check iPhone Settings → Expo Go → Photos.', 'error')
         return
       }
       result = await ImagePicker.launchImageLibraryAsync({
@@ -190,6 +191,12 @@ export default function VenueGalleryScreen() {
       >
         {loading ? (
           <ActivityIndicator color="#29B6F6" style={{ marginTop: 40 }} />
+        ) : noZone ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🏠</Text>
+            <Text style={styles.emptyTitle}>Gallery not available</Text>
+            <Text style={styles.emptySub}>Your venue isn't set up yet or your account isn't linked as the venue owner. Contact support if this looks wrong.</Text>
+          </View>
         ) : photos.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>📸</Text>
