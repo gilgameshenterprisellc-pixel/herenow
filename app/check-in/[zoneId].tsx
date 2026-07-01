@@ -15,6 +15,7 @@ import type { SocialMode, MoodMode } from '@/lib/sessions'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { checkAndAwardBadges } from '@/lib/badges'
+import BetaFeedbackModal, { shouldShowBetaFeedback, markBetaFeedbackShown } from '@/components/BetaFeedbackModal'
 
 const SOCIAL_MODES: { mode: SocialMode; emoji: string; label: string; desc: string; color: string }[] = [
   {
@@ -79,6 +80,7 @@ export default function CheckInScreen() {
   const [moodMode, setMoodMode]     = useState<MoodMode>('selective')
   const [loading, setLoading]         = useState(false)
   const [loadingMsg, setLoadingMsg]   = useState('')
+  const [showFeedback, setShowFeedback] = useState(false)
 
   const { checkIn, activeSession } = useSessionContext()
   const { showToast } = useToast()
@@ -126,7 +128,14 @@ export default function CheckInScreen() {
     }
 
     await checkAndAwardBadges('checkin', { zoneId })
-    router.replace(`/zone/${zoneId}`)
+
+    const canShow = await shouldShowBetaFeedback()
+    if (canShow) {
+      await markBetaFeedbackShown()
+      setShowFeedback(true)
+    } else {
+      router.replace(`/zone/${zoneId}`)
+    }
   }
 
   return (
@@ -231,6 +240,15 @@ export default function CheckInScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <BetaFeedbackModal
+        visible={showFeedback}
+        zoneId={zoneId ?? ''}
+        onDismiss={() => {
+          setShowFeedback(false)
+          router.replace(`/zone/${zoneId}`)
+        }}
+      />
     </View>
   )
 }
