@@ -1,9 +1,13 @@
 import { useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated, Platform } from 'react-native'
-import type { ActivePerson } from '@/lib/sessions'
+import type { ActivePerson, PrivacySettings } from '@/lib/sessions'
 import SocialModeBadge from './SocialModeBadge'
 import MoodBadge from './MoodBadge'
 import AvatarImage from './AvatarImage'
+
+const PRIV_ALL_ON: PrivacySettings = {
+  show_social_mode: true, show_mood: true, show_interests: true, show_kickoff: true,
+}
 
 interface Props {
   person: ActivePerson
@@ -18,6 +22,7 @@ interface Props {
 export default function PersonCard({ person, currentUserId, zoneId, currentSessionId, onWeMet, onReport, onBlock }: Props) {
   const isMe = person.user_id === currentUserId
   const isNotToday = person.mood_mode === 'not_today'
+  const priv: PrivacySettings = person.privacy_settings ?? PRIV_ALL_ON
   const wemetScale = useRef(new Animated.Value(1)).current
   const [showActions, setShowActions] = useState(false)
 
@@ -53,12 +58,14 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
             {isMe && <Text style={styles.meTag}>You</Text>}
           </View>
 
-          <View style={styles.badges}>
-            <SocialModeBadge mode={person.social_mode} />
-            <MoodBadge mode={person.mood_mode} />
-          </View>
+          {(priv.show_social_mode || priv.show_mood) && (
+            <View style={styles.badges}>
+              {priv.show_social_mode && <SocialModeBadge mode={person.social_mode} />}
+              {priv.show_mood && <MoodBadge mode={person.mood_mode} />}
+            </View>
+          )}
 
-          {person.interest_tags?.length > 0 && (
+          {priv.show_interests && person.interest_tags?.length > 0 && (
             <View style={styles.tags}>
               {person.interest_tags.slice(0, 3).map((tag) => (
                 <View key={tag} style={styles.tag}>
@@ -96,7 +103,7 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
         )}
       </View>
 
-      {person.kickoffs?.length > 0 && !isMe && !isNotToday && (
+      {priv.show_kickoff && person.kickoffs?.length > 0 && !isMe && !isNotToday && (
         <View style={styles.kickoff}>
           <Text style={styles.kickoffLabel}>Ask them:</Text>
           <Text style={styles.kickoffText}>"{person.kickoffs[0]}"</Text>

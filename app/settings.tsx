@@ -144,8 +144,9 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <SettingsRow
             icon="shield-checkmark-outline"
-            label="Check-in Visibility"
-            onPress={() => router.push('/profile/edit')}
+            label="Card Visibility"
+            subtitle="Control what others see on your profile card"
+            onPress={() => router.push('/profile/privacy' as any)}
           />
           <View style={styles.divider} />
           <SettingsRow
