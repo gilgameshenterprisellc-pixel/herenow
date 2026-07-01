@@ -17,6 +17,13 @@ export interface Session {
   is_active: boolean
 }
 
+export interface PrivacySettings {
+  show_social_mode: boolean
+  show_mood: boolean
+  show_interests: boolean
+  show_kickoff: boolean
+}
+
 export interface ActivePerson {
   session_id: string
   user_id: string
@@ -27,6 +34,7 @@ export interface ActivePerson {
   interest_tags: string[]
   kickoffs: string[]
   checked_in_at: string
+  privacy_settings: PrivacySettings | null
 }
 
 export type CheckInResult =
