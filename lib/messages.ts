@@ -75,6 +75,8 @@ export async function sendMessage(params: {
     return null
   }
 
+  if (!recipientId) return null
+
   await sendNotification({
     userId: recipientId,
     type:   'message',

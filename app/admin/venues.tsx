@@ -133,6 +133,10 @@ export default function AdminVenues() {
   // Live venue zone toggling
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
+  // Live venue polygon refresh
+  const [refreshingPolygon, setRefreshingPolygon] = useState<string | null>(null)
+  const [polygonStatus, setPolygonStatus] = useState<Record<string, 'found' | 'notfound' | 'error'>>({})
+
   // Live venue zone editing
   const [editingLive, setEditingLive]           = useState<string | null>(null)
   const [liveForms, setLiveForms]               = useState<Record<string, GeofenceForm>>({})
@@ -405,6 +409,40 @@ export default function AdminVenues() {
       newActive ? 'success' : 'info'
     )
     load()
+  }
+
+  // ── Live polygon refresh ──────────────────────────────────────────────────
+
+  const handleRefreshPolygon = async (venue: LiveVenue) => {
+    if (!venue.zone?.center_lat || !venue.zone?.center_lng) {
+      showToast('No coordinates on file for this zone.', 'error')
+      return
+    }
+    setRefreshingPolygon(venue.id)
+    setPolygonStatus((prev) => { const n = { ...prev }; delete n[venue.id]; return n })
+    try {
+      const polygon = await fetchBuildingPolygon(venue.zone.center_lat, venue.zone.center_lng)
+      if (!polygon) {
+        setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'notfound' }))
+        return
+      }
+      const { error } = await supabase
+        .from('zones')
+        .update({ building_polygon: polygon.wkt, polygon_source: 'osm' })
+        .eq('id', venue.zone.id)
+      if (error) {
+        setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'error' }))
+        showToast('Failed to save polygon: ' + error.message, 'error')
+      } else {
+        setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'found' }))
+        showToast(`🏢 Polygon saved for ${venue.display_name}!`, 'success')
+      }
+    } catch {
+      setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'error' }))
+      showToast('Network error fetching polygon.', 'error')
+    } finally {
+      setRefreshingPolygon(null)
+    }
   }
 
   // ── Live zone editing ─────────────────────────────────────────────────────
@@ -807,6 +845,26 @@ export default function AdminVenues() {
                           </TouchableOpacity>
                         </View>
 
+                        {/* Polygon refresh — one-tap re-fetch from OSM without full edit */}
+                        <TouchableOpacity
+                          style={[styles.polygonRefreshBtn, refreshingPolygon === venue.id && styles.btnDisabled]}
+                          onPress={() => refreshingPolygon !== venue.id && handleRefreshPolygon(venue)}
+                        >
+                          {refreshingPolygon === venue.id
+                            ? <ActivityIndicator size="small" color="#050A15" />
+                            : <Text style={styles.polygonRefreshBtnText}>🏢 Refresh Building Polygon from OSM</Text>
+                          }
+                        </TouchableOpacity>
+                        {polygonStatus[venue.id] === 'found' && (
+                          <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 2 }}>✓ Polygon saved — precise check-in active</Text>
+                        )}
+                        {polygonStatus[venue.id] === 'notfound' && (
+                          <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>⚠ No building found in OSM within 100m — check-in still uses circle radius</Text>
+                        )}
+                        {polygonStatus[venue.id] === 'error' && (
+                          <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 2 }}>✗ Error refreshing polygon. Check connection and retry.</Text>
+                        )}
+
                         {isEditing && (
                           <View style={styles.editSection}>
                             <Text style={styles.formTitle}>Edit Zone Location</Text>
@@ -1126,6 +1184,15 @@ const styles = StyleSheet.create({
     borderColor: '#7A93AC', backgroundColor: '#7A93AC10',
   },
   editZoneBtnText: { fontSize: 13, fontWeight: '700', color: '#29B6F6' },
+  polygonRefreshBtn: {
+    backgroundColor: '#6366f115',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center' as const,
+    borderWidth: 1,
+    borderColor: '#6366f140',
+  },
+  polygonRefreshBtnText: { fontSize: 12, fontWeight: '700', color: '#a5b4fc' },
   editSection: {
     borderTopWidth: 1, borderTopColor: '#1A2E4A',
     marginTop: 8, paddingTop: 14, gap: 10,

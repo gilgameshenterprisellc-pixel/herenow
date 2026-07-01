@@ -52,7 +52,7 @@ export async function fetchMyVenues(): Promise<VenueSubscription[]> {
     .eq('user_id', user.id)
     .order('subscribed_at', { ascending: false })
   if (error) return []
-  return (data ?? []) as VenueSubscription[]
+  return (data ?? []) as unknown as VenueSubscription[]
 }
 
 export async function fetchSubscriberCount(zoneId: string): Promise<number> {

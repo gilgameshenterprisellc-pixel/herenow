@@ -17,7 +17,7 @@ export default function WemetCard({ wemet, currentUserId, onUpdate }: Props) {
   const isPending    = wemet.status === 'pending'
   const isConfirmed  = wemet.status === 'confirmed'
   const isDeclined   = wemet.status === 'declined'
-  const isExpired    = wemet.status === 'expired' || new Date(wemet.expires_at) < new Date()
+  const isExpired    = wemet.status === 'expired' || (wemet.expires_at != null && new Date(wemet.expires_at) < new Date())
 
   const otherProfile = currentUserId === wemet.initiator_id
     ? wemet.recipient_profile
@@ -55,7 +55,7 @@ export default function WemetCard({ wemet, currentUserId, onUpdate }: Props) {
             {isExpired                 && 'Expired'}
           </Text>
         </View>
-        {!isExpired && !isDeclined && (
+        {!isExpired && !isDeclined && wemet.expires_at && (
           <ExpiryLabel expiresAt={wemet.expires_at} />
         )}
       </View>

@@ -11,10 +11,11 @@ import { supabase } from '@/lib/supabase'
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
 function SettingsRow({
-  icon, label, onPress, value, onValueChange, destructive = false,
+  icon, label, subtitle, onPress, value, onValueChange, destructive = false,
 }: {
   icon: IoniconsName
   label: string
+  subtitle?: string
   onPress?: () => void
   value?: boolean
   onValueChange?: (v: boolean) => void
@@ -28,7 +29,10 @@ function SettingsRow({
       activeOpacity={onPress ? 0.7 : 1}
     >
       <Ionicons name={icon} size={20} color={destructive ? '#ef4444' : '#5A7A9A'} style={styles.rowIcon} />
-      <Text style={[styles.rowLabel, destructive && styles.rowLabelRed]}>{label}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowLabel, destructive && styles.rowLabelRed]}>{label}</Text>
+        {subtitle && <Text style={styles.rowSubtitle}>{subtitle}</Text>}
+      </View>
       {value !== undefined && onValueChange ? (
         <Switch
           value={value}
@@ -133,6 +137,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="eye-off-outline"
             label="Ghost Mode"
+            subtitle="Hide your profile and activity from other users while still contributing anonymously to venue analytics."
             value={ghostMode}
             onValueChange={toggleGhostMode}
           />
@@ -217,9 +222,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 14, paddingHorizontal: 16, gap: 12,
   },
-  rowIcon:     { width: 24 },
-  rowLabel:    { flex: 1, fontSize: 15, color: '#f8fafc', fontWeight: '500' },
-  rowLabelRed: { color: '#ef4444' },
+  rowIcon:      { width: 24 },
+  rowLabel:     { fontSize: 15, color: '#f8fafc', fontWeight: '500' },
+  rowLabelRed:  { color: '#ef4444' },
+  rowSubtitle:  { fontSize: 12, color: '#5A7A9A', marginTop: 2, lineHeight: 16 },
   divider: { height: 1, backgroundColor: '#1A2E4A', marginLeft: 52 },
   versionText: { fontSize: 12, color: '#2A3F55', textAlign: 'center', paddingTop: 8 },
 })
