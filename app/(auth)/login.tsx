@@ -128,8 +128,13 @@ export default function LoginScreen() {
           <Image source={require('@/assets/logo.webp')} style={styles.logo} resizeMode="contain" />
         </Reanimated.View>
 
-        <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)}>
-          <Text style={styles.title}>HereNow</Text>
+        <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)} style={{ alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.title}>HereNow</Text>
+            <View style={styles.betaBadge}>
+              <Text style={styles.betaBadgeText}>BETA</Text>
+            </View>
+          </View>
           <Text style={styles.subtitle}>You Had To Be There</Text>
         </Reanimated.View>
 
@@ -263,6 +268,21 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   logo: { width: 80, height: 80, borderRadius: 20, marginBottom: 2 },
+  betaBadge: {
+    backgroundColor: 'rgba(41,182,246,0.12)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(41,182,246,0.5)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    alignSelf: 'center',
+  },
+  betaBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#29B6F6',
+    letterSpacing: 1.5,
+  },
   title: {
     fontSize: 26,
     fontWeight: '900',
