@@ -381,11 +381,39 @@ export default function NearbyScreen() {
             </View>
           </View>
 
-          {/* CTA */}
-          <TouchableOpacity style={preview.enterBtn} onPress={handlePreviewEnter}>
-            <Ionicons name="enter-outline" size={16} color="#050A15" style={{ marginRight: 6 }} />
-            <Text style={preview.enterBtnText}>Enter Venue</Text>
-          </TouchableOpacity>
+          {/* CTA — disabled with directions link when user is out of range */}
+          {(() => {
+            const dist = selectedZone.distance_meters
+            const radius = selectedZone.radius_meters ?? 75
+            const inRange = dist == null || dist <= radius * 1.3  // 30% buffer for GPS drift
+            if (inRange) {
+              return (
+                <TouchableOpacity style={preview.enterBtn} onPress={handlePreviewEnter}>
+                  <Ionicons name="enter-outline" size={16} color="#050A15" style={{ marginRight: 6 }} />
+                  <Text style={preview.enterBtnText}>Enter Venue</Text>
+                </TouchableOpacity>
+              )
+            }
+            const mapsUrl = `https://maps.google.com/?q=${selectedZone.center_lat},${selectedZone.center_lng}`
+            return (
+              <View style={{ gap: 6 }}>
+                <View style={[preview.enterBtn, preview.enterBtnDisabled]}>
+                  <Ionicons name="location-outline" size={16} color="#7A93AC" style={{ marginRight: 6 }} />
+                  <Text style={preview.enterBtnDisabledText}>You're not at this venue yet</Text>
+                </View>
+                <TouchableOpacity
+                  style={preview.directionsBtn}
+                  onPress={() => {
+                    if (Platform.OS === 'web') window.open(mapsUrl, '_blank')
+                    else router.push(mapsUrl as any)
+                  }}
+                >
+                  <Ionicons name="navigate-outline" size={14} color="#29B6F6" style={{ marginRight: 5 }} />
+                  <Text style={preview.directionsBtnText}>Get Directions</Text>
+                </TouchableOpacity>
+              </View>
+            )
+          })()}
         </Animated.View>
       )}
     </View>
@@ -524,4 +552,17 @@ const preview = StyleSheet.create({
     justifyContent: 'center',
   },
   enterBtnText: { color: '#050A15', fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },
+  enterBtnDisabled: { backgroundColor: '#1A2E4A' },
+  enterBtnDisabledText: { color: '#7A93AC', fontWeight: '700', fontSize: 14 },
+  directionsBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#29B6F630',
+    backgroundColor: '#29B6F608',
+  },
+  directionsBtnText: { color: '#29B6F6', fontWeight: '600', fontSize: 13 },
 })

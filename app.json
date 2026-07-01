@@ -92,7 +92,9 @@
           "cameraPermission": "HereNow lets you take a photo for your profile or attach one to an announcement."
         }
       ],
-      "expo-build-properties"
+      "expo-build-properties",
+      "expo-asset",
+      "expo-font"
     ],
     "extra": {
       "eas": {

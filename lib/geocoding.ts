@@ -68,7 +68,15 @@ export async function fetchBuildingPolygon(
   lat: number,
   lng: number,
 ): Promise<BuildingPolygon | null> {
-  const query = `[out:json][timeout:10];(way["building"](around:75,${lat},${lng}););out geom;`
+  // Query both ways and relations — small buildings are usually ways, larger ones
+  // (or ones recently added by editors using the relation/multipolygon type) are relations.
+  // Use 100m radius so slight geocoding offsets don't miss the building.
+  const query =
+    `[out:json][timeout:15];` +
+    `(` +
+    `  way["building"](around:100,${lat},${lng});` +
+    `  relation["building"](around:100,${lat},${lng});` +
+    `);out geom;`
 
   try {
     const res = await fetch('https://overpass-api.de/api/interpreter', {
@@ -79,28 +87,43 @@ export async function fetchBuildingPolygon(
     if (!res.ok) return null
 
     const json = await res.json()
+    const elements: any[] = json.elements ?? []
 
-    // Pick the way with the most geometry nodes — most detailed polygon
-    const way = ((json.elements ?? []) as any[])
-      .filter((el) => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3)
-      .sort((a, b) => b.geometry.length - a.geometry.length)[0]
+    // ── Try ways first (most common for simple buildings) ──────────────────────
+    const ways = elements.filter(
+      (el) => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3
+    )
+    if (ways.length > 0) {
+      const way = ways.sort((a, b) => b.geometry.length - a.geometry.length)[0]
+      const wkt = buildWktFromNodes(way.geometry)
+      if (wkt) return { wkt, pointCount: way.geometry.length, osmId: way.id as number }
+    }
 
-    if (!way) return null
+    // ── Fall back to relations (multipolygon) ──────────────────────────────────
+    const relations = elements.filter((el) => el.type === 'relation')
+    for (const rel of relations) {
+      const outerMember = (rel.members ?? []).find((m: any) => m.role === 'outer' && Array.isArray(m.geometry) && m.geometry.length >= 3)
+      if (outerMember) {
+        const wkt = buildWktFromNodes(outerMember.geometry)
+        if (wkt) return { wkt, pointCount: outerMember.geometry.length, osmId: rel.id as number }
+      }
+    }
 
-    // OSM: {lat, lon} pairs → PostGIS WKT uses (lng lat) order
-    const coords: [number, number][] = way.geometry.map((n: any) => [n.lon, n.lat])
-
-    // Close the ring if not already closed (PostGIS requires this)
-    const [f0, f1] = coords[0]
-    const [l0, l1] = coords[coords.length - 1]
-    if (f0 !== l0 || f1 !== l1) coords.push([f0, f1])
-
-    const wkt = `POLYGON((${coords.map(([lo, la]) => `${lo} ${la}`).join(', ')}))`
-
-    return { wkt, pointCount: coords.length, osmId: way.id as number }
+    return null
   } catch {
     return null
   }
+}
+
+function buildWktFromNodes(nodes: Array<{ lat: number; lon: number }>): string | null {
+  if (!nodes || nodes.length < 3) return null
+  // OSM: {lat, lon} pairs → PostGIS WKT uses (lng lat) order
+  const coords: [number, number][] = nodes.map((n: any) => [n.lon, n.lat])
+  // Close the ring if not already closed (PostGIS requires this)
+  const [f0, f1] = coords[0]
+  const [l0, l1] = coords[coords.length - 1]
+  if (f0 !== l0 || f1 !== l1) coords.push([f0, f1])
+  return `POLYGON((${coords.map(([lo, la]) => `${lo} ${la}`).join(', ')}))`
 }
 
 // Fallback when Mapbox token not configured — lower precision, no confidence score
