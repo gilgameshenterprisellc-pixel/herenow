@@ -17,6 +17,7 @@ interface Photo {
   public_url: string
   caption: string | null
   storage_path: string
+  status: string
   created_at: string
 }
 
@@ -25,11 +26,13 @@ export default function VenueGalleryScreen() {
   const { showToast } = useToast()
   const [zoneId, setZoneId]     = useState<string | null>(null)
   const [ownerId, setOwnerId]   = useState<string | null>(null)
-  const [photos, setPhotos]     = useState<Photo[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [noZone, setNoZone]     = useState(false)
+  const [photos, setPhotos]           = useState<Photo[]>([])
+  const [pending, setPending]         = useState<Photo[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [refreshing, setRefreshing]   = useState(false)
+  const [uploading, setUploading]     = useState(false)
+  const [noZone, setNoZone]           = useState(false)
+  const [reviewingId, setReviewingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -43,11 +46,13 @@ export default function VenueGalleryScreen() {
 
     const { data } = await supabase
       .from('venue_photos')
-      .select('id, public_url, caption, storage_path, created_at')
+      .select('id, public_url, caption, storage_path, status, created_at')
       .eq('zone_id', zone.id)
       .order('created_at', { ascending: false })
 
-    setPhotos((data ?? []) as Photo[])
+    const all = (data ?? []) as Photo[]
+    setPhotos(all.filter((p) => p.status === 'approved'))
+    setPending(all.filter((p) => p.status === 'pending'))
     setLoading(false)
     setRefreshing(false)
   }, [])
@@ -154,6 +159,31 @@ export default function VenueGalleryScreen() {
     )
   }
 
+  const handleApprove = async (photo: Photo) => {
+    setReviewingId(photo.id)
+    await supabase.from('venue_photos').update({ status: 'approved' }).eq('id', photo.id)
+    setPending((prev) => prev.filter((p) => p.id !== photo.id))
+    setPhotos((prev) => [{ ...photo, status: 'approved' }, ...prev])
+    showToast('Photo approved and added to gallery.', 'success')
+    setReviewingId(null)
+  }
+
+  const handleReject = (photo: Photo) => {
+    platformConfirm(
+      'Reject submission?',
+      'The photo will be deleted and removed from your queue.',
+      async () => {
+        setReviewingId(photo.id)
+        await supabase.storage.from('venue-media').remove([photo.storage_path])
+        await supabase.from('venue_photos').delete().eq('id', photo.id)
+        setPending((prev) => prev.filter((p) => p.id !== photo.id))
+        showToast('Submission rejected.', 'info')
+        setReviewingId(null)
+      },
+      { confirmText: 'Reject', destructive: true }
+    )
+  }
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
@@ -197,25 +227,58 @@ export default function VenueGalleryScreen() {
             <Text style={styles.emptyTitle}>Gallery not available</Text>
             <Text style={styles.emptySub}>Your venue isn't set up yet or your account isn't linked as the venue owner. Contact support if this looks wrong.</Text>
           </View>
-        ) : photos.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📸</Text>
-            <Text style={styles.emptyTitle}>No photos yet</Text>
-            <Text style={styles.emptySub}>Add photos to give guests a feel for your space before they arrive.</Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={handleAdd}>
-              <Text style={styles.emptyBtnText}>Add First Photo</Text>
-            </TouchableOpacity>
-          </View>
         ) : (
-          <View style={styles.grid}>
-            {photos.map((p) => (
-              <View key={p.id} style={styles.photoCell}>
-                <Image source={{ uri: p.public_url }} style={styles.photo} resizeMode="cover" />
-                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(p)}>
-                  <Text style={styles.deleteBtnText}>✕</Text>
+          <View style={styles.sections}>
+            {/* Pending submissions */}
+            {pending.length > 0 && (
+              <View style={styles.pendingSection}>
+                <Text style={styles.pendingLabel}>PENDING REVIEW ({pending.length})</Text>
+                {pending.map((p) => (
+                  <View key={p.id} style={styles.pendingCard}>
+                    <Image source={{ uri: p.public_url }} style={styles.pendingPhoto} resizeMode="cover" />
+                    <View style={styles.pendingActions}>
+                      <TouchableOpacity
+                        style={[styles.approveBtn, reviewingId === p.id && { opacity: 0.5 }]}
+                        onPress={() => handleApprove(p)}
+                        disabled={reviewingId === p.id}
+                      >
+                        <Text style={styles.approveBtnText}>✓ Approve</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.rejectBtn, reviewingId === p.id && { opacity: 0.5 }]}
+                        onPress={() => handleReject(p)}
+                        disabled={reviewingId === p.id}
+                      >
+                        <Text style={styles.rejectBtnText}>✕ Reject</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Approved gallery */}
+            {photos.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>📸</Text>
+                <Text style={styles.emptyTitle}>No photos yet</Text>
+                <Text style={styles.emptySub}>Add photos to give guests a feel for your space before they arrive.</Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={handleAdd}>
+                  <Text style={styles.emptyBtnText}>Add First Photo</Text>
                 </TouchableOpacity>
               </View>
-            ))}
+            ) : (
+              <View style={styles.grid}>
+                {photos.map((p) => (
+                  <View key={p.id} style={styles.photoCell}>
+                    <Image source={{ uri: p.public_url }} style={styles.photo} resizeMode="cover" />
+                    <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(p)}>
+                      <Text style={styles.deleteBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -268,4 +331,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 12, marginTop: 8,
   },
   emptyBtnText: { color: '#050A15', fontWeight: '800', fontSize: 14 },
+  sections: { gap: 20 },
+  pendingSection: { gap: 10 },
+  pendingLabel: {
+    fontSize: 11, fontWeight: '700', color: '#f59e0b',
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  pendingCard: {
+    backgroundColor: '#0D1B2E', borderRadius: 14,
+    borderWidth: 1, borderColor: '#f59e0b30', overflow: 'hidden',
+  },
+  pendingPhoto: { width: '100%', aspectRatio: 16 / 9 },
+  pendingActions: {
+    flexDirection: 'row', gap: 10, padding: 12,
+  },
+  approveBtn: {
+    flex: 1, backgroundColor: '#22c55e18', borderRadius: 10,
+    paddingVertical: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: '#22c55e40',
+  },
+  approveBtnText: { color: '#22c55e', fontWeight: '700', fontSize: 14 },
+  rejectBtn: {
+    flex: 1, backgroundColor: '#ef444418', borderRadius: 10,
+    paddingVertical: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: '#ef444440',
+  },
+  rejectBtnText: { color: '#ef4444', fontWeight: '700', fontSize: 14 },
 })
