@@ -112,21 +112,28 @@ export async function checkOut(sessionId: string): Promise<void> {
   )
 
   // Deactivate session
-  await supabase
+  const { error: sessionError } = await supabase
     .from('sessions')
     .update({ is_active: false, checked_out_at: checkedOutAt })
     .eq('id', sessionId)
     .eq('user_id', user.id)
 
+  if (sessionError) {
+    console.error('[sessions] checkOut — failed to deactivate session:', sessionError.message)
+    throw new Error(sessionError.message)
+  }
+
   // Unlock DM windows for all confirmed We Mets from this session
   await unlockWeMetsOnCheckout(sessionId)
 
   // Mark not present in zone_members
-  await supabase
+  const { error: memberError } = await supabase
     .from('zone_members')
     .update({ is_present: false, last_seen_at: checkedOutAt })
     .eq('zone_id', session.zone_id)
     .eq('user_id', user.id)
+
+  if (memberError) console.error('[sessions] checkOut — zone_members update error:', memberError.message)
 
   // Count We Met confirmations during this session
   const { count: wemetCount } = await supabase
@@ -164,7 +171,7 @@ export async function checkOut(sessionId: string): Promise<void> {
   }
 
   // Create afterglow record
-  await supabase.from('afterglow').insert({
+  const { error: afterglowError } = await supabase.from('afterglow').insert({
     session_id: sessionId,
     user_id: user.id,
     zone_id: session.zone_id,
@@ -174,6 +181,8 @@ export async function checkOut(sessionId: string): Promise<void> {
     people_count: peopleCount ?? 0,
     highlights,
   })
+
+  if (afterglowError) console.error('[sessions] checkOut — afterglow insert error:', afterglowError.message)
 }
 
 export async function getActiveSession(): Promise<Session | null> {

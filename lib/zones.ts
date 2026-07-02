@@ -78,7 +78,7 @@ export async function createZone(params: {
 export async function searchZonesByName(query: string): Promise<Zone[]> {
   const { data, error } = await supabase
     .from('zones')
-    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count')
+    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours')
     .eq('is_active', true)
     .ilike('name', `%${query}%`)
     .limit(20)
@@ -91,8 +91,8 @@ export async function searchZonesByName(query: string): Promise<Zone[]> {
   return (data ?? []).map(z => ({
     ...z,
     distance_meters:      null,
-    chips:                (z as any).chips ?? [],
-    opening_hours:        (z as any).opening_hours ?? null,
+    chips:                z.chips ?? [],
+    opening_hours:        z.opening_hours ?? null,
     next_event_title:     null,
     next_event_starts_at: null,
   }))
