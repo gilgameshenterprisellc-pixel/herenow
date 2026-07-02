@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { geocodeAddress, fetchBuildingPolygon, geocodeNominatim } from '@/lib/geocoding'
+import { PolygonDrawMap } from '@/components/PolygonDrawMap'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -136,6 +137,10 @@ export default function AdminVenues() {
   // Live venue polygon refresh
   const [refreshingPolygon, setRefreshingPolygon] = useState<string | null>(null)
   const [polygonStatus, setPolygonStatus] = useState<Record<string, 'found' | 'notfound' | 'error'>>({})
+
+  // Manual polygon drawing
+  const [drawingPolygon, setDrawingPolygon] = useState<string | null>(null)
+  const [savingDrawnPolygon, setSavingDrawnPolygon] = useState<string | null>(null)
 
   // Live venue zone editing
   const [editingLive, setEditingLive]           = useState<string | null>(null)
@@ -461,6 +466,28 @@ export default function AdminVenues() {
       showToast('Network error fetching polygon.', 'error')
     } finally {
       setRefreshingPolygon(null)
+    }
+  }
+
+  // ── Manual polygon draw ───────────────────────────────────────────────────
+
+  const handlePolygonDrawn = async (venue: LiveVenue, wkt: string) => {
+    if (!venue.zone?.id) {
+      showToast('No zone on file for this venue.', 'error')
+      return
+    }
+    setSavingDrawnPolygon(venue.id)
+    const { error } = await supabase
+      .from('zones')
+      .update({ building_polygon: wkt, polygon_source: 'manual' })
+      .eq('id', venue.zone.id)
+    setSavingDrawnPolygon(null)
+    if (error) {
+      showToast('Failed to save polygon: ' + error.message, 'error')
+    } else {
+      setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'found' }))
+      setDrawingPolygon(null)
+      showToast(`✏️ Manual polygon saved for ${venue.display_name}!`, 'success')
     }
   }
 
@@ -882,6 +909,45 @@ export default function AdminVenues() {
                         )}
                         {polygonStatus[venue.id] === 'error' && (
                           <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 2 }}>✗ Error refreshing polygon. Check connection and retry.</Text>
+                        )}
+
+                        {/* Manual polygon draw — web only, no OSM dependency */}
+                        {Platform.OS === 'web' && venue.zone?.center_lat && venue.zone?.center_lng && (
+                          <>
+                            <TouchableOpacity
+                              style={[
+                                styles.polygonRefreshBtn,
+                                { marginTop: 6, backgroundColor: drawingPolygon === venue.id ? '#1e293b' : '#0f1f38' },
+                                savingDrawnPolygon === venue.id && styles.btnDisabled,
+                              ]}
+                              onPress={() => setDrawingPolygon(drawingPolygon === venue.id ? null : venue.id)}
+                            >
+                              <Text style={[styles.polygonRefreshBtnText, { color: drawingPolygon === venue.id ? '#94a3b8' : '#f59e0b' }]}>
+                                {drawingPolygon === venue.id ? '✕ Cancel Drawing' : '✏️ Draw Polygon Manually'}
+                              </Text>
+                            </TouchableOpacity>
+
+                            {drawingPolygon === venue.id && (
+                              <View style={{ marginTop: 6 }}>
+                                <Text style={{ color: '#94a3b8', fontSize: 11, marginBottom: 4 }}>
+                                  Click the map to place points around the building outline. Place 3+ points then hit Complete.
+                                </Text>
+                                {savingDrawnPolygon === venue.id ? (
+                                  <View style={{ alignItems: 'center', padding: 16 }}>
+                                    <ActivityIndicator color="#f59e0b" />
+                                    <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 8 }}>Saving polygon…</Text>
+                                  </View>
+                                ) : (
+                                  <PolygonDrawMap
+                                    lat={venue.zone.center_lat!}
+                                    lng={venue.zone.center_lng!}
+                                    onPolygon={(wkt) => handlePolygonDrawn(venue, wkt)}
+                                    onClear={() => {}}
+                                  />
+                                )}
+                              </View>
+                            )}
+                          </>
                         )}
 
                         {isEditing && (
