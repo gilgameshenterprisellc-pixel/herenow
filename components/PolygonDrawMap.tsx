@@ -45,28 +45,33 @@ export function PolygonDrawMap({ lat, lng, onPolygon, onClear }: Props) {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     html,body,#map{margin:0;padding:0;height:100%;background:#0d1117}
-    #toolbar{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:8px}
-    button{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700}
+    #toolbar{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    button{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700}
     #btn-complete{background:#f59e0b;color:#000}
+    #btn-undo{background:#1e3a5f;color:#7dd3fc}
     #btn-clear{background:#374151;color:#fff}
-    #btn-complete:disabled{opacity:0.35;cursor:default}
-    #info{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(0,0,0,0.8);color:#fff;padding:5px 14px;border-radius:6px;font-size:12px;white-space:nowrap;font-family:sans-serif}
+    #btn-complete:disabled,#btn-undo:disabled{opacity:0.35;cursor:default}
+    #info{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(0,0,0,0.85);color:#fff;padding:5px 14px;border-radius:6px;font-size:12px;white-space:nowrap;font-family:sans-serif}
+    #zoom-hint{position:absolute;top:36px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(0,0,0,0.6);color:#94a3b8;padding:3px 10px;border-radius:5px;font-size:11px;white-space:nowrap;font-family:sans-serif}
   </style>
 </head>
 <body>
 <div id="map"></div>
 <div id="info">Click to place points · 3+ points to complete</div>
+<div id="zoom-hint">Scroll to zoom in for precision</div>
 <div id="toolbar">
+  <button id="btn-undo" disabled onclick="undoLast()">↩ Undo</button>
   <button id="btn-clear" onclick="clearAll()">Clear</button>
   <button id="btn-complete" disabled onclick="complete()">Complete Polygon ✓</button>
 </div>
 <script>
-var map=L.map('map',{zoomControl:true}).setView([${lat},${lng}],18)
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map)
+var map=L.map('map',{zoomControl:true,maxZoom:22}).setView([${lat},${lng}],19)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:22}).addTo(map)
 var pts=[],markers=[],polyline=null,poly=null
 
 function redraw(){
   document.getElementById('btn-complete').disabled=pts.length<3
+  document.getElementById('btn-undo').disabled=pts.length===0
   document.getElementById('info').textContent=
     pts.length===0?'Click to place points · 3+ points to complete':
     pts.length<3?pts.length+' point(s) — need at least 3':
@@ -90,6 +95,14 @@ map.on('click',function(e){
   redraw()
 })
 
+function undoLast(){
+  if(pts.length===0)return
+  pts.pop()
+  var last=markers.pop()
+  if(last)map.removeLayer(last)
+  redraw()
+}
+
 function complete(){
   if(pts.length<3)return
   window.parent.postMessage({type:'herenow_polygon',points:pts.slice()},'*')
@@ -111,7 +124,7 @@ function clearAll(){
     <iframe
       ref={iframeRef}
       srcDoc={html}
-      style={{ width: '100%', height: 360, border: 'none', borderRadius: 10, marginTop: 8 }}
+      style={{ width: '100%', height: 480, border: 'none', borderRadius: 10, marginTop: 8 }}
       title="Draw building polygon"
       sandbox="allow-scripts"
     />
