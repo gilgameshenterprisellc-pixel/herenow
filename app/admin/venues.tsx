@@ -859,7 +859,7 @@ export default function AdminVenues() {
                           <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 2 }}>✓ Polygon saved — precise check-in active</Text>
                         )}
                         {polygonStatus[venue.id] === 'notfound' && (
-                          <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>⚠ No building found in OSM within 100m — check-in still uses circle radius</Text>
+                          <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>⚠ No building found in OSM within 200m — check-in still uses circle radius</Text>
                         )}
                         {polygonStatus[venue.id] === 'error' && (
                           <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 2 }}>✗ Error refreshing polygon. Check connection and retry.</Text>
