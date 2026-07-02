@@ -212,7 +212,7 @@ export default function AdminVenues() {
         zoneType:   z?.type ?? v.venue_type ?? 'venue',
         lat:        z?.center_lat?.toString() ?? v.venue_lat?.toString()  ?? '',
         lng:        z?.center_lng?.toString() ?? v.venue_lng?.toString()  ?? '',
-        radius:     z?.radius_meters?.toString() ?? '75',
+        radius:     z?.radius_meters?.toString() ?? '10',
         polygonWkt: '',
       }
     }
@@ -241,7 +241,7 @@ export default function AdminVenues() {
         zoneType:   z?.type ?? v.venue_type ?? 'venue',
         lat:        z?.center_lat?.toString()  ?? '',
         lng:        z?.center_lng?.toString()  ?? '',
-        radius:     z?.radius_meters?.toString() ?? '75',
+        radius:     z?.radius_meters?.toString() ?? '10',
         polygonWkt: '',
       }
     }
@@ -651,7 +651,7 @@ export default function AdminVenues() {
           ) : (
             pending.map((venue) => {
               const isOpen = expanded === venue.id
-              const form   = forms[venue.id] ?? { zoneName: '', zoneType: 'venue', lat: '', lng: '', radius: '75', polygonWkt: '' }
+              const form   = forms[venue.id] ?? { zoneName: '', zoneType: 'venue', lat: '', lng: '', radius: '10', polygonWkt: '' }
               const busy   = submitting === venue.id
               const badge = confidenceBadge(venue.venue_geocode_confidence)
               return (
@@ -778,12 +778,12 @@ export default function AdminVenues() {
                         style={styles.input}
                         value={form.radius}
                         onChangeText={(v) => updateForm(venue.id, 'radius', v)}
-                        placeholder="e.g. 75"
+                        placeholder="e.g. 10"
                         placeholderTextColor="#4A6580"
                         keyboardType="number-pad"
                       />
                       <Text style={styles.radiusHint}>
-                        Typical: 75m for a bar/club, 150–200m for a park or outdoor venue.
+                        Polygon venues: 10m · Indoor no-polygon: 10–30m · Outdoor: 50–150m
                       </Text>
 
                       <View style={styles.actions}>
@@ -822,7 +822,7 @@ export default function AdminVenues() {
             live.map((venue) => {
               const toggling  = togglingId === venue.id
               const isEditing = editingLive === venue.id
-              const editForm  = liveForms[venue.id] ?? { zoneName: venue.display_name, zoneType: venue.venue_type ?? 'venue', lat: '', lng: '', radius: '75', polygonWkt: '' }
+              const editForm  = liveForms[venue.id] ?? { zoneName: venue.display_name, zoneType: venue.venue_type ?? 'venue', lat: '', lng: '', radius: '10', polygonWkt: '' }
               const editBusy  = editSubmitting === venue.id
               return (
                 <View key={venue.id} style={styles.card}>
@@ -1045,7 +1045,7 @@ export default function AdminVenues() {
                               placeholderTextColor="#4A6580"
                               keyboardType="number-pad"
                             />
-                            <Text style={styles.radiusHint}>Typical: 75m bar/club · 150–200m outdoor</Text>
+                            <Text style={styles.radiusHint}>Polygon venues: 10m · Indoor no-polygon: 10–30m · Outdoor: 50–150m</Text>
 
                             <TouchableOpacity
                               style={[styles.approveBtn, editBusy && styles.btnDisabled]}
