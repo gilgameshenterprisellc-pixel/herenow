@@ -24,7 +24,7 @@ function formatDuration(mins: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`
 }
 
-export default function AftergowScreen() {
+export default function AfterglowScreen() {
   const { sessionId }  = useLocalSearchParams<{ sessionId: string }>()
   const [glow, setGlow] = useState<Afterglow | null>(null)
   const [loading, setLoading] = useState(true)

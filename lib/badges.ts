@@ -86,8 +86,6 @@ export async function checkAndAwardBadges(
   )
 
   if (trigger === 'checkin') {
-    if (!earned.has('first_checkin')) await awardBadge('first_checkin')
-
     const hour = new Date().getHours()
     if (hour >= 0 && hour < 5 && !earned.has('night_owl')) await awardBadge('night_owl')
     if (hour >= 5 && hour < 9 && !earned.has('early_bird')) await awardBadge('early_bird')

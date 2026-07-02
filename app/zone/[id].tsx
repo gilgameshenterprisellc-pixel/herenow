@@ -88,7 +88,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt')
         .eq('id', id)
         .maybeSingle()
 
@@ -360,7 +360,7 @@ export default function ZoneScreen() {
         <View style={styles.headerInfo}>
           <Text style={styles.zoneName}>{zone?.name}</Text>
           <Text style={styles.zoneMeta}>
-            {zone?.opening_hours ?? `${zone?.radius_meters}m radius`}
+            {zone?.opening_hours ?? (zone?.polygon_wkt ? 'Polygon Venue' : `${zone?.radius_meters}m radius`)}
           </Text>
         </View>
         <TouchableOpacity
