@@ -145,6 +145,19 @@ function loadLeaflet(): Promise<any> {
   })
 }
 
+// Parse PostGIS WKT POLYGON((lng lat, ...)) → Leaflet [lat, lng][] ring
+function parseWktRing(wkt: string | null | undefined): [number, number][] {
+  if (!wkt) return []
+  const m = wkt.match(/POLYGON\s*\(\(([^)]+)\)\)/i)
+  if (!m) return []
+  return m[1].split(',').flatMap(pair => {
+    const parts = pair.trim().split(/\s+/)
+    const lng = parseFloat(parts[0])
+    const lat = parseFloat(parts[1])
+    return isNaN(lat) || isNaN(lng) ? [] : [[lat, lng] as [number, number]]
+  })
+}
+
 export default function WebMap({
   zones, location, selectedId, onPinPress, subscribedIds, onMapMove, recenterTick,
 }: Props) {
@@ -153,6 +166,7 @@ export default function WebMap({
   const leafletRef      = useRef<any>(null)
   const markersRef      = useRef<Map<string, any>>(new Map())
   const circlesRef      = useRef<Map<string, any>>(new Map())
+  const polygonsRef     = useRef<Map<string, any>>(new Map())
   const userMarkerRef   = useRef<any>(null)
   const mapReadyRef     = useRef(false)
   const isPanningRef    = useRef(false)
@@ -175,37 +189,63 @@ export default function WebMap({
   function syncZones(L: any, map: any) {
     circlesRef.current.forEach(c => c.remove())
     circlesRef.current.clear()
+    polygonsRef.current.forEach(p => p.remove())
+    polygonsRef.current.clear()
     markersRef.current.forEach(m => m.remove())
     markersRef.current.clear()
 
     zonesRef.current.forEach(zone => {
       const tier   = getTier(zone, subscribedIdsRef.current)
       const { color, heatOpacity } = TIER_STYLE[tier]
-      const coreRadius = zone.radius_meters ?? 20
-      const glowRadius = coreRadius * 2  // subtle atmospheric ring behind the pin
+      const ring   = parseWktRing(zone.polygon_wkt)
 
-      // Outer atmospheric glow — visible even when zoomed out
-      const outerGlow = L.circle([zone.center_lat, zone.center_lng], {
-        radius: glowRadius,
-        color: 'transparent',
-        fillColor: color,
-        fillOpacity: heatOpacity * 0.3,
-        weight: 0,
-        interactive: false,
-      }).addTo(map)
-      circlesRef.current.set(`${zone.id}_glow`, outerGlow)
+      if (ring.length >= 3) {
+        // Polygon outline — replaces the radius circle when building footprint exists
+        const outerGlow = L.polygon(ring, {
+          color: 'transparent',
+          fillColor: color,
+          fillOpacity: heatOpacity * 0.25,
+          weight: 0,
+          interactive: false,
+        }).addTo(map)
+        polygonsRef.current.set(`${zone.id}_glow`, outerGlow)
 
-      // Inner zone boundary circle — clear border, stronger fill
-      const circle = L.circle([zone.center_lat, zone.center_lng], {
-        radius: coreRadius,
-        color,
-        fillColor: color,
-        fillOpacity: heatOpacity,
-        weight: 2,
-        opacity: 0.7,
-        interactive: false,
-      }).addTo(map)
-      circlesRef.current.set(zone.id, circle)
+        const poly = L.polygon(ring, {
+          color,
+          fillColor: color,
+          fillOpacity: heatOpacity * 0.6,
+          weight: 2,
+          opacity: 0.85,
+          dashArray: undefined,
+          interactive: false,
+        }).addTo(map)
+        polygonsRef.current.set(zone.id, poly)
+      } else {
+        // Fallback: draw the radius circle when no polygon is available
+        const coreRadius = zone.radius_meters ?? 20
+        const glowRadius = coreRadius * 2
+
+        const outerGlow = L.circle([zone.center_lat, zone.center_lng], {
+          radius: glowRadius,
+          color: 'transparent',
+          fillColor: color,
+          fillOpacity: heatOpacity * 0.3,
+          weight: 0,
+          interactive: false,
+        }).addTo(map)
+        circlesRef.current.set(`${zone.id}_glow`, outerGlow)
+
+        const circle = L.circle([zone.center_lat, zone.center_lng], {
+          radius: coreRadius,
+          color,
+          fillColor: color,
+          fillOpacity: heatOpacity,
+          weight: 2,
+          opacity: 0.7,
+          interactive: false,
+        }).addTo(map)
+        circlesRef.current.set(zone.id, circle)
+      }
 
       const icon   = makeIcon(L, zone, zone.id === selectedIdRef.current, subscribedIdsRef.current)
       const marker = L.marker([zone.center_lat, zone.center_lng], { icon })

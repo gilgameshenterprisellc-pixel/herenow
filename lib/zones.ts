@@ -14,6 +14,7 @@ export interface Zone {
   opening_hours: string | null
   next_event_title: string | null
   next_event_starts_at: string | null
+  polygon_wkt: string | null
 }
 
 export async function fetchNearbyZones(
@@ -72,13 +73,14 @@ export async function createZone(params: {
     opening_hours:        null,
     next_event_title:     null,
     next_event_starts_at: null,
+    polygon_wkt:          null,
   }
 }
 
 export async function searchZonesByName(query: string): Promise<Zone[]> {
   const { data, error } = await supabase
     .from('zones')
-    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours')
+    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours, polygon_wkt')
     .eq('is_active', true)
     .ilike('name', `%${query}%`)
     .limit(20)
@@ -95,6 +97,7 @@ export async function searchZonesByName(query: string): Promise<Zone[]> {
     opening_hours:        z.opening_hours ?? null,
     next_event_title:     null,
     next_event_starts_at: null,
+    polygon_wkt:          z.polygon_wkt ?? null,
   }))
 }
 
