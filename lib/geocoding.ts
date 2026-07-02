@@ -68,9 +68,7 @@ export async function fetchBuildingPolygon(
   lat: number,
   lng: number,
 ): Promise<BuildingPolygon | null> {
-  // Query both ways and relations — small buildings are usually ways, larger ones
-  // (or ones recently added by editors using the relation/multipolygon type) are relations.
-  // Use 200m radius: Mapbox geocoding can land 100-150m from the actual building footprint
+  // 200m radius: Mapbox geocoding can land 100-150m from the actual building footprint
   // on dense city blocks, so 100m was causing misses on correctly-drawn OSM buildings.
   const query =
     `[out:json][timeout:15];` +
@@ -85,10 +83,14 @@ export async function fetchBuildingPolygon(
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body:    `data=${encodeURIComponent(query)}`,
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.error('[geocoding] Overpass HTTP error:', res.status, res.statusText)
+      return null
+    }
 
     const json = await res.json()
     const elements: any[] = json.elements ?? []
+    console.log(`[geocoding] Overpass returned ${elements.length} element(s) near (${lat}, ${lng})`)
 
     // ── Try ways first (most common for simple buildings) ──────────────────────
     const ways = elements.filter(
@@ -111,7 +113,8 @@ export async function fetchBuildingPolygon(
     }
 
     return null
-  } catch {
+  } catch (err) {
+    console.error('[geocoding] fetchBuildingPolygon error:', err)
     return null
   }
 }
@@ -127,8 +130,11 @@ function buildWktFromNodes(nodes: Array<{ lat: number; lon: number }>): string |
   return `POLYGON((${coords.map(([lo, la]) => `${lo} ${la}`).join(', ')}))`
 }
 
-// Fallback when Mapbox token not configured — lower precision, no confidence score
-async function geocodeNominatim(
+// Fallback when Mapbox token not configured — lower precision, no confidence score.
+// Also used as a secondary coordinate source for polygon refresh: Nominatim derives
+// coordinates from OSM data itself, so they land much closer to the actual building
+// footprint in OSM than Mapbox street-center coordinates do.
+export async function geocodeNominatim(
   address: string,
   suite:   string,
   city:    string,
