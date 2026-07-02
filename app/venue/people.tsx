@@ -119,7 +119,7 @@ export default function VenuePeopleScreen() {
           next[promoId].delete(userId)
           return next
         })
-        showToast(`${personName}'s "${promoTitle}" redeemption removed.`, 'info')
+        showToast(`${personName}'s "${promoTitle}" redemption removed.`, 'info')
       }
     } else {
       // Mark as redeemed

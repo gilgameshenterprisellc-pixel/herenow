@@ -169,7 +169,7 @@ export default function SignupScreen() {
         p_lng:         coords.lng,
         p_name:        venueName.trim(),
         p_type:        mappedType,
-        p_radius:      75,
+        p_radius:      10,
         p_polygon_wkt: polygon?.wkt ?? null,
       })
       if (approveError) {
