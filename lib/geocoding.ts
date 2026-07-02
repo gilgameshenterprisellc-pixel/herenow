@@ -70,12 +70,13 @@ export async function fetchBuildingPolygon(
 ): Promise<BuildingPolygon | null> {
   // Query both ways and relations — small buildings are usually ways, larger ones
   // (or ones recently added by editors using the relation/multipolygon type) are relations.
-  // Use 100m radius so slight geocoding offsets don't miss the building.
+  // Use 200m radius: Mapbox geocoding can land 100-150m from the actual building footprint
+  // on dense city blocks, so 100m was causing misses on correctly-drawn OSM buildings.
   const query =
     `[out:json][timeout:15];` +
     `(` +
-    `  way["building"](around:100,${lat},${lng});` +
-    `  relation["building"](around:100,${lat},${lng});` +
+    `  way["building"](around:200,${lat},${lng});` +
+    `  relation["building"](around:200,${lat},${lng});` +
     `);out geom;`
 
   try {
