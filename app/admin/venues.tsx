@@ -450,13 +450,14 @@ export default function AdminVenues() {
         setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'notfound' }))
         return
       }
-      const { error } = await supabase
-        .from('zones')
-        .update({ building_polygon: polygon.wkt, polygon_source: 'osm' })
-        .eq('id', venue.zone.id)
-      if (error) {
+      // Must use RPC (SECURITY DEFINER) because the zones table RLS only
+      // allows the zone's created_by user to update — not the admin.
+      // The RPC also uses ST_GeogFromText() for the correct PostGIS cast.
+      const { data: saved, error } = await supabase
+        .rpc('admin_save_polygon', { p_zone_id: venue.zone.id, p_wkt: polygon.wkt, p_source: 'osm' })
+      if (error || !saved) {
         setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'error' }))
-        showToast('Failed to save polygon: ' + error.message, 'error')
+        showToast('Failed to save polygon: ' + (error?.message ?? 'RPC returned false'), 'error')
       } else {
         setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'found' }))
         showToast(`🏢 Polygon saved for ${venue.display_name}!`, 'success')
@@ -477,13 +478,14 @@ export default function AdminVenues() {
       return
     }
     setSavingDrawnPolygon(venue.id)
-    const { error } = await supabase
-      .from('zones')
-      .update({ building_polygon: wkt, polygon_source: 'manual' })
-      .eq('id', venue.zone.id)
+    // Must use RPC (SECURITY DEFINER) because the zones table RLS only
+    // allows the zone's created_by user to update — not the admin.
+    // The RPC also uses ST_GeogFromText() for the correct PostGIS cast.
+    const { data: saved, error } = await supabase
+      .rpc('admin_save_polygon', { p_zone_id: venue.zone.id, p_wkt: wkt, p_source: 'manual' })
     setSavingDrawnPolygon(null)
-    if (error) {
-      showToast('Failed to save polygon: ' + error.message, 'error')
+    if (error || !saved) {
+      showToast('Failed to save polygon: ' + (error?.message ?? 'RPC returned false'), 'error')
     } else {
       setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'found' }))
       setDrawingPolygon(null)
