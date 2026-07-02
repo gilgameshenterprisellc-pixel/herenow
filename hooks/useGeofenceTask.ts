@@ -65,7 +65,7 @@ export function useGeofenceTask() {
         // Use at least 150m for background wake-up so the OS fires the event
         // before the user reaches the door. The precise polygon check happens
         // when the user taps Check In — via user_in_zone() in the DB.
-        radius: Math.max(z.radius_meters ?? 75, 150),
+        radius: Math.max(z.radius_meters ?? 10, 150),
       }))
 
       await Location.startGeofencingAsync(GEOFENCE_TASK, regions)

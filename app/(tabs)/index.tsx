@@ -384,8 +384,9 @@ export default function NearbyScreen() {
           {/* CTA — disabled with directions link when user is out of range */}
           {(() => {
             const dist = selectedZone.distance_meters
-            const radius = selectedZone.radius_meters ?? 75
-            const inRange = dist == null || dist <= radius * 1.3  // 30% buffer for GPS drift
+            const radius = selectedZone.radius_meters ?? 10
+            // Polygon venues: always show Enter button — user_in_zone() gates precisely at check-in
+            const inRange = dist == null || !!selectedZone.polygon_wkt || dist <= radius * 1.3
             if (inRange) {
               return (
                 <TouchableOpacity style={preview.enterBtn} onPress={handlePreviewEnter}>
