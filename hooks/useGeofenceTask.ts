@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Platform } from 'react-native'
 import { supabase } from '@/lib/supabase'
+import { checkOut } from '@/lib/sessions'
 
 export const GEOFENCE_TASK = 'HERENOW_GEOFENCE_TASK'
 
@@ -22,11 +23,35 @@ if (Platform.OS !== 'web') {
     const isEntering = eventType === Location.GeofencingEventType.Enter
     const zoneId = region.identifier
 
-    await supabase
-      .from('zone_members')
-      .update({ is_present: isEntering, last_seen_at: new Date().toISOString() })
-      .eq('zone_id', zoneId)
-      .eq('user_id', user.id)
+    if (isEntering) {
+      await supabase
+        .from('zone_members')
+        .update({ is_present: true, last_seen_at: new Date().toISOString() })
+        .eq('zone_id', zoneId)
+        .eq('user_id', user.id)
+    } else {
+      // User left the venue — auto-checkout active session
+      const { data: session } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('zone_id', zoneId)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (session) {
+        await checkOut(session.id).catch((e: unknown) =>
+          console.error('[geofence] auto-checkout error:', e)
+        )
+      } else {
+        // No active session — just clear presence
+        await supabase
+          .from('zone_members')
+          .update({ is_present: false, last_seen_at: new Date().toISOString() })
+          .eq('zone_id', zoneId)
+          .eq('user_id', user.id)
+      }
+    }
   })
 }
 

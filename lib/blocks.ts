@@ -35,10 +35,14 @@ export async function fetchBlockedIds(): Promise<string[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  const { data } = await supabase
-    .from('user_blocks')
-    .select('blocked_id')
-    .eq('blocker_id', user.id)
+  // Mutual blocking: users I blocked + users who blocked me both disappear
+  const [outgoing, incoming] = await Promise.all([
+    supabase.from('user_blocks').select('blocked_id').eq('blocker_id', user.id),
+    supabase.from('user_blocks').select('blocker_id').eq('blocked_id', user.id),
+  ])
 
-  return data?.map((r) => r.blocked_id) ?? []
+  const ids = new Set<string>()
+  outgoing.data?.forEach((r) => ids.add(r.blocked_id))
+  incoming.data?.forEach((r) => ids.add(r.blocker_id))
+  return Array.from(ids)
 }
