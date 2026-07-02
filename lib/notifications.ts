@@ -62,7 +62,16 @@ export async function getUnreadCount(): Promise<number> {
   return count ?? 0
 }
 
-// Unified helper: inserts in-app row + fires push (best-effort)
+async function getUserNotifPrefs(userId: string): Promise<Record<string, boolean>> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('notification_prefs')
+    .eq('id', userId)
+    .maybeSingle()
+  return (data?.notification_prefs as Record<string, boolean>) ?? {}
+}
+
+// Unified helper: always inserts in-app row; fires push only if user has that type enabled
 export async function sendNotification(params: {
   userId: string
   type: string
@@ -78,5 +87,10 @@ export async function sendNotification(params: {
     data:    params.data ?? {},
   })
 
-  sendPushToUser(params.userId, params.title, params.body, params.data).catch(() => {})
+  // Default all types to enabled; user can opt out in Settings → Notifications
+  const prefs = await getUserNotifPrefs(params.userId)
+  const pushEnabled = prefs[params.type] !== false
+  if (pushEnabled) {
+    sendPushToUser(params.userId, params.title, params.body, params.data).catch(() => {})
+  }
 }

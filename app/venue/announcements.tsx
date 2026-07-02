@@ -261,9 +261,9 @@ export default function VenueAnnouncementsScreen() {
             placeholder="e.g. DJ starts at 10pm tonight — come through 🎵"
             placeholderTextColor="#4A6580"
             multiline
-            maxLength={280}
+            maxLength={300}
           />
-          <Text style={styles.charCount}>{message.length}/280</Text>
+          <Text style={styles.charCount}>{message.length}/300</Text>
 
           {/* Image attachment */}
           {localImageUri ? (

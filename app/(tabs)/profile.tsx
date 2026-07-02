@@ -316,6 +316,32 @@ export default function ProfileScreen() {
         </Reanimated.View>
       )}
 
+      {/* Profile completeness */}
+      {!isVenueOwner && (() => {
+        const fields = [
+          !!profile?.avatar_url,
+          !!(profile?.bio?.trim()),
+          (profile?.interest_tags?.length ?? 0) > 0,
+          (profile?.kickoffs?.length ?? 0) > 0,
+          !!profile?.age_range,
+        ]
+        const pct = Math.round((fields.filter(Boolean).length / fields.length) * 100)
+        if (pct >= 100) return null
+        return (
+          <Reanimated.View entering={FadeInDown.delay(155).duration(450)} style={styles.completeWrap}>
+            <View style={styles.completeRow}>
+              <Text style={styles.completeLabel}>Profile {pct}% complete</Text>
+              <TouchableOpacity onPress={() => router.push('/profile/edit')}>
+                <Text style={styles.completeAction}>Finish →</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.completeTrack}>
+              <View style={[styles.completeFill, { width: `${pct}%` as any }]} />
+            </View>
+          </Reanimated.View>
+        )
+      })()}
+
       {/* Edit profile */}
       <Reanimated.View entering={FadeInDown.delay(160).duration(450)}>
         <TouchableOpacity
@@ -519,6 +545,29 @@ const styles = StyleSheet.create({
     borderColor: '#f59e0b44',
   },
   pendingPillText: { fontSize: 11, fontWeight: '700', color: '#f59e0b' },
+  completeWrap: {
+    marginHorizontal: 16,
+    gap: 8,
+  },
+  completeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  completeLabel: { fontSize: 12, color: '#7A93AC', fontWeight: '600' },
+  completeAction: { fontSize: 12, color: '#29B6F6', fontWeight: '700' },
+  completeTrack: {
+    height: 4,
+    backgroundColor: '#0D1B2E',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  completeFill: {
+    height: '100%',
+    backgroundColor: '#29B6F6',
+    borderRadius: 2,
+    minWidth: 4,
+  },
   signOutBtn: {
     marginHorizontal: 16,
     borderWidth: 1,

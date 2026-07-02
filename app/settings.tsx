@@ -56,17 +56,30 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+const DEFAULT_NOTIF_PREFS = {
+  venue_announcement: true,
+  wemet_confirmed:    true,
+  message:            true,
+  dm_expiry:          true,
+}
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets()
-  const [ghostMode, setGhostMode] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
+  const [ghostMode, setGhostMode]       = useState(false)
+  const [userId, setUserId]             = useState<string | null>(null)
+  const [notifPrefs, setNotifPrefs]     = useState(DEFAULT_NOTIF_PREFS)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
-      supabase.from('profiles').select('mood_mode').eq('id', user.id).maybeSingle()
-        .then(({ data }) => setGhostMode(data?.mood_mode === 'not_today'))
+      supabase.from('profiles').select('mood_mode, notification_prefs').eq('id', user.id).maybeSingle()
+        .then(({ data }) => {
+          if (data?.mood_mode) setGhostMode(data.mood_mode === 'not_today')
+          if (data?.notification_prefs) {
+            setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...(data.notification_prefs as typeof DEFAULT_NOTIF_PREFS) })
+          }
+        })
     })
   }, [])
 
@@ -75,6 +88,15 @@ export default function SettingsScreen() {
     if (!userId) return
     await supabase.from('profiles')
       .update({ mood_mode: val ? 'not_today' : 'selective' })
+      .eq('id', userId)
+  }
+
+  const updateNotifPref = async (key: keyof typeof DEFAULT_NOTIF_PREFS, val: boolean) => {
+    const next = { ...notifPrefs, [key]: val }
+    setNotifPrefs(next)
+    if (!userId) return
+    await supabase.from('profiles')
+      .update({ notification_prefs: next })
       .eq('id', userId)
   }
 
@@ -162,6 +184,40 @@ export default function SettingsScreen() {
           />
         </Section>
 
+        <Section title="Notifications">
+          <SettingsRow
+            icon="megaphone-outline"
+            label="Venue Announcements"
+            subtitle="When a venue you follow posts an update"
+            value={notifPrefs.venue_announcement}
+            onValueChange={(v) => updateNotifPref('venue_announcement', v)}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
+            icon="people-outline"
+            label="We Met Confirmed"
+            subtitle="When someone confirms a mutual connection"
+            value={notifPrefs.wemet_confirmed}
+            onValueChange={(v) => updateNotifPref('wemet_confirmed', v)}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
+            icon="mail-outline"
+            label="New Messages"
+            subtitle="When you receive a DM"
+            value={notifPrefs.message}
+            onValueChange={(v) => updateNotifPref('message', v)}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
+            icon="time-outline"
+            label="DM Window Expiring"
+            subtitle="Alert 6 hours before a connection window closes"
+            value={notifPrefs.dm_expiry}
+            onValueChange={(v) => updateNotifPref('dm_expiry', v)}
+          />
+        </Section>
+
         <Section title="Help">
           <SettingsRow
             icon="mail-outline"
@@ -191,7 +247,7 @@ export default function SettingsScreen() {
           />
         </Section>
 
-        <Text style={styles.versionText}>HereNow · Beta</Text>
+        <Text style={styles.versionText}>HereNow</Text>
       </ScrollView>
     </View>
   )
