@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Platform, Animated,
+  ActivityIndicator, RefreshControl, Platform, Animated, TextInput, Switch,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -56,6 +56,9 @@ export default function VenueDashboard() {
   const [denialReason, setDenialReason]   = useState<string | null>(null)
   const [subscriberCount, setSubscriberCount] = useState(0)
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [isClosed, setIsClosed]           = useState(false)
+  const [closureMessage, setClosureMessage] = useState('')
+  const [closureEditing, setClosureEditing] = useState(false)
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -84,6 +87,10 @@ export default function VenueDashboard() {
       setOwnerName(profile?.display_name ?? '')
       const z = zones?.[0] ?? null
       setVenue(z)
+      if (z) {
+        setIsClosed(!!(z as any).is_temporarily_closed)
+        setClosureMessage((z as any).temporary_closure_message ?? '')
+      }
 
       if (z) {
         const { data: sessions } = await supabase
@@ -227,6 +234,18 @@ export default function VenueDashboard() {
     )
   }
 
+  const toggleClosed = async (val: boolean) => {
+    setIsClosed(val)
+    if (!venue) return
+    await supabase.from('zones').update({ is_temporarily_closed: val }).eq('id', venue.id)
+  }
+
+  const saveClosureMessage = async () => {
+    if (!venue) return
+    await supabase.from('zones').update({ temporary_closure_message: closureMessage.trim() || null }).eq('id', venue.id)
+    setClosureEditing(false)
+  }
+
   const topInterests = Object.entries(stats.interests)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
@@ -351,6 +370,61 @@ export default function VenueDashboard() {
             {stats.total === 1 ? 'person checked in' : 'people checked in'}
           </Text>
         </View>
+
+        {/* Temporarily closed toggle */}
+        {venue && (
+          <View style={[styles.closedCard, isClosed && styles.closedCardActive]}>
+            <View style={styles.closedRow}>
+              <View style={styles.closedLeft}>
+                <Text style={[styles.closedLabel, isClosed && styles.closedLabelActive]}>
+                  {isClosed ? '🔴 Temporarily Closed' : '🟢 Open for check-ins'}
+                </Text>
+                <Text style={styles.closedSub}>
+                  {isClosed
+                    ? 'Check-ins are blocked. Guests will see your message.'
+                    : 'Guests can check in normally.'}
+                </Text>
+              </View>
+              <Switch
+                value={isClosed}
+                onValueChange={toggleClosed}
+                trackColor={{ false: '#1A2E4A', true: '#ef444450' }}
+                thumbColor={isClosed ? '#ef4444' : '#f8fafc'}
+              />
+            </View>
+            {isClosed && (
+              <View style={styles.closedMsgWrap}>
+                {closureEditing ? (
+                  <>
+                    <TextInput
+                      style={styles.closedInput}
+                      value={closureMessage}
+                      onChangeText={setClosureMessage}
+                      placeholder="e.g. Private event tonight — back tomorrow at 5pm"
+                      placeholderTextColor="#4A6580"
+                      maxLength={120}
+                    />
+                    <View style={styles.closedActions}>
+                      <TouchableOpacity onPress={() => setClosureEditing(false)}>
+                        <Text style={styles.closedCancel}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.closedSaveBtn} onPress={saveClosureMessage}>
+                        <Text style={styles.closedSaveText}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <TouchableOpacity onPress={() => setClosureEditing(true)} style={styles.closedMsgRow}>
+                    <Text style={styles.closedMsgText} numberOfLines={2}>
+                      {closureMessage.trim() || 'Tap to add a message for guests…'}
+                    </Text>
+                    <Text style={styles.closedEditHint}>Edit</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* No venue set up yet */}
         {!venue && (
@@ -883,4 +957,30 @@ const styles = StyleSheet.create({
   },
   deniedReasonLabel: { fontSize: 11, fontWeight: '700', color: '#ef4444', marginBottom: 4 },
   deniedReasonText: { fontSize: 13, color: '#f8fafc', lineHeight: 18 },
+
+  closedCard: {
+    backgroundColor: '#0D1B2E', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#1A2E4A', gap: 12,
+  },
+  closedCardActive: { borderColor: '#ef444440', backgroundColor: '#1a0808' },
+  closedRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  closedLeft: { flex: 1, gap: 3 },
+  closedLabel: { fontSize: 14, fontWeight: '800', color: '#f8fafc' },
+  closedLabelActive: { color: '#ef4444' },
+  closedSub: { fontSize: 12, color: '#7A93AC', lineHeight: 16 },
+  closedMsgWrap: { gap: 8 },
+  closedInput: {
+    backgroundColor: '#0A1628', borderRadius: 10, padding: 12,
+    color: '#f8fafc', fontSize: 13, borderWidth: 1, borderColor: '#ef444440',
+  },
+  closedActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, alignItems: 'center' },
+  closedCancel: { fontSize: 13, color: '#7A93AC' },
+  closedSaveBtn: {
+    backgroundColor: '#ef4444', borderRadius: 8,
+    paddingHorizontal: 14, paddingVertical: 7,
+  },
+  closedSaveText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  closedMsgRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  closedMsgText: { flex: 1, fontSize: 13, color: '#ef4444', lineHeight: 18, fontStyle: 'italic' },
+  closedEditHint: { fontSize: 12, color: '#7A93AC' },
 })

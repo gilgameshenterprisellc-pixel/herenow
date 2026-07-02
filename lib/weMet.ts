@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { sendNotification } from './notifications'
+import { sendNotification, scheduleDmExpiryAlert } from './notifications'
 
 export interface WeMet {
   id: string
@@ -109,9 +109,27 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
   }
 }
 
-// Called on checkout — opens the 72-hour DM window for all confirmed We Mets from this session
+// Called on checkout — opens the 72-hour DM window for all confirmed We Mets from this session.
+// Also schedules a local dm_expiry alert 6h before each window closes (if user pref enabled).
 export async function unlockWeMetsOnCheckout(sessionId: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
   const dmWindowExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+
+  // Fetch the we_mets being unlocked so we can get partner display names
+  const { data: toUnlock } = await supabase
+    .from('we_met')
+    .select(`
+      id,
+      initiator_id,
+      recipient_id,
+      initiator_profile:profiles!we_met_initiator_id_fkey(display_name),
+      recipient_profile:profiles!we_met_recipient_id_fkey(display_name)
+    `)
+    .eq('status', 'confirmed')
+    .or(`initiator_session_id.eq.${sessionId},recipient_session_id.eq.${sessionId}`)
+    .is('expires_at', null)
 
   await supabase
     .from('we_met')
@@ -119,6 +137,24 @@ export async function unlockWeMetsOnCheckout(sessionId: string): Promise<void> {
     .eq('status', 'confirmed')
     .or(`initiator_session_id.eq.${sessionId},recipient_session_id.eq.${sessionId}`)
     .is('expires_at', null)
+
+  if (!toUnlock || toUnlock.length === 0) return
+
+  // Check user's dm_expiry pref before scheduling any local alerts
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('notification_prefs')
+    .eq('id', user.id)
+    .maybeSingle()
+  const prefs = (profile?.notification_prefs as Record<string, boolean>) ?? {}
+  if (prefs['dm_expiry'] === false) return
+
+  for (const wm of toUnlock as any[]) {
+    const partnerName = wm.initiator_id === user.id
+      ? (wm.initiator_profile?.display_name ?? wm.recipient_profile?.display_name ?? 'your connection')
+      : (wm.recipient_profile?.display_name ?? wm.initiator_profile?.display_name ?? 'your connection')
+    await scheduleDmExpiryAlert(partnerName, dmWindowExpiry).catch(() => {})
+  }
 }
 
 export async function declineWeMet(wemetId: string): Promise<void> {

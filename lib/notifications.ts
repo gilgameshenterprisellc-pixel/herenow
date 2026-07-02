@@ -1,3 +1,4 @@
+import { Platform } from 'react-native'
 import { supabase } from './supabase'
 import { sendPushToUser } from './push'
 
@@ -69,6 +70,34 @@ async function getUserNotifPrefs(userId: string): Promise<Record<string, boolean
     .eq('id', userId)
     .maybeSingle()
   return (data?.notification_prefs as Record<string, boolean>) ?? {}
+}
+
+// Schedules a local device notification 6 hours before a DM window expires.
+// Only fires if the user has dm_expiry pref enabled (default: true).
+// Gated to native only — web has no local notification API.
+export async function scheduleDmExpiryAlert(partnerName: string, expiresAt: string): Promise<void> {
+  if (Platform.OS === 'web') return
+  try {
+    const Notifications = await import('expo-notifications')
+    const secondsUntilAlert = Math.floor(
+      (new Date(expiresAt).getTime() - 6 * 60 * 60 * 1000 - Date.now()) / 1000
+    )
+    if (secondsUntilAlert <= 0) return
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'DM window closing soon ⏰',
+        body:  `Your connection with ${partnerName} expires in 6 hours. Message them before it closes!`,
+        data:  { type: 'dm_expiry' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: secondsUntilAlert,
+        repeats: false,
+      } as any,
+    })
+  } catch (e) {
+    console.warn('[notifications] scheduleDmExpiryAlert error:', e)
+  }
 }
 
 // Unified helper: always inserts in-app row; fires push only if user has that type enabled

@@ -62,11 +62,14 @@ export default function FeedScreen() {
     if (subs.length > 0) {
       const zoneIds = subs.map((s) => s.zone_id)
 
+      const now = new Date().toISOString()
       const [{ data: promos }, { data: annos }] = await Promise.all([
         supabase
           .from('venue_promotions')
           .select('id, zone_id, title, description, discount_label, created_at, zones(name)')
           .in('zone_id', zoneIds)
+          .or(`starts_at.is.null,starts_at.lte.${now}`)
+          .or(`ends_at.is.null,ends_at.gte.${now}`)
           .order('created_at', { ascending: false })
           .limit(20),
         supabase

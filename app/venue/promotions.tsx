@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Platform, RefreshControl, Switch,
 } from 'react-native'
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -16,7 +17,18 @@ interface Promotion {
   discount_label: string | null
   post_to_feed: boolean
   expires_at: string | null
+  starts_at: string | null
+  ends_at: string | null
   created_at: string
+}
+
+type PickerTarget = 'starts' | 'ends' | null
+
+function formatDateTime(date: Date): string {
+  return date.toLocaleString([], {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
 }
 
 export default function VenuePromotionsScreen() {
@@ -33,6 +45,56 @@ export default function VenuePromotionsScreen() {
   const [discountLabel, setDiscountLabel] = useState('')
   const [postToFeed, setPostToFeed] = useState(false)
 
+  // Time window state
+  const [hasTimeWindow, setHasTimeWindow] = useState(false)
+  const [startsAt, setStartsAt]         = useState<Date | null>(null)
+  const [endsAt, setEndsAt]             = useState<Date | null>(null)
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null)
+  const [iosPendingDate, setIosPendingDate]           = useState<Date>(new Date())
+  const [androidStep, setAndroidStep]                 = useState<'date' | 'time'>('date')
+  const [androidPendingDate, setAndroidPendingDate]   = useState<Date>(new Date())
+
+  const openPicker = (target: PickerTarget) => {
+    const now = new Date()
+    const current = target === 'ends'
+      ? (endsAt ?? new Date(now.getTime() + 2 * 60 * 60 * 1000))
+      : (startsAt ?? new Date(now.getTime() + 60 * 60 * 1000))
+    setPickerTarget(target)
+    setIosPendingDate(current)
+    setAndroidPendingDate(current)
+    setAndroidStep('date')
+  }
+
+  const onPickerChange = (_event: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') {
+      if (_event.type !== 'set' || !selected) {
+        setPickerTarget(null)
+        setAndroidStep('date')
+        return
+      }
+      if (androidStep === 'date') {
+        setAndroidPendingDate(selected)
+        setAndroidStep('time')
+      } else {
+        const combined = new Date(androidPendingDate)
+        combined.setHours(selected.getHours(), selected.getMinutes(), 0, 0)
+        if (pickerTarget === 'starts') setStartsAt(combined)
+        else setEndsAt(combined)
+        setPickerTarget(null)
+        setAndroidStep('date')
+      }
+    } else {
+      // iOS: update as user spins
+      if (selected) setIosPendingDate(selected)
+    }
+  }
+
+  const confirmIosPicker = () => {
+    if (pickerTarget === 'starts') setStartsAt(iosPendingDate)
+    else setEndsAt(iosPendingDate)
+    setPickerTarget(null)
+  }
+
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/(auth)/login'); return }
@@ -45,7 +107,7 @@ export default function VenuePromotionsScreen() {
 
     const { data } = await supabase
       .from('venue_promotions')
-      .select('id, title, description, discount_label, post_to_feed, expires_at, created_at')
+      .select('id, title, description, discount_label, post_to_feed, expires_at, starts_at, ends_at, created_at')
       .eq('zone_id', zone.id)
       .order('created_at', { ascending: false })
 
@@ -73,8 +135,10 @@ export default function VenuePromotionsScreen() {
         description:    description.trim() || null,
         discount_label: discountLabel.trim() || null,
         post_to_feed:   postToFeed,
+        starts_at:      hasTimeWindow && startsAt ? startsAt.toISOString() : null,
+        ends_at:        hasTimeWindow && endsAt   ? endsAt.toISOString()   : null,
       })
-      .select('id, title, description, discount_label, post_to_feed, expires_at, created_at')
+      .select('id, title, description, discount_label, post_to_feed, expires_at, starts_at, ends_at, created_at')
       .single()
 
     if (!error && data) {
@@ -83,6 +147,9 @@ export default function VenuePromotionsScreen() {
       setDescription('')
       setDiscountLabel('')
       setPostToFeed(false)
+      setHasTimeWindow(false)
+      setStartsAt(null)
+      setEndsAt(null)
     }
     setSaving(false)
   }
@@ -141,6 +208,15 @@ export default function VenuePromotionsScreen() {
                   </View>
                 )}
                 {p.description && <Text style={styles.promoDesc}>{p.description}</Text>}
+                {(p.starts_at || p.ends_at) && (
+                  <View style={styles.windowBadge}>
+                    <Text style={styles.windowText}>
+                      🕐{' '}
+                      {p.starts_at ? formatDateTime(new Date(p.starts_at)) : 'Now'}
+                      {p.ends_at ? ` → ${formatDateTime(new Date(p.ends_at))}` : ' (no end)'}
+                    </Text>
+                  </View>
+                )}
                 {p.post_to_feed && (
                   <View style={styles.feedBadge}>
                     <Text style={styles.feedBadgeText}>📡 Posted to feed</Text>
@@ -187,6 +263,79 @@ export default function VenuePromotionsScreen() {
             multiline
             maxLength={400}
           />
+
+          {/* Time window toggle */}
+          <View style={styles.feedRow}>
+            <View style={styles.feedRowText}>
+              <Text style={styles.feedLabel}>Schedule time window</Text>
+              <Text style={styles.feedSub}>Only visible during a specific date/time range</Text>
+            </View>
+            <Switch
+              value={hasTimeWindow}
+              onValueChange={(v) => {
+                setHasTimeWindow(v)
+                if (!v) { setStartsAt(null); setEndsAt(null) }
+              }}
+              trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
+              thumbColor="#f8fafc"
+            />
+          </View>
+
+          {hasTimeWindow && (
+            <View style={styles.windowSection}>
+              <Text style={styles.label}>Starts</Text>
+              <TouchableOpacity style={styles.dateBtn} onPress={() => openPicker('starts')}>
+                <Text style={styles.dateBtnText}>
+                  {startsAt ? formatDateTime(startsAt) : 'Tap to set start time'}
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.label}>Ends (optional)</Text>
+              <TouchableOpacity style={styles.dateBtn} onPress={() => openPicker('ends')}>
+                <Text style={styles.dateBtnText}>
+                  {endsAt ? formatDateTime(endsAt) : 'Tap to set end time'}
+                </Text>
+              </TouchableOpacity>
+              {endsAt && (
+                <TouchableOpacity onPress={() => setEndsAt(null)}>
+                  <Text style={styles.clearDate}>Remove end time</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* DateTimePicker */}
+          {pickerTarget !== null && (
+            Platform.OS === 'ios' ? (
+              <View style={styles.iosPickerWrap}>
+                <View style={styles.iosPickerHeader}>
+                  <TouchableOpacity onPress={() => setPickerTarget(null)}>
+                    <Text style={styles.iosPickerCancel}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={confirmIosPicker}>
+                    <Text style={styles.iosPickerConfirm}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={iosPendingDate}
+                  mode="datetime"
+                  display="spinner"
+                  onChange={onPickerChange}
+                  minimumDate={new Date()}
+                  textColor="#f8fafc"
+                  themeVariant="dark"
+                />
+              </View>
+            ) : (
+              <DateTimePicker
+                value={androidPendingDate}
+                mode={androidStep}
+                display="default"
+                onChange={onPickerChange}
+                minimumDate={new Date()}
+              />
+            )
+          )}
 
           <View style={styles.feedRow}>
             <View style={styles.feedRowText}>
@@ -280,4 +429,28 @@ const styles = StyleSheet.create({
   },
   createBtnDisabled: { opacity: 0.4 },
   createBtnText: { fontSize: 15, fontWeight: '800', color: '#050A15' },
+  windowBadge: {
+    backgroundColor: '#a855f718', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 4,
+    alignSelf: 'flex-start', borderWidth: 1, borderColor: '#a855f730',
+  },
+  windowText: { fontSize: 12, fontWeight: '600', color: '#c084fc' },
+  windowSection: { gap: 8, paddingTop: 4 },
+  dateBtn: {
+    backgroundColor: '#0D1B2E', borderRadius: 10,
+    padding: 12, borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  dateBtnText: { fontSize: 14, color: '#29B6F6' },
+  clearDate: { fontSize: 12, color: '#7A93AC', textDecorationLine: 'underline', paddingLeft: 2 },
+  iosPickerWrap: {
+    backgroundColor: '#0D1B2E', borderRadius: 14,
+    borderWidth: 1, borderColor: '#1A2E4A', overflow: 'hidden',
+  },
+  iosPickerHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: '#1A2E4A',
+  },
+  iosPickerCancel: { fontSize: 14, color: '#7A93AC' },
+  iosPickerConfirm: { fontSize: 14, fontWeight: '700', color: '#29B6F6' },
 })
