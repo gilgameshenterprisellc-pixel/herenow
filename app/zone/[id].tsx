@@ -88,7 +88,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message')
         .eq('id', id)
         .maybeSingle()
 
@@ -154,6 +154,17 @@ export default function ZoneScreen() {
   const handleWeMet = async (person: ActivePerson) => {
     if (!userId || !isCheckedIn || !activeSession) return
     try {
+      // Session cap: max 5 We Mets per check-in
+      const { count: wemetCount } = await supabase
+        .from('we_met')
+        .select('*', { count: 'exact', head: true })
+        .eq('initiator_session_id', activeSession.id)
+        .in('status', ['pending', 'confirmed'])
+      if ((wemetCount ?? 0) >= 5) {
+        showToast("You've reached your We Met limit for this session (5 max).", 'info')
+        return
+      }
+
       const existing = await existingWeMet({ zoneId: id, otherUserId: person.user_id })
       if (existing) {
         showToast(
@@ -377,6 +388,10 @@ export default function ZoneScreen() {
           <TouchableOpacity style={styles.checkOutBtn} onPress={handleCheckOut}>
             <Text style={styles.checkOutText}>Leave</Text>
           </TouchableOpacity>
+        ) : zone?.is_temporarily_closed ? (
+          <View style={styles.closedBadge}>
+            <Text style={styles.closedBadgeText}>Closed</Text>
+          </View>
         ) : (
           <TouchableOpacity
             style={styles.checkInBtn}
@@ -391,6 +406,16 @@ export default function ZoneScreen() {
       {isCheckedIn && (
         <View style={styles.heatBarWrap}>
           <HeatBar count={people.length + (activeSession ? 1 : 0)} />
+        </View>
+      )}
+
+      {/* Temporary closure banner */}
+      {zone?.is_temporarily_closed && (
+        <View style={styles.closedBanner}>
+          <Text style={styles.closedBannerTitle}>🚫 Temporarily Closed</Text>
+          {zone.temporary_closure_message ? (
+            <Text style={styles.closedBannerMsg}>{zone.temporary_closure_message}</Text>
+          ) : null}
         </View>
       )}
 
@@ -452,16 +477,14 @@ export default function ZoneScreen() {
 
       {/* Tab content */}
 
-      {/* Gate: People / Pulse / Chat require physical check-in */}
-      {(tab === 'people' || tab === 'pulse' || tab === 'chat') && !isCheckedIn && (
+      {/* Gate: People / Chat require physical check-in (hard wall) */}
+      {(tab === 'people' || tab === 'chat') && !isCheckedIn && (
         <View style={styles.gateWall}>
           <Text style={styles.gateEmoji}>📍</Text>
           <Text style={styles.gateTitle}>Check in to join</Text>
           <Text style={styles.gateSub}>
             {tab === 'people'
               ? "You can only see who's here once you're actually here."
-              : tab === 'pulse'
-              ? 'The Pulse is only visible to people in the venue.'
               : 'Live Chat is only open to people currently checked in.'}
           </Text>
           <TouchableOpacity
@@ -470,6 +493,42 @@ export default function ZoneScreen() {
           >
             <Text style={styles.gateBtnText}>Check In →</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Pulse blurred preview — ghost posts visible, CTA overlay prompts check-in */}
+      {tab === 'pulse' && !isCheckedIn && (
+        <View style={styles.flex}>
+          <View style={{ flex: 1, position: 'relative' }}>
+            <FlatList
+              data={pulsePosts.slice(0, 3)}
+              keyExtractor={(p) => p.id}
+              contentContainerStyle={styles.list}
+              scrollEnabled={false}
+              renderItem={({ item }) => (
+                <View pointerEvents="none" style={{ opacity: 0.07 }}>
+                  <PulsePostCard
+                    post={item}
+                    currentUserId=""
+                    onDeleted={() => {}}
+                    onReport={() => {}}
+                  />
+                </View>
+              )}
+              ListEmptyComponent={<View style={{ height: 220 }} />}
+            />
+            <View style={styles.pulseGateOverlay}>
+              <Text style={styles.gateEmoji}>✨</Text>
+              <Text style={styles.gateTitle}>The Pulse</Text>
+              <Text style={styles.gateSub}>Check in to see what people are posting right now.</Text>
+              <TouchableOpacity
+                style={[styles.gateBtn, { marginTop: 8 }]}
+                onPress={() => router.push(`/check-in/${id}`)}
+              >
+                <Text style={styles.gateBtnText}>Check In →</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       )}
 
@@ -861,4 +920,32 @@ const styles = StyleSheet.create({
   galleryList:  { paddingHorizontal: 14, gap: 8, flexDirection: 'row' },
   galleryThumb: { borderRadius: 10, overflow: 'hidden' },
   galleryImg:   { width: 90, height: 90, borderRadius: 10 },
+  closedBadge: {
+    backgroundColor: '#ef444418',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  closedBadgeText: { color: '#ef4444', fontWeight: '700', fontSize: 12 },
+  closedBanner: {
+    backgroundColor: '#ef444412',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ef444440',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  closedBannerTitle: { color: '#ef4444', fontWeight: '700', fontSize: 14 },
+  closedBannerMsg:   { color: '#fca5a5', fontSize: 13, lineHeight: 18 },
+  pulseGateOverlay: {
+    position: 'absolute',
+    top: 0, bottom: 0, left: 0, right: 0,
+    backgroundColor: '#050A15BB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 12,
+  },
 })
