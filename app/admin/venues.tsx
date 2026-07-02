@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
-import { geocodeAddress, fetchBuildingPolygon } from '@/lib/geocoding'
+import { geocodeAddress, fetchBuildingPolygon, geocodeNominatim } from '@/lib/geocoding'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -421,7 +421,26 @@ export default function AdminVenues() {
     setRefreshingPolygon(venue.id)
     setPolygonStatus((prev) => { const n = { ...prev }; delete n[venue.id]; return n })
     try {
-      const polygon = await fetchBuildingPolygon(venue.zone.center_lat, venue.zone.center_lng)
+      // Pass 1: use the stored Mapbox-geocoded coordinates
+      let polygon = await fetchBuildingPolygon(venue.zone.center_lat, venue.zone.center_lng)
+
+      // Pass 2: if not found, try Nominatim coordinates. Nominatim derives coordinates
+      // from OSM data itself, so they land much closer to the actual building footprint
+      // than Mapbox street-center coordinates do.
+      if (!polygon && (venue.venue_address || venue.venue_city)) {
+        const nom = await geocodeNominatim(
+          venue.venue_address ?? '',
+          venue.venue_suite  ?? '',
+          venue.venue_city   ?? '',
+          venue.venue_state  ?? '',
+          venue.venue_zip    ?? '',
+        )
+        if (nom) {
+          console.log(`[admin] Trying Nominatim coords (${nom.lat}, ${nom.lng}) for ${venue.display_name}`)
+          polygon = await fetchBuildingPolygon(nom.lat, nom.lng)
+        }
+      }
+
       if (!polygon) {
         setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'notfound' }))
         return
