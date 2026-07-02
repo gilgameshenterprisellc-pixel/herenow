@@ -68,13 +68,16 @@ export async function fetchBuildingPolygon(
   lat: number,
   lng: number,
 ): Promise<BuildingPolygon | null> {
-  // 200m radius: Mapbox geocoding can land 100-150m from the actual building footprint
-  // on dense city blocks, so 100m was causing misses on correctly-drawn OSM buildings.
+  // Broad search: catches buildings tagged with building=*, amenity=*, or leisure=*,
+  // and closed ways with any tags (catches polygons the editor drew without a specific tag).
+  // 200m radius handles Mapbox street-center geocoding offsets on dense city blocks.
   const query =
     `[out:json][timeout:15];` +
     `(` +
     `  way["building"](around:200,${lat},${lng});` +
     `  relation["building"](around:200,${lat},${lng});` +
+    `  way["amenity"](around:100,${lat},${lng});` +
+    `  way["leisure"](around:100,${lat},${lng});` +
     `);out geom;`
 
   try {
@@ -92,23 +95,39 @@ export async function fetchBuildingPolygon(
     const elements: any[] = json.elements ?? []
     console.log(`[geocoding] Overpass returned ${elements.length} element(s) near (${lat}, ${lng})`)
 
-    // ── Try ways first (most common for simple buildings) ──────────────────────
-    const ways = elements.filter(
-      (el) => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3
+    // ── Try ways with building tag first ──────────────────────────────────────
+    const buildingWays = elements.filter(
+      (el) => el.type === 'way' && el.tags?.building && Array.isArray(el.geometry) && el.geometry.length >= 3
     )
-    if (ways.length > 0) {
-      const way = ways.sort((a, b) => b.geometry.length - a.geometry.length)[0]
+    if (buildingWays.length > 0) {
+      const way = buildingWays.sort((a, b) => b.geometry.length - a.geometry.length)[0]
       const wkt = buildWktFromNodes(way.geometry)
       if (wkt) return { wkt, pointCount: way.geometry.length, osmId: way.id as number }
     }
 
-    // ── Fall back to relations (multipolygon) ──────────────────────────────────
+    // ── Relations (multipolygon buildings) ────────────────────────────────────
     const relations = elements.filter((el) => el.type === 'relation')
     for (const rel of relations) {
-      const outerMember = (rel.members ?? []).find((m: any) => m.role === 'outer' && Array.isArray(m.geometry) && m.geometry.length >= 3)
+      const outerMember = (rel.members ?? []).find(
+        (m: any) => m.role === 'outer' && Array.isArray(m.geometry) && m.geometry.length >= 3
+      )
       if (outerMember) {
         const wkt = buildWktFromNodes(outerMember.geometry)
         if (wkt) return { wkt, pointCount: outerMember.geometry.length, osmId: rel.id as number }
+      }
+    }
+
+    // ── Fallback: any closed amenity/leisure polygon near the point ───────────
+    const otherWays = elements.filter(
+      (el) => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3
+        && !el.tags?.building
+    )
+    if (otherWays.length > 0) {
+      const way = otherWays.sort((a, b) => b.geometry.length - a.geometry.length)[0]
+      const wkt = buildWktFromNodes(way.geometry)
+      if (wkt) {
+        console.log(`[geocoding] Using non-building polygon (tags: ${JSON.stringify(way.tags)})`)
+        return { wkt, pointCount: way.geometry.length, osmId: way.id as number }
       }
     }
 
