@@ -15,7 +15,9 @@ import type { SocialMode, MoodMode } from '@/lib/sessions'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { checkAndAwardBadges } from '@/lib/badges'
+import { fetchHighlights } from '@/lib/highlights'
 import BetaFeedbackModal, { shouldShowBetaFeedback, markBetaFeedbackShown } from '@/components/BetaFeedbackModal'
+import VenueWelcomeModal from '@/components/VenueWelcomeModal'
 
 const SOCIAL_MODES: { mode: SocialMode; emoji: string; label: string; desc: string; color: string }[] = [
   {
@@ -81,6 +83,14 @@ export default function CheckInScreen() {
   const [loading, setLoading]         = useState(false)
   const [loadingMsg, setLoadingMsg]   = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
+  const [showWelcome, setShowWelcome]   = useState(false)
+  const [welcomeData, setWelcomeData]   = useState<{
+    name: string
+    description: string | null
+    opening_hours: string | null
+    firstPhoto: string | null
+    highlights: Awaited<ReturnType<typeof fetchHighlights>>
+  } | null>(null)
 
   const { checkIn, activeSession } = useSessionContext()
   const { showToast } = useToast()
@@ -129,6 +139,43 @@ export default function CheckInScreen() {
 
     await checkAndAwardBadges('checkin', { zoneId })
 
+    // First-visit detection: count all sessions at this zone for this user.
+    // The current session is already created, so count === 1 means first visit.
+    const { count: sessionCount } = await supabase
+      .from('sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('zone_id', zoneId)
+      .eq('user_id', result.session.user_id)
+
+    if (sessionCount === 1) {
+      // First visit — load zone details + highlights for the welcome modal
+      const [{ data: zoneData }, highlights, { data: photoRow }] = await Promise.all([
+        supabase.from('zones').select('name, description, opening_hours').eq('id', zoneId).maybeSingle(),
+        fetchHighlights(zoneId),
+        supabase.from('venue_photos').select('public_url').eq('zone_id', zoneId).eq('status', 'approved').order('created_at').limit(1).maybeSingle(),
+      ])
+      setWelcomeData({
+        name:          zoneData?.name         ?? zoneName,
+        description:   zoneData?.description  ?? null,
+        opening_hours: zoneData?.opening_hours ?? null,
+        firstPhoto:    photoRow?.public_url    ?? null,
+        highlights,
+      })
+      setShowWelcome(true)
+      return
+    }
+
+    const canShow = await shouldShowBetaFeedback()
+    if (canShow) {
+      await markBetaFeedbackShown()
+      setShowFeedback(true)
+    } else {
+      router.replace(`/zone/${zoneId}`)
+    }
+  }
+
+  const afterWelcome = async () => {
+    setShowWelcome(false)
     const canShow = await shouldShowBetaFeedback()
     if (canShow) {
       await markBetaFeedbackShown()
@@ -240,6 +287,12 @@ export default function CheckInScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <VenueWelcomeModal
+        visible={showWelcome}
+        data={welcomeData}
+        onDismiss={afterWelcome}
+      />
 
       <BetaFeedbackModal
         visible={showFeedback}

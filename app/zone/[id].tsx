@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, FlatList, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
+  ActionSheetIOS,
 } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -79,6 +81,9 @@ export default function ZoneScreen() {
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [subLoading, setSubLoading]     = useState(false)
 
+  // Gallery submission
+  const [submittingPhoto, setSubmittingPhoto] = useState(false)
+
   const isCheckedIn = activeSession?.zone_id === id
 
   useEffect(() => {
@@ -103,11 +108,12 @@ export default function ZoneScreen() {
       const hl = await fetchHighlights(id)
       setHighlights(hl)
 
-      // Load gallery photos (visible to all)
+      // Load gallery photos (approved only — visible to all)
       const { data: photoData } = await supabase
         .from('venue_photos')
         .select('id, public_url, caption')
         .eq('zone_id', id)
+        .eq('status', 'approved')
         .order('created_at', { ascending: false })
         .limit(20)
       setPhotos(photoData ?? [])
@@ -334,6 +340,74 @@ export default function ZoneScreen() {
     }
   }
 
+  const pickAndSubmitPhoto = async (source: 'library' | 'camera') => {
+    if (!userId) return
+    setSubmittingPhoto(true)
+    try {
+      let result: ImagePicker.ImagePickerResult
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync()
+        if (status !== 'granted') {
+          showToast('Camera access needed to submit a photo.', 'error')
+          return
+        }
+        result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 })
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (status !== 'granted') {
+          showToast('Photo library access needed to submit a photo.', 'error')
+          return
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'], allowsEditing: true, quality: 0.8,
+        })
+      }
+      if (result.canceled || !result.assets[0]) return
+
+      const asset = result.assets[0]
+      const fileName = `submissions/${id}/${userId}/${Date.now()}.jpg`
+      const response = await fetch(asset.uri)
+      const arrayBuffer = await response.arrayBuffer()
+
+      const { error: uploadError } = await supabase.storage
+        .from('venue-media')
+        .upload(fileName, arrayBuffer, { contentType: asset.mimeType || 'image/jpeg' })
+
+      if (uploadError) { showToast('Upload failed. Try again.', 'error'); return }
+
+      const { data: urlData } = supabase.storage.from('venue-media').getPublicUrl(fileName)
+
+      await supabase.from('venue_photos').insert({
+        zone_id:      id,
+        created_by:   userId,
+        public_url:   urlData.publicUrl,
+        storage_path: fileName,
+        status:       'pending',
+      })
+
+      showToast('Photo submitted! The venue will review it.', 'success')
+    } catch {
+      showToast('Could not submit photo. Try again.', 'error')
+    } finally {
+      setSubmittingPhoto(false)
+    }
+  }
+
+  const handleSubmitPhoto = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        (i) => { if (i === 1) pickAndSubmitPhoto('camera'); else if (i === 2) pickAndSubmitPhoto('library') },
+      )
+    } else {
+      Alert.alert('Submit Photo', 'Choose a photo to submit to this venue.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => pickAndSubmitPhoto('camera') },
+        { text: 'From Library', onPress: () => pickAndSubmitPhoto('library') },
+      ])
+    }
+  }
+
   const handleCheckOut = () => {
     platformConfirm(
       'Check out',
@@ -456,6 +530,22 @@ export default function ZoneScreen() {
               </View>
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {/* Submit photo — checked-in users only */}
+      {isCheckedIn && (
+        <View style={styles.photoSubmitWrap}>
+          <TouchableOpacity
+            style={[styles.photoSubmitBtn, submittingPhoto && { opacity: 0.5 }]}
+            onPress={handleSubmitPhoto}
+            disabled={submittingPhoto}
+          >
+            {submittingPhoto
+              ? <ActivityIndicator color="#29B6F6" size="small" />
+              : <Text style={styles.photoSubmitText}>📸 Submit a photo to this venue</Text>
+            }
+          </TouchableOpacity>
         </View>
       )}
 
@@ -920,6 +1010,25 @@ const styles = StyleSheet.create({
   galleryList:  { paddingHorizontal: 14, gap: 8, flexDirection: 'row' },
   galleryThumb: { borderRadius: 10, overflow: 'hidden' },
   galleryImg:   { width: 90, height: 90, borderRadius: 10 },
+  photoSubmitWrap: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0D1B2E',
+  },
+  photoSubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#0D1B2E',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  photoSubmitText: { fontSize: 13, color: '#7A93AC', fontWeight: '600' },
   closedBadge: {
     backgroundColor: '#ef444418',
     borderWidth: 1,
