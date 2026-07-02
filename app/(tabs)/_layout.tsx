@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { getUnreadCount } from '@/lib/notifications'
+import { getDmUnreadCount } from '@/lib/messages'
 import { supabase } from '@/lib/supabase'
 import OnboardingModal from '@/components/OnboardingModal'
 
@@ -56,19 +57,21 @@ const ti = StyleSheet.create({
 })
 
 export default function TabsLayout() {
-  const [unread, setUnread] = useState(0)
+  const [unread, setUnread]       = useState(0)  // system notification count → Updates tab
+  const [dmUnread, setDmUnread]   = useState(0)  // DM unread count → Messages tab
 
   useEffect(() => {
     const fetchUnread = async () => {
-      const count = await getUnreadCount()
-      setUnread(count)
+      const [notifCount, dmCount] = await Promise.all([getUnreadCount(), getDmUnreadCount()])
+      setUnread(notifCount)
+      setDmUnread(dmCount)
     }
 
     fetchUnread()
     const interval = setInterval(fetchUnread, 30_000)
 
-    const sub = supabase
-      .channel('notif-badge')
+    const notifSub = supabase
+      .channel('badge-notif')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -76,9 +79,19 @@ export default function TabsLayout() {
       }, fetchUnread)
       .subscribe()
 
+    const dmSub = supabase
+      .channel('badge-dm')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_messages',
+      }, fetchUnread)
+      .subscribe()
+
     return () => {
       clearInterval(interval)
-      supabase.removeChannel(sub)
+      supabase.removeChannel(notifSub)
+      supabase.removeChannel(dmSub)
     }
   }, [])
 
@@ -104,7 +117,7 @@ export default function TabsLayout() {
           name="feed"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon name="compass-outline" nameFocused="compass" focused={focused} />
+              <TabIcon name="bell-outline" nameFocused="bell" focused={focused} badge={unread} />
             ),
           }}
         />
@@ -112,7 +125,7 @@ export default function TabsLayout() {
           name="notifications"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon name="notifications-outline" nameFocused="notifications" focused={focused} badge={unread} />
+              <TabIcon name="mail-outline" nameFocused="mail" focused={focused} badge={dmUnread} />
             ),
           }}
         />

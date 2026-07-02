@@ -1,54 +1,48 @@
-import { useEffect } from 'react'
+import { useState } from 'react'
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { router } from 'expo-router'
-import { useNotifications } from '@/hooks/useNotifications'
-import { markOneRead, markAllRead } from '@/lib/notifications'
+import { useDmThreads } from '@/hooks/useMessages'
+import { markMessagesRead } from '@/lib/messages'
+import { supabase } from '@/lib/supabase'
 import AnimatedBackground from '@/components/AnimatedBackground'
+import { useEffect } from 'react'
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
-
-const TYPE_META: Record<string, { icon: IoniconsName; color: string }> = {
-  wemet_request:      { icon: 'people-outline',           color: '#29B6F6' },
-  wemet_confirmed:    { icon: 'checkmark-circle-outline', color: '#22c55e' },
-  message:            { icon: 'mail-outline',             color: '#3b82f6' },
-  event_rsvp:         { icon: 'calendar-outline',         color: '#a855f7' },
-  badge_earned:       { icon: 'ribbon-outline',           color: '#f59e0b' },
-  venue_announcement: { icon: 'megaphone-outline',        color: '#f97316' },
-  system:             { icon: 'radio-outline',            color: '#7A93AC' },
-}
-
-function timeAgo(iso: string): string {
-  const ms  = Date.now() - new Date(iso).getTime()
-  if (ms < 60_000)     return 'just now'
-  if (ms < 3_600_000)  return `${Math.floor(ms / 60_000)}m ago`
-  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`
-  return `${Math.floor(ms / 86_400_000)}d ago`
-}
-
-export default function NotificationsScreen() {
+export default function MessagesTab() {
   const insets = useSafeAreaInsets()
-  const { notifications, loading, unreadCount: unread, refresh } = useNotifications()
+  const [userId, setUserId] = useState<string | null>(null)
+  const { threads, loading, refresh } = useDmThreads(userId ?? '')
 
-  const handlePress = async (n: (typeof notifications)[0]) => {
-    if (!n.is_read) await markOneRead(n.id)
-    const d = n.data as Record<string, any> | null
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null))
+  }, [])
 
-    if (n.type === 'wemet_request' || n.type === 'wemet_confirmed') {
-      router.push('/we-met')
-    } else if (n.type === 'message' && d?.we_met_id) {
-      router.push(`/messages/${d.we_met_id}`)
-    } else if (n.type === 'badge_earned') {
-      router.push('/badges')
-    } else if (d?.zone_id) {
-      router.push(`/zone/${d.zone_id}`)
-    }
-    refresh()
+  const formatTime = (iso: string) => {
+    const d = new Date(iso)
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    if (diffMs < 60_000) return 'now'
+    if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m`
+    if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)}h`
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
   }
+
+  const getExpiryStatus = (expiresAt: string | null) => {
+    if (expiresAt === null) return { locked: true, expired: false, label: '🔒', warn: false }
+    const ms = new Date(expiresAt).getTime() - Date.now()
+    if (ms < 0) return { locked: false, expired: true, label: 'Expired', warn: false }
+    const hrs = Math.floor(ms / 3_600_000)
+    if (hrs < 2) return { locked: false, expired: false, label: `${hrs}h left`, warn: true }
+    return { locked: false, expired: false, label: null, warn: false }
+  }
+
+  const webCenter = Platform.select({
+    web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
+    default: {},
+  })
 
   return (
     <View style={styles.container}>
@@ -56,16 +50,9 @@ export default function NotificationsScreen() {
 
       <View style={styles.headerWrap}>
         <View style={styles.accentLine} />
-        <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 20 }]}>
+        <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 20 }, webCenter]}>
           <Text style={styles.brand}>HERENOW</Text>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>Notifications</Text>
-            {unread > 0 && (
-              <TouchableOpacity onPress={() => { markAllRead().then(refresh) }} style={styles.markAllBtn}>
-                <Text style={styles.markAllText}>Clear all</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <Text style={styles.title}>Messages 💌</Text>
         </View>
       </View>
 
@@ -75,40 +62,90 @@ export default function NotificationsScreen() {
         </View>
       ) : (
         <FlatList
-          data={notifications}
-          keyExtractor={(n) => n.id}
-          contentContainerStyle={styles.list}
+          data={threads}
+          keyExtractor={(t) => t.we_met_id}
+          contentContainerStyle={[styles.list, webCenter]}
           onRefresh={refresh}
           refreshing={loading}
-          renderItem={({ item: n }) => {
-            const meta = TYPE_META[n.type] ?? TYPE_META.system
+          renderItem={({ item }) => {
+            const expiry = getExpiryStatus(item.expires_at)
+            const isMe = item.last_sender_id === userId
             return (
               <TouchableOpacity
-                style={[styles.row, !n.is_read && styles.rowUnread]}
-                onPress={() => handlePress(n)}
+                style={[
+                  styles.thread,
+                  expiry.expired && styles.threadExpired,
+                  expiry.locked && styles.threadLocked,
+                ]}
+                onPress={async () => {
+                  await markMessagesRead(item.we_met_id, userId ?? undefined)
+                  router.push(`/messages/${item.we_met_id}`)
+                }}
                 activeOpacity={0.8}
               >
-                <View style={[styles.iconBox, { backgroundColor: meta.color + '18', borderColor: meta.color + '25', borderWidth: 1 }]}>
-                  <Ionicons name={meta.icon} size={20} color={meta.color} />
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {(item.other_display_name ?? '?')[0].toUpperCase()}
+                  </Text>
                 </View>
                 <View style={styles.info}>
-                  <Text style={styles.notifTitle}>{n.title}</Text>
-                  <Text style={styles.notifBody} numberOfLines={2}>{n.body}</Text>
-                  <Text style={styles.time}>{timeAgo(n.created_at)}</Text>
+                  <View style={styles.row}>
+                    <Text style={[styles.name, expiry.expired && styles.nameFaded]}>
+                      {item.other_display_name ?? 'Unknown'}
+                    </Text>
+                    <Text style={styles.time}>
+                      {item.last_message_at ? formatTime(item.last_message_at) : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text
+                      style={[styles.preview, !item.last_content && styles.previewEmpty]}
+                      numberOfLines={1}
+                    >
+                      {item.last_content
+                        ? isMe
+                          ? `You: ${item.last_content}`
+                          : item.last_content
+                        : 'No messages yet'}
+                    </Text>
+                    {expiry.locked && (
+                      <Text style={styles.expiryLocked}>🔒 At venue</Text>
+                    )}
+                    {expiry.warn && !expiry.expired && (
+                      <Text style={styles.expiryWarn}>{expiry.label}</Text>
+                    )}
+                    {expiry.expired && (
+                      <Text style={styles.expiryDead}>Expired</Text>
+                    )}
+                  </View>
+                  {!expiry.expired && !expiry.warn && (
+                    <Text style={styles.expiryNote}>
+                      Met at {item.zone_name ?? 'a venue'}
+                    </Text>
+                  )}
                 </View>
-                {!n.is_read && <View style={[styles.dot, { backgroundColor: meta.color }]} />}
+                {!expiry.expired && !expiry.locked && item.unread_count > 0 && (
+                  <View style={styles.unread}>
+                    <Text style={styles.unreadText}>{item.unread_count}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             )
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <View style={styles.emptyIcon}>
-                <Ionicons name="notifications-outline" size={32} color="#29B6F6" />
-              </View>
-              <Text style={styles.emptyTitle}>All caught up</Text>
+              <Text style={styles.emptyEmoji}>💌</Text>
+              <Text style={styles.emptyTitle}>No messages yet</Text>
               <Text style={styles.emptySub}>
-                Check in to a venue to start getting We Met requests, messages, and event updates.
+                Confirm a "We Met" with someone you actually met in person to unlock DMs.
+                Messages expire after 72 hours unless both of you reply.
               </Text>
+              <TouchableOpacity
+                style={styles.wemetLink}
+                onPress={() => router.push('/we-met')}
+              >
+                <Text style={styles.wemetLinkText}>Check We Met requests →</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -118,8 +155,8 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: '#050A15' },
-  center:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: '#050A15' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerWrap: { backgroundColor: '#060D1A', borderBottomWidth: 1, borderBottomColor: '#0D1B2E' },
   accentLine: {
     height: 2,
@@ -133,64 +170,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 14,
     gap: 6,
-    ...Platform.select({
-      web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
-      default: {},
-    }),
   },
   brand: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#29B6F6',
-    letterSpacing: 3,
-    marginBottom: 2,
-    ...Platform.select({
-      web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any,
-      default: {},
-    }),
+    fontSize: 10, fontWeight: '800', color: '#29B6F6', letterSpacing: 3, marginBottom: 2,
+    ...Platform.select({ web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any, default: {} }),
   },
-  titleRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title:       { fontSize: 26, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
-  markAllBtn:  { backgroundColor: '#29B6F610', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#29B6F630' },
-  markAllText: { fontSize: 12, color: '#29B6F6', fontWeight: '700' },
+  title: { fontSize: 26, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
   list: {
     padding: 14,
     paddingBottom: TAB_SAFE_BOTTOM,
     gap: 2,
-    ...Platform.select({
-      web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
-      default: {},
-    }),
   },
-  row: {
+  thread: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 12,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#050A15',
-    borderRadius: 8,
-  },
-  rowUnread: {
-    backgroundColor: '#29B6F606',
     borderBottomColor: '#0D1B2E',
   },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+  threadExpired: { opacity: 0.4 },
+  threadLocked:  { opacity: 0.7 },
+  avatar: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: '#0D1B2E', borderWidth: 1, borderColor: '#1A2E4A',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  info:       { flex: 1, gap: 2 },
-  notifTitle: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
-  notifBody:  { fontSize: 12, color: '#8EADC7', lineHeight: 16 },
-  time:       { fontSize: 11, color: '#4A6580' },
-  dot:        { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  empty:      { alignItems: 'center', paddingTop: 80, gap: 12, paddingHorizontal: 40 },
-  emptyIcon:  { width: 64, height: 64, borderRadius: 20, backgroundColor: '#29B6F610', borderWidth: 1, borderColor: '#29B6F620', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  avatarText: { fontSize: 18, fontWeight: '700', color: '#8EADC7' },
+  info: { flex: 1, gap: 4 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  name: { fontSize: 15, fontWeight: '700', color: '#f8fafc' },
+  nameFaded: { color: '#4A6580' },
+  time: { fontSize: 11, color: '#7A93AC' },
+  preview: { fontSize: 13, color: '#7A93AC', flex: 1 },
+  previewEmpty: { fontStyle: 'italic' },
+  expiryNote:   { fontSize: 11, color: '#4A6580' },
+  expiryLocked: { fontSize: 11, fontWeight: '700', color: '#7A93AC' },
+  expiryWarn:   { fontSize: 11, fontWeight: '700', color: '#29B6F6' },
+  expiryDead:   { fontSize: 11, fontWeight: '700', color: '#ef4444' },
+  unread: {
+    minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#29B6F6', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4, flexShrink: 0,
+  },
+  unreadText: { fontSize: 11, fontWeight: '800', color: '#050A15' },
+  empty: { alignItems: 'center', paddingTop: 80, gap: 10, paddingHorizontal: 40 },
+  emptyEmoji: { fontSize: 44 },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: '#f8fafc' },
   emptySub:   { fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 },
+  wemetLink:     { marginTop: 8 },
+  wemetLinkText: { color: '#29B6F6', fontWeight: '700', fontSize: 14 },
 })
