@@ -92,12 +92,14 @@ export async function markMessagesRead(wemetId: string, userId?: string): Promis
   const uid = userId ?? (await supabase.auth.getUser()).data.user?.id
   if (!uid) return
 
-  await supabase
+  const { error } = await supabase
     .from('direct_messages')
     .update({ read_at: new Date().toISOString() })
     .eq('we_met_id', wemetId)
     .eq('recipient_id', uid)
     .is('read_at', null)
+
+  if (error) console.error('[messages] markMessagesRead error:', error.message)
 }
 
 export async function fetchDmThreads(): Promise<DmThread[]> {

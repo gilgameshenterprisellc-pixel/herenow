@@ -11,13 +11,18 @@ export async function reportUser(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  await supabase.from('safety_reports').insert({
+  const { error } = await supabase.from('safety_reports').insert({
     reporter_id: user.id,
     reported_id: params.reportedId,
     zone_id: params.zoneId,
     reason: params.reason,
     note: params.note ?? null,
   })
+
+  if (error) {
+    console.error('[reports] reportUser error:', error.message)
+    throw new Error(error.message)
+  }
 }
 
 export type ContentReportReason = 'spam' | 'harassment' | 'inappropriate' | 'misinformation' | 'other'
@@ -31,11 +36,16 @@ export async function reportContent(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  await supabase.from('content_reports').insert({
+  const { error } = await supabase.from('content_reports').insert({
     reporter_id:  user.id,
     zone_id:      params.zoneId,
     content_type: params.contentType,
     content_id:   params.contentId,
     reason:       params.reason,
   })
+
+  if (error) {
+    console.error('[reports] reportContent error:', error.message)
+    throw new Error(error.message)
+  }
 }
