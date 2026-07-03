@@ -103,7 +103,7 @@ export default function NearbyScreen() {
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery]   = useState('')
   const [searchResults, setSearchResults] = useState<Zone[]>([])
-  const [selectedChip, setSelectedChip] = useState<string | null>(null)
+  const [selectedChips, setSelectedChips] = useState<string[]>([])
   const [mapRecenterTick, setMapRecenterTick] = useState(0)
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mapRef  = useRef<any>(null)
@@ -192,9 +192,10 @@ export default function NearbyScreen() {
   }, [searchQuery])
 
   // When searching, show DB results; otherwise show nearby zones — optionally chip-filtered
+  // Multi-select: show venues that match ALL selected chips (AND logic)
   const baseZones = searchQuery.trim() ? searchResults : zones
-  const filteredZones = selectedChip
-    ? baseZones.filter(z => z.chips?.includes(selectedChip))
+  const filteredZones = selectedChips.length > 0
+    ? baseZones.filter(z => selectedChips.every(c => z.chips?.includes(c)))
     : baseZones
 
   // Look in both pools so search-result taps populate the preview card
@@ -275,8 +276,8 @@ export default function NearbyScreen() {
         onSearchChange={setSearchQuery}
         onMapMove={handleMapMove}
         recenterTick={mapRecenterTick}
-        selectedChip={selectedChip}
-        onChipChange={setSelectedChip}
+        selectedChips={selectedChips}
+        onChipsChange={setSelectedChips}
       />
 
       {loading ? (
@@ -306,8 +307,8 @@ export default function NearbyScreen() {
                 <Text style={styles.listLabel}>
                   {searchQuery
                     ? `${filteredZones.length} result${filteredZones.length !== 1 ? 's' : ''} for "${searchQuery}"`
-                    : selectedChip
-                      ? `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} with "${selectedChip}"`
+                    : selectedChips.length > 0
+                      ? `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} with ${selectedChips.map(c => `"${c}"`).join(' + ')}`
                       : `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} nearby`}
                 </Text>
               )}

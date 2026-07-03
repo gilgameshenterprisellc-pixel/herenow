@@ -60,6 +60,79 @@ export default function VenueGalleryScreen() {
   useEffect(() => { load() }, [load])
   const onRefresh = () => { setRefreshing(true); load() }
 
+  // Web path: create a file input and click it synchronously so Safari iOS
+  // keeps the user gesture context intact. expo-image-picker's async permission
+  // checks break the gesture chain on mobile Safari.
+  const pickAndUploadWeb = async () => {
+    if (!zoneId || !ownerId) return
+
+    const file = await new Promise<File | null>((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/jpeg,image/png,image/webp'
+      let settled = false
+      const settle = (v: File | null) => { if (!settled) { settled = true; resolve(v) } }
+      input.addEventListener('cancel', () => settle(null))
+      const onFocus = () => {
+        window.removeEventListener('focus', onFocus)
+        setTimeout(() => settle(null), 300)
+      }
+      window.addEventListener('focus', onFocus)
+      input.onchange = () => {
+        window.removeEventListener('focus', onFocus)
+        settle(input.files?.[0] ?? null)
+      }
+      input.click() // synchronous — must stay here to keep gesture context
+    })
+
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Photo must be under 10MB.', 'error')
+      return
+    }
+
+    setUploading(true)
+    const fileName = `${zoneId}/${Date.now()}.jpg`
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('venue-media')
+        .upload(fileName, file, { contentType: file.type || 'image/jpeg' })
+
+      if (uploadError) {
+        showToast('Upload failed. Try again.', 'error')
+        return
+      }
+
+      const { data: urlData } = supabase.storage.from('venue-media').getPublicUrl(fileName)
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('venue_photos')
+        .insert({
+          zone_id: zoneId,
+          created_by: ownerId,
+          public_url: urlData.publicUrl,
+          storage_path: fileName,
+          status: 'approved',
+        })
+        .select('id, public_url, caption, storage_path, status, created_at')
+        .single()
+
+      if (insertError || !inserted) {
+        showToast('Photo saved to storage but failed to record. Try again.', 'error')
+        return
+      }
+
+      setPhotos((prev) => [inserted as Photo, ...prev])
+      showToast('Photo added to gallery!', 'success')
+      checkAndAwardBadges('gallery_upload').catch(() => {})
+    } catch {
+      showToast('Upload failed. Try again.', 'error')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const pickAndUpload = async (source: 'library' | 'camera') => {
     if (!zoneId || !ownerId) return
 
@@ -132,6 +205,10 @@ export default function VenueGalleryScreen() {
   }
 
   const handleAdd = () => {
+    if (Platform.OS === 'web') {
+      pickAndUploadWeb()
+      return
+    }
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },

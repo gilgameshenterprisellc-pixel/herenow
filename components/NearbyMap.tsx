@@ -23,8 +23,8 @@ interface Props {
   onSearchChange: (q: string) => void
   onMapMove?: (lat: number, lng: number) => void
   recenterTick?: number
-  selectedChip: string | null
-  onChipChange: (chip: string | null) => void
+  selectedChips: string[]
+  onChipsChange: (chips: string[]) => void
 }
 
 export const MAP_HEIGHT = WEB_MAP_HEIGHT
@@ -32,7 +32,7 @@ export const MAP_HEIGHT = WEB_MAP_HEIGHT
 export default function NearbyMap({
   zones, location, selectedId, onPinPress,
   isVenueOwner, subscribedIds, searchQuery, onSearchChange, onMapMove, recenterTick,
-  selectedChip, onChipChange,
+  selectedChips, onChipsChange,
 }: Props) {
   const [searchFocused, setSearchFocused] = useState(false)
 
@@ -90,24 +90,40 @@ export default function NearbyMap({
           )}
         </View>
 
-        {/* Chip filter */}
+        {/* Chip filter — multi-select: tap to add, tap again to remove */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipStrip}
         >
-          {FILTER_CHIPS.map((chip) => (
+          {selectedChips.length > 0 && (
             <TouchableOpacity
-              key={chip}
-              style={[styles.chipPill, selectedChip === chip && styles.chipPillActive]}
-              onPress={() => onChipChange(selectedChip === chip ? null : chip)}
+              style={styles.chipClear}
+              onPress={() => onChipsChange([])}
               activeOpacity={0.75}
             >
-              <Text style={[styles.chipText, selectedChip === chip && styles.chipTextActive]}>
-                {chip}
-              </Text>
+              <Text style={styles.chipClearText}>✕ Clear</Text>
             </TouchableOpacity>
-          ))}
+          )}
+          {FILTER_CHIPS.map((chip) => {
+            const active = selectedChips.includes(chip)
+            return (
+              <TouchableOpacity
+                key={chip}
+                style={[styles.chipPill, active && styles.chipPillActive]}
+                onPress={() =>
+                  active
+                    ? onChipsChange(selectedChips.filter((c) => c !== chip))
+                    : onChipsChange([...selectedChips, chip])
+                }
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  {chip}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
         </ScrollView>
 
         {/* Tier legend */}
@@ -256,6 +272,15 @@ const styles = StyleSheet.create({
   chipPillActive: { backgroundColor: '#29B6F618', borderColor: '#29B6F6' },
   chipText: { fontSize: 12, color: '#7A93AC', fontWeight: '600' },
   chipTextActive: { color: '#29B6F6', fontWeight: '700' },
+  chipClear: {
+    backgroundColor: '#ef444418',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#ef444440',
+  },
+  chipClearText: { fontSize: 12, color: '#ef4444', fontWeight: '700' },
 
   // Legend
   legend:     { flexDirection: 'row', gap: 14, alignItems: 'center' },
