@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, Image, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, Platform, ActivityIndicator, Dimensions,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
@@ -112,8 +112,16 @@ function NativeIndex() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#29B6F6" />
+      <View style={{ flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+        <Image
+          source={require('@/assets/logo.webp')}
+          style={{ width: 120, height: 120, borderRadius: 30 }}
+          resizeMode="contain"
+        />
+        <Text style={{ fontSize: 40, fontWeight: '900', color: '#29B6F6', letterSpacing: -1.5 }}>
+          HereNow
+        </Text>
+        <ActivityIndicator color="#29B6F6" style={{ marginTop: 4 }} />
       </View>
     )
   }
