@@ -15,6 +15,8 @@ export interface Zone {
   next_event_title: string | null
   next_event_starts_at: string | null
   polygon_wkt: string | null
+  is_temporarily_closed: boolean
+  temporary_closure_message: string | null
 }
 
 export async function fetchNearbyZones(

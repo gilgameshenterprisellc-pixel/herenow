@@ -85,7 +85,35 @@ export async function sendMessage(params: {
     data:   { we_met_id: params.wemetId },
   })
 
+  // Mutual-reply persistence: if the other party has already replied,
+  // make this DM thread permanent (no expiry) by nulling out expires_at.
+  // The .not() guard ensures we only update threads that are already unlocked
+  // (post-checkout), not pre-checkout locked threads.
+  const { count: partnerMsgCount } = await supabase
+    .from('direct_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('we_met_id', params.wemetId)
+    .eq('sender_id', recipientId)
+  if ((partnerMsgCount ?? 0) > 0) {
+    await supabase
+      .from('we_met')
+      .update({ expires_at: null })
+      .eq('id', params.wemetId)
+      .not('expires_at', 'is', null)
+  }
+
   return data
+}
+
+export async function getDmUnreadCount(): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
+  const { count } = await supabase
+    .from('direct_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('recipient_id', user.id)
+    .is('read_at', null)
+  return count ?? 0
 }
 
 export async function markMessagesRead(wemetId: string, userId?: string): Promise<void> {

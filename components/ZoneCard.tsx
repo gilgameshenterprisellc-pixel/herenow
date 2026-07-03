@@ -61,10 +61,11 @@ function formatEventTime(iso: string): string {
 
 export default function ZoneCard({ zone, onPress, selected }: Props) {
   const pressScale = useRef(new Animated.Value(1)).current
-  const isLive = (zone.member_count ?? 0) > 0
+  const isClosed = zone.is_temporarily_closed
+  const isLive = !isClosed && (zone.member_count ?? 0) > 0
 
   // Show next event only if it starts within 6 hours
-  const nextEventSoon = zone.next_event_starts_at
+  const nextEventSoon = !isClosed && zone.next_event_starts_at
     ? (new Date(zone.next_event_starts_at).getTime() - Date.now()) < 6 * 60 * 60 * 1000
     : false
 
@@ -72,20 +73,21 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
   const onPressOut = () => Animated.spring(pressScale, { toValue: 1,    useNativeDriver: true, speed: 40, bounciness: 4 }).start()
 
   return (
-    <TouchableOpacity activeOpacity={1} onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
+    <TouchableOpacity activeOpacity={1} onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={isClosed ? styles.closedWrap : undefined}>
       <Animated.View
         style={[
           styles.card,
-          selected && styles.cardSelected,
+          isClosed && styles.cardClosed,
+          selected && !isClosed && styles.cardSelected,
           { transform: [{ scale: pressScale }] },
-          Platform.OS === 'web' && selected ? (styles.cardSelectedShadow as any) : null,
+          Platform.OS === 'web' && selected && !isClosed ? (styles.cardSelectedShadow as any) : null,
         ]}
       >
-        {selected && <View style={styles.accentLine} pointerEvents="none" />}
+        {selected && !isClosed && <View style={styles.accentLine} pointerEvents="none" />}
 
         <View style={styles.top}>
-          <View style={[styles.badge, isLive && styles.badgeLive]}>
-            <Text style={[styles.initial, isLive && styles.initialLive]}>
+          <View style={[styles.badge, isClosed ? styles.badgeClosed : isLive && styles.badgeLive]}>
+            <Text style={[styles.initial, isClosed ? styles.initialClosed : isLive && styles.initialLive]}>
               {zone.name[0]?.toUpperCase()}
             </Text>
             {isLive && <View style={styles.pulsePos}><PulseDot /></View>}
@@ -93,52 +95,62 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
 
           <View style={styles.info}>
             <View style={styles.nameRow}>
-              <Text style={styles.name} numberOfLines={1}>{zone.name}</Text>
-              {isLive && (
+              <Text style={[styles.name, isClosed && styles.nameClosed]} numberOfLines={1}>{zone.name}</Text>
+              {isClosed ? (
+                <View style={styles.closedPill}>
+                  <Text style={styles.closedPillText}>CLOSED</Text>
+                </View>
+              ) : isLive && (
                 <View style={styles.livePill}>
                   <Text style={styles.livePillText}>LIVE</Text>
                 </View>
               )}
             </View>
-            {zone.description && (
+            {isClosed ? (
+              <Text style={styles.closureMsg} numberOfLines={2}>
+                {zone.temporary_closure_message ?? 'Temporarily unavailable'}
+              </Text>
+            ) : zone.description ? (
               <Text style={styles.desc} numberOfLines={2}>{zone.description}</Text>
-            )}
+            ) : null}
           </View>
 
           {zone.distance_meters != null && (
-            <View style={styles.distancePill}>
-              <Text style={styles.distanceText}>{formatDistance(zone.distance_meters)}</Text>
+            <View style={[styles.distancePill, isClosed && styles.distancePillClosed]}>
+              <Text style={[styles.distanceText, isClosed && styles.distanceTextClosed]}>{formatDistance(zone.distance_meters)}</Text>
             </View>
           )}
         </View>
 
-        <View style={styles.footer}>
-          <View style={styles.stat}>
-            <Text style={[styles.statNum, isLive && styles.statNumLive]}>{zone.member_count}</Text>
-            <Text style={styles.statLabel}>here now</Text>
+        {!isClosed && (
+          <View style={styles.footer}>
+            <View style={styles.stat}>
+              <Text style={[styles.statNum, isLive && styles.statNumLive]}>{zone.member_count}</Text>
+              <Text style={styles.statLabel}>here now</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.stat}>
+              <Text style={styles.statNum}>{zone.post_count}</Text>
+              <Text style={styles.statLabel}>posts</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.stat}>
+              <Text style={styles.statNum}>{zone.radius_meters}m</Text>
+              <Text style={styles.statLabel}>radius</Text>
+            </View>
+            <View style={styles.heatTrack}>
+              <View
+                style={[
+                  styles.heatFill,
+                  { width: `${Math.min(((zone.member_count ?? 0) / 30) * 100, 100)}%` as any },
+                  isLive && styles.heatFillLive,
+                ]}
+              />
+            </View>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.stat}>
-            <Text style={styles.statNum}>{zone.post_count}</Text>
-            <Text style={styles.statLabel}>posts</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.stat}>
-            <Text style={styles.statNum}>{zone.radius_meters}m</Text>
-            <Text style={styles.statLabel}>radius</Text>
-          </View>
-          <View style={styles.heatTrack}>
-            <View
-              style={[
-                styles.heatFill,
-                { width: `${Math.min(((zone.member_count ?? 0) / 30) * 100, 100)}%` as any },
-                isLive && styles.heatFillLive,
-              ]}
-            />
-          </View>
-        </View>
+        )}
 
-        {/* Activity preview */}
+        {/* Activity preview — hidden when closed */}
         {(isLive || nextEventSoon) && (
           <View style={styles.activityRow}>
             {isLive && (
@@ -160,7 +172,7 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
         )}
 
         {/* Operating hours */}
-        {!!zone.opening_hours && (
+        {!!zone.opening_hours && !isClosed && (
           <Text style={styles.hoursText}>🕐 {zone.opening_hours}</Text>
         )}
 
@@ -168,13 +180,13 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
         {(zone.chips ?? []).length > 0 && (
           <View style={styles.chipsRow}>
             {(zone.chips ?? []).slice(0, 4).map((c) => (
-              <View key={c} style={styles.chip}>
-                <Text style={styles.chipText}>{c}</Text>
+              <View key={c} style={[styles.chip, isClosed && styles.chipClosed]}>
+                <Text style={[styles.chipText, isClosed && styles.chipTextClosed]}>{c}</Text>
               </View>
             ))}
             {(zone.chips ?? []).length > 4 && (
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>+{(zone.chips ?? []).length - 4}</Text>
+              <View style={[styles.chip, isClosed && styles.chipClosed]}>
+                <Text style={[styles.chipText, isClosed && styles.chipTextClosed]}>+{(zone.chips ?? []).length - 4}</Text>
               </View>
             )}
           </View>
@@ -200,6 +212,21 @@ const styles = StyleSheet.create({
   },
   cardSelected: { borderColor: '#29B6F6', backgroundColor: '#091B2F' },
   cardSelectedShadow: { boxShadow: '0 0 0 1.5px #29B6F6, 0 6px 28px rgba(41,182,246,0.18)' },
+  cardClosed: { borderColor: '#2A3A4A', backgroundColor: '#090F18' },
+  closedWrap: { opacity: 0.65 },
+  badgeClosed: { backgroundColor: '#1A2A3A', borderColor: '#2A3A4A' },
+  initialClosed: { color: '#3D5A73' },
+  nameClosed: { color: '#4A6580' },
+  closedPill: {
+    backgroundColor: '#2A2A2A', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+    borderWidth: 1, borderColor: '#3A3A3A',
+  },
+  closedPillText: { fontSize: 9, fontWeight: '900', color: '#5A7A9A', letterSpacing: 1.2 },
+  closureMsg: { fontSize: 13, color: '#3D5A73', lineHeight: 18, fontStyle: 'italic' },
+  distancePillClosed: { backgroundColor: '#0A1628', borderColor: '#1A2E4A' },
+  distanceTextClosed: { color: '#3D5A73' },
+  chipClosed: { backgroundColor: '#070E1A', borderColor: '#111F30' },
+  chipTextClosed: { color: '#3D5A73' },
   accentLine: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 2,
     backgroundColor: '#29B6F6', opacity: 0.9,
