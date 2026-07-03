@@ -1,8 +1,15 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native'
 import { router } from 'expo-router'
 import type { Zone } from '@/lib/zones'
 import WebMap, { WEB_MAP_HEIGHT } from './WebMap'
+
+const FILTER_CHIPS = [
+  'Cocktails', 'Draft Beer', 'Wine Bar', 'Full Menu', 'Late Night Bites',
+  'Live Music', 'DJ', 'Karaoke', 'Trivia Night', 'Sports TV',
+  'Billiards', 'Patio', 'Dance Floor', 'Rooftop',
+  'Happy Hour', '21+', 'Dog Friendly', 'Reservations',
+]
 
 interface Props {
   zones: Zone[]
@@ -16,6 +23,8 @@ interface Props {
   onSearchChange: (q: string) => void
   onMapMove?: (lat: number, lng: number) => void
   recenterTick?: number
+  selectedChip: string | null
+  onChipChange: (chip: string | null) => void
 }
 
 export const MAP_HEIGHT = WEB_MAP_HEIGHT
@@ -23,6 +32,7 @@ export const MAP_HEIGHT = WEB_MAP_HEIGHT
 export default function NearbyMap({
   zones, location, selectedId, onPinPress,
   isVenueOwner, subscribedIds, searchQuery, onSearchChange, onMapMove, recenterTick,
+  selectedChip, onChipChange,
 }: Props) {
   const [searchFocused, setSearchFocused] = useState(false)
 
@@ -79,6 +89,26 @@ export default function NearbyMap({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Chip filter */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipStrip}
+        >
+          {FILTER_CHIPS.map((chip) => (
+            <TouchableOpacity
+              key={chip}
+              style={[styles.chipPill, selectedChip === chip && styles.chipPillActive]}
+              onPress={() => onChipChange(selectedChip === chip ? null : chip)}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.chipText, selectedChip === chip && styles.chipTextActive]}>
+                {chip}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         {/* Tier legend */}
         <View style={styles.legend}>
@@ -212,6 +242,20 @@ const styles = StyleSheet.create({
   },
   clearBtn:     { padding: 4 },
   clearBtnText: { color: '#4A6580', fontSize: 13, fontWeight: '600' },
+
+  // Chip filter
+  chipStrip: { gap: 7, flexDirection: 'row', paddingBottom: 2 },
+  chipPill: {
+    backgroundColor: '#0D1B2E',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+  },
+  chipPillActive: { backgroundColor: '#29B6F618', borderColor: '#29B6F6' },
+  chipText: { fontSize: 12, color: '#7A93AC', fontWeight: '600' },
+  chipTextActive: { color: '#29B6F6', fontWeight: '700' },
 
   // Legend
   legend:     { flexDirection: 'row', gap: 14, alignItems: 'center' },

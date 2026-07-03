@@ -111,8 +111,9 @@ export default function VenueGalleryScreen() {
           created_by: ownerId,
           public_url: urlData.publicUrl,
           storage_path: fileName,
+          status: 'approved',
         })
-        .select('id, public_url, caption, storage_path, created_at')
+        .select('id, public_url, caption, storage_path, status, created_at')
         .single()
 
       if (insertError || !inserted) {

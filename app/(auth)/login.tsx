@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-  logo: { width: 80, height: 80, borderRadius: 20, marginBottom: 2 },
+  logo: { width: 110, height: 110, borderRadius: 28, marginBottom: 2 },
   betaBadge: {
     backgroundColor: 'rgba(41,182,246,0.12)',
     borderRadius: 6,

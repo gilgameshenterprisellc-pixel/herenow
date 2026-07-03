@@ -37,9 +37,10 @@ export async function uploadAvatarWeb(
 
       const path = `${userId}/avatar.jpg`
 
+      await supabase.storage.from('avatars').remove([path]).catch(() => {})
       const { error } = await supabase.storage
         .from('avatars')
-        .upload(path, file, { upsert: true, contentType: file.type })
+        .upload(path, file, { contentType: file.type })
 
       if (error) { console.error('[uploadAvatar]', error.message); settle(null); return }
 
@@ -85,16 +86,16 @@ async function uploadAvatarNative(
   if (result.canceled || !result.assets[0]) return null
 
   const asset = result.assets[0]
-  // Always upload to the same path so upsert reliably replaces the old photo
   const path = `${userId}/avatar.jpg`
   const mimeType = asset.mimeType || 'image/jpeg'
 
   const response = await fetch(asset.uri)
   const arrayBuffer = await response.arrayBuffer()
 
+  await supabase.storage.from('avatars').remove([path]).catch(() => {})
   const { error } = await supabase.storage
     .from('avatars')
-    .upload(path, arrayBuffer, { upsert: true, contentType: mimeType })
+    .upload(path, arrayBuffer, { contentType: mimeType })
 
   if (error) {
     console.error('[uploadAvatar native]', error.message)

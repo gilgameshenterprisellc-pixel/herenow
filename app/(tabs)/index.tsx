@@ -103,6 +103,7 @@ export default function NearbyScreen() {
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery]   = useState('')
   const [searchResults, setSearchResults] = useState<Zone[]>([])
+  const [selectedChip, setSelectedChip] = useState<string | null>(null)
   const [mapRecenterTick, setMapRecenterTick] = useState(0)
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mapRef  = useRef<any>(null)
@@ -190,8 +191,11 @@ export default function NearbyScreen() {
     return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current) }
   }, [searchQuery])
 
-  // When searching, show DB results; otherwise show nearby zones
-  const filteredZones = searchQuery.trim() ? searchResults : zones
+  // When searching, show DB results; otherwise show nearby zones — optionally chip-filtered
+  const baseZones = searchQuery.trim() ? searchResults : zones
+  const filteredZones = selectedChip
+    ? baseZones.filter(z => z.chips?.includes(selectedChip))
+    : baseZones
 
   // Look in both pools so search-result taps populate the preview card
   const selectedZone =
@@ -271,6 +275,8 @@ export default function NearbyScreen() {
         onSearchChange={setSearchQuery}
         onMapMove={handleMapMove}
         recenterTick={mapRecenterTick}
+        selectedChip={selectedChip}
+        onChipChange={setSelectedChip}
       />
 
       {loading ? (
@@ -300,7 +306,9 @@ export default function NearbyScreen() {
                 <Text style={styles.listLabel}>
                   {searchQuery
                     ? `${filteredZones.length} result${filteredZones.length !== 1 ? 's' : ''} for "${searchQuery}"`
-                    : `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} nearby`}
+                    : selectedChip
+                      ? `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} with "${selectedChip}"`
+                      : `${filteredZones.length} venue${filteredZones.length !== 1 ? 's' : ''} nearby`}
                 </Text>
               )}
             </View>
