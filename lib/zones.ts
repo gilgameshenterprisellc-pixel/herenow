@@ -68,21 +68,23 @@ export async function createZone(params: {
 
   return {
     ...data,
-    distance_meters:      null,
-    center_lat:           params.latitude,
-    center_lng:           params.longitude,
-    chips:                [],
-    opening_hours:        null,
-    next_event_title:     null,
-    next_event_starts_at: null,
-    polygon_wkt:          null,
+    distance_meters:           null,
+    center_lat:                params.latitude,
+    center_lng:                params.longitude,
+    chips:                     [],
+    opening_hours:             null,
+    next_event_title:          null,
+    next_event_starts_at:      null,
+    polygon_wkt:               null,
+    is_temporarily_closed:     false,
+    temporary_closure_message: null,
   }
 }
 
 export async function searchZonesByName(query: string): Promise<Zone[]> {
   const { data, error } = await supabase
     .from('zones')
-    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours, polygon_wkt')
+    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours, polygon_wkt, is_temporarily_closed, temporary_closure_message')
     .eq('is_active', true)
     .ilike('name', `%${query}%`)
     .limit(20)
@@ -94,12 +96,14 @@ export async function searchZonesByName(query: string): Promise<Zone[]> {
 
   return (data ?? []).map(z => ({
     ...z,
-    distance_meters:      null,
-    chips:                z.chips ?? [],
-    opening_hours:        z.opening_hours ?? null,
-    next_event_title:     null,
-    next_event_starts_at: null,
-    polygon_wkt:          z.polygon_wkt ?? null,
+    distance_meters:           null,
+    chips:                     z.chips ?? [],
+    opening_hours:             z.opening_hours ?? null,
+    next_event_title:          null,
+    next_event_starts_at:      null,
+    polygon_wkt:               z.polygon_wkt ?? null,
+    is_temporarily_closed:     z.is_temporarily_closed ?? false,
+    temporary_closure_message: z.temporary_closure_message ?? null,
   }))
 }
 
