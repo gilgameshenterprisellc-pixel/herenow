@@ -13,10 +13,14 @@ interface Props {
   badge: Badge
   earned?: boolean
   earnedAt?: string
+  meta?: Record<string, string> | null
 }
 
-export default function BadgeCard({ badge, earned = false, earnedAt }: Props) {
+export default function BadgeCard({ badge, earned = false, earnedAt, meta }: Props) {
   const color = CATEGORY_COLOR[badge.category] ?? '#7A93AC'
+  const displayName = badge.slug === 'venue_regular' && meta?.zone_name
+    ? `${meta.zone_name} Regular`
+    : badge.name
 
   return (
     <View style={[styles.card, earned && { borderColor: color + '44' }, !earned && styles.locked]}>
@@ -24,7 +28,7 @@ export default function BadgeCard({ badge, earned = false, earnedAt }: Props) {
         <Text style={styles.icon}>{badge.icon ?? '🏅'}</Text>
       </View>
       <View style={styles.info}>
-        <Text style={[styles.name, !earned && styles.nameLocked]}>{badge.name}</Text>
+        <Text style={[styles.name, !earned && styles.nameLocked]}>{displayName}</Text>
         <Text style={styles.desc} numberOfLines={2}>{badge.description}</Text>
         {earned && earnedAt && (
           <Text style={[styles.earnedAt, { color }]}>

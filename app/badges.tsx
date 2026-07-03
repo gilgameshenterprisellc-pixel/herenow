@@ -22,7 +22,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 export default function BadgesScreen() {
   const insets = useSafeAreaInsets()
   const [allBadges, setAllBadges]   = useState<Badge[]>([])
-  const [earnedMap, setEarnedMap]   = useState<Map<string, string>>() // badge_id → earned_at
+  const [earnedMap, setEarnedMap]   = useState<Map<string, { earnedAt: string; meta: Record<string, string> | null }>>()
   const [loading, setLoading]       = useState(true)
   const [earnedCount, setEarnedCount] = useState(0)
 
@@ -36,8 +36,8 @@ export default function BadgesScreen() {
         fetchUserBadges(user.id),
       ])
 
-      const map = new Map<string, string>()
-      earned.forEach((ub) => map.set(ub.badge_id, ub.earned_at))
+      const map = new Map<string, { earnedAt: string; meta: Record<string, string> | null }>()
+      earned.forEach((ub) => map.set(ub.badge_id, { earnedAt: ub.earned_at, meta: ub.meta }))
 
       setAllBadges(all)
       setEarnedMap(map)
@@ -108,13 +108,14 @@ export default function BadgesScreen() {
                   <Text style={styles.catLabel}>{CATEGORY_LABEL[item.category]}</Text>
                 )
               }
-              const earned = earnedMap?.has(item.badge.id) ?? false
-              const earnedAt = earnedMap?.get(item.badge.id)
+              const earnedEntry = earnedMap?.get(item.badge.id)
+              const earned = !!earnedEntry
               return (
                 <BadgeCard
                   badge={item.badge}
                   earned={earned}
-                  earnedAt={earnedAt}
+                  earnedAt={earnedEntry?.earnedAt}
+                  meta={earnedEntry?.meta}
                 />
               )
             }}

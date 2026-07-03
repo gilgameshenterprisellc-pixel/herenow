@@ -14,6 +14,7 @@ export interface UserBadge {
   user_id: string
   badge_id: string
   earned_at: string
+  meta: Record<string, string> | null
   badge: Badge
 }
 
@@ -49,7 +50,7 @@ export async function fetchUserBadges(userId?: string): Promise<UserBadge[]> {
   return data ?? []
 }
 
-export async function awardBadge(slug: string): Promise<void> {
+export async function awardBadge(slug: string, meta?: Record<string, string>): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
@@ -63,7 +64,10 @@ export async function awardBadge(slug: string): Promise<void> {
 
   await supabase
     .from('user_badges')
-    .upsert({ user_id: user.id, badge_id: badge.id }, { onConflict: 'user_id,badge_id' })
+    .upsert(
+      { user_id: user.id, badge_id: badge.id, meta: meta ?? null },
+      { onConflict: 'user_id,badge_id' },
+    )
 
   await supabase.from('notifications').insert({
     user_id: user.id,
@@ -109,10 +113,17 @@ export async function checkAndAwardBadges(
     const distinctVenues = new Set(rows.map((s: any) => s.zone_id)).size
     if (distinctVenues >= 3 && !earned.has('adventurer')) await awardBadge('adventurer')
 
-    // Venue Regular: 5+ check-ins at the same venue
+    // Venue Regular: 5+ check-ins at the same venue — stores zone name in meta
     if (opts?.zoneId && !earned.has('venue_regular')) {
       const venueCount = rows.filter((s: any) => s.zone_id === opts.zoneId).length
-      if (venueCount >= 5) await awardBadge('venue_regular')
+      if (venueCount >= 5) {
+        const { data: zone } = await supabase
+          .from('zones')
+          .select('name')
+          .eq('id', opts.zoneId)
+          .maybeSingle()
+        await awardBadge('venue_regular', zone ? { zone_name: zone.name } : undefined)
+      }
     }
 
     // Night Owl II: 5+ check-ins between midnight and 5am — computed in JS from fetched rows
