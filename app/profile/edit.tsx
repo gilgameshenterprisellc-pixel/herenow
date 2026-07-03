@@ -81,10 +81,7 @@ export default function EditProfileScreen() {
       const url = await uploadAvatarWeb(userId, source)
       setUploading(false)
 
-      if (!url) {
-        // uploadAvatarNative already showed an Alert with specific guidance
-        return
-      }
+      if (!url) return
 
       const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
       if (error) {
@@ -93,6 +90,14 @@ export default function EditProfileScreen() {
       }
       setAvatarUrl(url)
       showToast('Profile photo updated!', 'success')
+    }
+
+    if (Platform.OS === 'web') {
+      // Safari iOS blocks input.click() when called after any async/dialog intermediary.
+      // Call pick() directly here so uploadAvatarWeb's input.click() runs in the
+      // synchronous user gesture stack — no dialog in between.
+      pick('library')
+      return
     }
 
     if (Platform.OS === 'ios') {
