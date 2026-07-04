@@ -141,13 +141,14 @@ export default function CheckInScreen() {
 
     // First-visit detection: count all sessions at this zone for this user.
     // The current session is already created, so count === 1 means first visit.
-    const { count: sessionCount } = await supabase
+    // count is null on RLS error or network failure — skip modal in that case.
+    const { count: sessionCount, error: countError } = await supabase
       .from('sessions')
       .select('*', { count: 'exact', head: true })
       .eq('zone_id', zoneId)
       .eq('user_id', result.session.user_id)
 
-    if (sessionCount === 1) {
+    if (!countError && sessionCount === 1) {
       // First visit — load zone details + highlights for the welcome modal
       const [{ data: zoneData }, highlights, { data: photoRow }] = await Promise.all([
         supabase.from('zones').select('name, description, opening_hours').eq('id', zoneId).maybeSingle(),

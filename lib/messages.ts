@@ -21,7 +21,7 @@ export interface DmThread {
   last_message_at: string | null
   last_sender_id: string | null
   unread_count: number
-  expires_at: string | null  // NULL = locked until checkout
+  expires_at: string | null  // NULL = locked until checkout; '2099-12-31...' = permanent (mutual-reply)
   zone_name: string | null
 }
 
@@ -86,9 +86,10 @@ export async function sendMessage(params: {
   })
 
   // Mutual-reply persistence: if the other party has already replied,
-  // make this DM thread permanent (no expiry) by nulling out expires_at.
+  // make this DM thread permanent by setting expires_at to a far-future sentinel.
+  // Using a sentinel date (not null) so null keeps its one meaning: locked/pre-checkout.
   // The .not() guard ensures we only update threads that are already unlocked
-  // (post-checkout), not pre-checkout locked threads.
+  // (post-checkout, has a real expiry date), never pre-checkout locked threads (null).
   const { count: partnerMsgCount } = await supabase
     .from('direct_messages')
     .select('id', { count: 'exact', head: true })
@@ -97,7 +98,7 @@ export async function sendMessage(params: {
   if ((partnerMsgCount ?? 0) > 0) {
     await supabase
       .from('we_met')
-      .update({ expires_at: null })
+      .update({ expires_at: '2099-12-31T00:00:00Z' })
       .eq('id', params.wemetId)
       .not('expires_at', 'is', null)
   }

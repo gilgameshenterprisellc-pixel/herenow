@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchMyVenues, type VenueSubscription } from '@/lib/venueSubscriptions'
 import { useNotifications } from '@/hooks/useNotifications'
 import AnimatedBackground from '@/components/AnimatedBackground'
-import type { Notification } from '@/lib/notifications'
+import { markOneRead, type Notification } from '@/lib/notifications'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -140,9 +140,11 @@ export default function UpdatesScreen() {
   }
 
   // Load venue feed on first render (notifications loaded by hook)
-  useState(() => { loadVenueFeed() })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadVenueFeed() }, [])
 
   const handleNotifPress = (n: Notification) => {
+    if (!n.is_read) markOneRead(n.id).catch(() => {})
     const d = n.data as Record<string, any> | null
     if (n.type === 'wemet_request' || n.type === 'wemet_confirmed') {
       router.push('/we-met')
