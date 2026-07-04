@@ -8,48 +8,57 @@ export async function uploadAvatarWeb(
 ): Promise<string | null> {
   if (Platform.OS !== 'web') return uploadAvatarNative(userId, source)
 
-  return new Promise((resolve) => {
+  // Phase 1: pick a file synchronously from user gesture.
+  // The upload happens AFTER the Promise resolves so the 300ms focus-timeout
+  // (which detects "user dismissed picker without selecting") never races
+  // against the async Supabase upload.
+  const file = await new Promise<File | null>((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/jpeg,image/png,image/webp'
 
     let settled = false
-    const settle = (v: string | null) => { if (!settled) { settled = true; resolve(v) } }
+    const settle = (v: File | null) => { if (!settled) { settled = true; resolve(v) } }
 
     input.addEventListener('cancel', () => settle(null))
 
+    let focusTimeout: ReturnType<typeof setTimeout> | null = null
     const onFocus = () => {
       window.removeEventListener('focus', onFocus)
-      setTimeout(() => settle(null), 300)
+      // Fallback for browsers that don't fire the cancel event.
+      // Cleared immediately if onchange fires, so the upload can't race it.
+      focusTimeout = setTimeout(() => settle(null), 2000)
     }
     window.addEventListener('focus', onFocus)
 
-    input.onchange = async () => {
+    input.onchange = () => {
       window.removeEventListener('focus', onFocus)
-      const file = input.files?.[0]
-      if (!file) { settle(null); return }
-
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Photo must be under 5MB.')
-        settle(null)
-        return
-      }
-
-      const path = `${userId}/avatar.jpg`
-
-      await supabase.storage.from('avatars').remove([path]).catch(() => {})
-      const { error } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { contentType: file.type })
-
-      if (error) { console.error('[uploadAvatar]', error.message); settle(null); return }
-
-      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-      settle(`${data.publicUrl}?v=${Date.now()}`)
+      if (focusTimeout) clearTimeout(focusTimeout) // cancel the fallback timer
+      settle(input.files?.[0] ?? null)
     }
 
-    input.click()
+    input.click() // synchronous — must stay here to keep gesture context
   })
+
+  if (!file) return null
+
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Photo must be under 5MB.')
+    return null
+  }
+
+  // Phase 2: upload (async, outside the picker Promise so no race).
+  const path = `${userId}/avatar.jpg`
+
+  await supabase.storage.from('avatars').remove([path]).catch(() => {})
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { contentType: file.type || 'image/jpeg' })
+
+  if (error) { console.error('[uploadAvatar]', error.message); return null }
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  return `${data.publicUrl}?v=${Date.now()}`
 }
 
 async function uploadAvatarNative(
