@@ -61,37 +61,57 @@ export default function TabsLayout() {
   const [dmUnread, setDmUnread]   = useState(0)  // DM unread count → Messages tab
 
   useEffect(() => {
+    let mounted = true
+    let notifSub: ReturnType<typeof supabase.channel> | null = null
+    let dmSub: ReturnType<typeof supabase.channel> | null = null
+
     const fetchUnread = async () => {
       const [notifCount, dmCount] = await Promise.all([getUnreadCount(), getDmUnreadCount()])
-      setUnread(notifCount)
-      setDmUnread(dmCount)
+      if (mounted) {
+        setUnread(notifCount)
+        setDmUnread(dmCount)
+      }
     }
 
-    fetchUnread()
+    const init = async () => {
+      await fetchUnread()
+      if (!mounted) return
+
+      // Get user ID so subscriptions are scoped to only this user's rows,
+      // preventing every connected client from refetching on every app-wide insert.
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!mounted) return
+      const uid = user?.id
+
+      notifSub = supabase
+        .channel('badge-notif')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          ...(uid ? { filter: `user_id=eq.${uid}` } : {}),
+        }, fetchUnread)
+        .subscribe()
+
+      dmSub = supabase
+        .channel('badge-dm')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'direct_messages',
+          ...(uid ? { filter: `recipient_id=eq.${uid}` } : {}),
+        }, fetchUnread)
+        .subscribe()
+    }
+
+    init()
     const interval = setInterval(fetchUnread, 30_000)
 
-    const notifSub = supabase
-      .channel('badge-notif')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-      }, fetchUnread)
-      .subscribe()
-
-    const dmSub = supabase
-      .channel('badge-dm')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'direct_messages',
-      }, fetchUnread)
-      .subscribe()
-
     return () => {
+      mounted = false
       clearInterval(interval)
-      supabase.removeChannel(notifSub)
-      supabase.removeChannel(dmSub)
+      if (notifSub) supabase.removeChannel(notifSub)
+      if (dmSub) supabase.removeChannel(dmSub)
     }
   }, [])
 

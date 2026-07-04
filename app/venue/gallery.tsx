@@ -73,13 +73,15 @@ export default function VenueGalleryScreen() {
       let settled = false
       const settle = (v: File | null) => { if (!settled) { settled = true; resolve(v) } }
       input.addEventListener('cancel', () => settle(null))
+      let focusTimeout: ReturnType<typeof setTimeout> | null = null
       const onFocus = () => {
         window.removeEventListener('focus', onFocus)
-        setTimeout(() => settle(null), 300)
+        focusTimeout = setTimeout(() => settle(null), 2000)
       }
       window.addEventListener('focus', onFocus)
       input.onchange = () => {
         window.removeEventListener('focus', onFocus)
+        if (focusTimeout) clearTimeout(focusTimeout)
         settle(input.files?.[0] ?? null)
       }
       input.click() // synchronous — must stay here to keep gesture context
