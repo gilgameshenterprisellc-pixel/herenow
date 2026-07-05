@@ -137,7 +137,7 @@ export default function TabsLayout() {
           name="feed"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon name="bell-outline" nameFocused="bell" focused={focused} badge={unread} />
+              <TabIcon name="megaphone-outline" nameFocused="megaphone" focused={focused} badge={unread} />
             ),
           }}
         />
