@@ -23,6 +23,7 @@ import { checkAndAwardBadges } from '@/lib/badges'
 import { reportUser, reportContent, type ReportReason, type ContentReportReason } from '@/lib/reports'
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
+import { fetchVenueBadges, checkAndAwardVenueBadges, type VenueBadge } from '@/lib/venueBadges'
 import { subscribeToVenue, unsubscribeFromVenue, isSubscribedToVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
@@ -81,6 +82,9 @@ export default function ZoneScreen() {
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [subLoading, setSubLoading]     = useState(false)
 
+  // Venue badges
+  const [venueBadges, setVenueBadges] = useState<VenueBadge[]>([])
+
   // Gallery submission
   const [submittingPhoto, setSubmittingPhoto] = useState(false)
 
@@ -123,6 +127,11 @@ export default function ZoneScreen() {
         const subbed = await isSubscribedToVenue(id)
         setIsSubscribed(subbed)
       }
+
+      // Load venue badges — check for new ones while we're here (fire-and-forget on error)
+      checkAndAwardVenueBadges(id)
+        .then(setVenueBadges)
+        .catch(() => fetchVenueBadges(id).then(setVenueBadges).catch(() => {}))
 
       // Join as member if not already
       if (user) {
@@ -490,6 +499,24 @@ export default function ZoneScreen() {
           {zone.temporary_closure_message ? (
             <Text style={styles.closedBannerMsg}>{zone.temporary_closure_message}</Text>
           ) : null}
+        </View>
+      )}
+
+      {/* Venue Badges */}
+      {venueBadges.length > 0 && (
+        <View style={styles.badgeStrip}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.badgeStripList}
+          >
+            {venueBadges.map((b) => (
+              <View key={b.slug} style={styles.badgeChip}>
+                <Text style={styles.badgeChipIcon}>{b.icon ?? '🏅'}</Text>
+                <Text style={styles.badgeChipName}>{b.name}</Text>
+              </View>
+            ))}
+          </ScrollView>
         </View>
       )}
 
@@ -1057,4 +1084,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     gap: 12,
   },
+  badgeStrip: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#0D1B2E',
+    paddingVertical: 8,
+  },
+  badgeStripList: {
+    paddingHorizontal: 14,
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#0D1B2E',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#29B6F625',
+  },
+  badgeChipIcon: { fontSize: 13 },
+  badgeChipName: { fontSize: 11, fontWeight: '700', color: '#8EADC7' },
 })
