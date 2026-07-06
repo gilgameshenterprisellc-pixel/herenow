@@ -9,7 +9,7 @@ workflows:
       node: 20.18.0
     scripts:
       - name: Install npm dependencies
-        script: npm ci
+        script: npm install
       - name: Expo prebuild
         script: npx expo prebuild --clean --platform ios
       - name: Install CocoaPods
