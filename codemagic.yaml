@@ -21,9 +21,15 @@ workflows:
           keychain initialize
           PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_HOME"
-          echo $DIST_PROFILE | base64 --decode > "$PROFILES_HOME/herenow.mobileprovision"
-          echo $DIST_CERT_P12 | base64 --decode > /tmp/cert.p12
-          keychain add-certificates --certificate /tmp/cert.p12 --certificate-password $DIST_CERT_PASSWORD
+          echo "$DIST_PROFILE" | base64 --decode > "$PROFILES_HOME/herenow.mobileprovision"
+          PROFILE_SIZE=$(wc -c < "$PROFILES_HOME/herenow.mobileprovision")
+          echo "Decoded profile size: $PROFILE_SIZE bytes"
+          if [ "$PROFILE_SIZE" -lt 1000 ]; then
+            echo "ERROR: DIST_PROFILE decoded to $PROFILE_SIZE bytes — env var is missing or empty in Codemagic"
+            exit 1
+          fi
+          echo "$DIST_CERT_P12" | base64 --decode > /tmp/cert.p12
+          keychain add-certificates --certificate /tmp/cert.p12 --certificate-password "$DIST_CERT_PASSWORD"
       - name: Build IPA
         script: |
           set -eo pipefail
