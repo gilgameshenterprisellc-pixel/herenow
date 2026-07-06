@@ -9,6 +9,7 @@ workflows:
       node: 20.18.0
       groups:
         - ios_signing
+        - app_env
     scripts:
       - name: Install npm dependencies
         script: npm install
