@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.gilgameshenterprise.herenow",
+      "bundleIdentifier": "Com.gilgameshenterprise.herenow",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "HereNow uses your location to show you zones nearby and let you join them.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "HereNow uses your location in the background to notify you when you enter or leave a zone.",
