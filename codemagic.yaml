@@ -15,7 +15,7 @@ workflows:
       - name: Install CocoaPods
         script: cd ios && pod install
       - name: Set up code signing
-        script: xcode-project use-profiles
+        script: xcode-project use-profiles --xcode-project ios/HereNow.xcodeproj
       - name: Build IPA
         script: |
           xcode-project build-ipa \
