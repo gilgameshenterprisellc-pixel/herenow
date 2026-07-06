@@ -15,12 +15,23 @@ workflows:
       - name: Install CocoaPods
         script: cd ios && pod install
       - name: Set up code signing
-        script: xcode-project use-profiles --xcode-project ios/HereNow.xcodeproj
+        script: |
+          keychain initialize
+          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_HOME"
+          echo $CM_PROVISIONING_PROFILE | base64 --decode > "$PROFILES_HOME/herenow.mobileprovision"
+          echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
+          keychain add-certificates --certificate /tmp/cert.p12 --certificate-password $CM_CERTIFICATE_PASSWORD
       - name: Build IPA
         script: |
+          PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/herenow.mobileprovision"
+          security cms -D -i "$PROFILE_PATH" > /tmp/profile.plist
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /tmp/profile.plist)
+          echo "Profile UUID: $PROFILE_UUID"
           xcode-project build-ipa \
             --workspace ios/HereNow.xcworkspace \
-            --scheme HereNow
+            --scheme HereNow \
+            --archive-xcargs "CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='iPhone Distribution' PROVISIONING_PROFILE_SPECIFIER='$PROFILE_UUID' PROVISIONING_PROFILE='$PROFILE_UUID'"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
