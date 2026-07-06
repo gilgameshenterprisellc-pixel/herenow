@@ -37,22 +37,8 @@ workflows:
           echo "Profile size: $(wc -c < "$PROFILE_PATH") bytes"
 
           # Extract UUID and TeamID via Python — more reliable than security cms on Codemagic
-          PROFILE_UUID=$(python3 -c "
-import plistlib
-data = open('$PROFILE_PATH', 'rb').read()
-start = data.find(b'<?xml')
-end = data.rfind(b'</plist>') + 8
-p = plistlib.loads(data[start:end])
-print(p['UUID'])
-")
-          TEAM_ID=$(python3 -c "
-import plistlib
-data = open('$PROFILE_PATH', 'rb').read()
-start = data.find(b'<?xml')
-end = data.rfind(b'</plist>') + 8
-p = plistlib.loads(data[start:end])
-print(p['TeamIdentifier'][0])
-")
+          PROFILE_UUID=$(python3 -c "import plistlib; d=open('$PROFILE_PATH','rb').read(); s=d.find(b'<?xml'); p=plistlib.loads(d[s:d.rfind(b'</plist>')+8]); print(p['UUID'])")
+          TEAM_ID=$(python3 -c "import plistlib; d=open('$PROFILE_PATH','rb').read(); s=d.find(b'<?xml'); p=plistlib.loads(d[s:d.rfind(b'</plist>')+8]); print(p['TeamIdentifier'][0])")
           echo "Profile UUID: $PROFILE_UUID, Team ID: $TEAM_ID"
 
           cat > /Users/builder/export_options.plist << PLIST
