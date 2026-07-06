@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "herenow",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.gilgameshenterprise.herenow",
@@ -19,8 +19,11 @@
         "NSCameraUsageDescription": "HereNow lets you take a photo for your profile or attach one to an announcement.",
         "UIBackgroundModes": [
           "location",
+          "fetch",
+          "location",
           "fetch"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
