@@ -27,9 +27,32 @@ workflows:
       - name: Build IPA
         script: |
           PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/herenow.mobileprovision"
-          security cms -D -i "$PROFILE_PATH" > /tmp/profile.plist
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /tmp/profile.plist)
-          TEAM_ID=$(/usr/libexec/PlistBuddy -c "Print :TeamIdentifier:0" /tmp/profile.plist)
+
+          # Verify profile was installed correctly
+          if [ ! -f "$PROFILE_PATH" ]; then
+            echo "ERROR: Profile not found at $PROFILE_PATH"
+            ls "$HOME/Library/MobileDevice/Provisioning Profiles/" 2>/dev/null || echo "(profiles dir empty)"
+            exit 1
+          fi
+          echo "Profile size: $(wc -c < "$PROFILE_PATH") bytes"
+
+          # Extract UUID and TeamID via Python — more reliable than security cms on Codemagic
+          PROFILE_UUID=$(python3 -c "
+import plistlib
+data = open('$PROFILE_PATH', 'rb').read()
+start = data.find(b'<?xml')
+end = data.rfind(b'</plist>') + 8
+p = plistlib.loads(data[start:end])
+print(p['UUID'])
+")
+          TEAM_ID=$(python3 -c "
+import plistlib
+data = open('$PROFILE_PATH', 'rb').read()
+start = data.find(b'<?xml')
+end = data.rfind(b'</plist>') + 8
+p = plistlib.loads(data[start:end])
+print(p['TeamIdentifier'][0])
+")
           echo "Profile UUID: $PROFILE_UUID, Team ID: $TEAM_ID"
 
           cat > /Users/builder/export_options.plist << PLIST
