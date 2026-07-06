@@ -50,10 +50,9 @@ export async function uploadAvatarWeb(
   // Phase 2: upload (async, outside the picker Promise so no race).
   const path = `${userId}/avatar.jpg`
 
-  await supabase.storage.from('avatars').remove([path]).catch(() => {})
   const { error } = await supabase.storage
     .from('avatars')
-    .upload(path, file, { contentType: file.type || 'image/jpeg' })
+    .upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true })
 
   if (error) { console.error('[uploadAvatar]', error.message); return null }
 
@@ -101,10 +100,9 @@ async function uploadAvatarNative(
   const response = await fetch(asset.uri)
   const arrayBuffer = await response.arrayBuffer()
 
-  await supabase.storage.from('avatars').remove([path]).catch(() => {})
   const { error } = await supabase.storage
     .from('avatars')
-    .upload(path, arrayBuffer, { contentType: mimeType })
+    .upload(path, arrayBuffer, { contentType: mimeType, upsert: true })
 
   if (error) {
     console.error('[uploadAvatar native]', error.message)
