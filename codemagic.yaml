@@ -7,6 +7,8 @@ workflows:
       app_store_connect: Jacob HereNow Key
     environment:
       node: 20.18.0
+      groups:
+        - ios_signing
     scripts:
       - name: Install npm dependencies
         script: npm install
@@ -19,9 +21,9 @@ workflows:
           keychain initialize
           PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_HOME"
-          echo $CM_PROVISIONING_PROFILE | base64 --decode > "$PROFILES_HOME/herenow.mobileprovision"
-          echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
-          keychain add-certificates --certificate /tmp/cert.p12 --certificate-password $CM_CERTIFICATE_PASSWORD
+          echo $DIST_PROFILE | base64 --decode > "$PROFILES_HOME/herenow.mobileprovision"
+          echo $DIST_CERT_P12 | base64 --decode > /tmp/cert.p12
+          keychain add-certificates --certificate /tmp/cert.p12 --certificate-password $DIST_CERT_PASSWORD
       - name: Build IPA
         script: |
           PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/herenow.mobileprovision"
