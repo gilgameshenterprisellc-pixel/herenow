@@ -6,9 +6,6 @@ workflows:
     integrations:
       app_store_connect: Jacob HereNow Key
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.gilgameshenterprise.herenow
       node: 20.18.0
     scripts:
       - name: Install npm dependencies
@@ -17,6 +14,8 @@ workflows:
         script: npx expo prebuild --clean --platform ios
       - name: Install CocoaPods
         script: cd ios && pod install
+      - name: Set up code signing
+        script: xcode-project use-profiles
       - name: Build IPA
         script: |
           xcode-project build-ipa \
