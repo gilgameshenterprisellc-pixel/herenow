@@ -29,7 +29,27 @@ workflows:
           PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/herenow.mobileprovision"
           security cms -D -i "$PROFILE_PATH" > /tmp/profile.plist
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /tmp/profile.plist)
-          echo "Profile UUID: $PROFILE_UUID"
+          TEAM_ID=$(/usr/libexec/PlistBuddy -c "Print :TeamIdentifier:0" /tmp/profile.plist)
+          echo "Profile UUID: $PROFILE_UUID, Team ID: $TEAM_ID"
+
+          cat > /Users/builder/export_options.plist << PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$TEAM_ID</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.gilgameshenterprise.herenow</key>
+              <string>$PROFILE_UUID</string>
+            </dict>
+          </dict>
+          </plist>
+          PLIST
+
           xcode-project build-ipa \
             --workspace ios/HereNow.xcworkspace \
             --scheme HereNow \
