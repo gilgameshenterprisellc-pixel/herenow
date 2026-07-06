@@ -26,6 +26,7 @@ workflows:
           keychain add-certificates --certificate /tmp/cert.p12 --certificate-password $DIST_CERT_PASSWORD
       - name: Build IPA
         script: |
+          set -eo pipefail
           PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/herenow.mobileprovision"
 
           if [ ! -f "$PROFILE_PATH" ]; then
@@ -70,6 +71,11 @@ workflows:
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
             2>&1 | tee /tmp/xcodebuild_logs/archive.log
+
+          if [ ! -d "/tmp/HereNow.xcarchive" ]; then
+            echo "ERROR: Archive not created — check archive.log above for the real error"
+            exit 1
+          fi
 
           xcodebuild -exportArchive \
             -archivePath /tmp/HereNow.xcarchive \
