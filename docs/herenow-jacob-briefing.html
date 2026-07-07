@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HereNow — Product Briefing</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #050A15;
+    --surface: #0B1828;
+    --surface2: #0D1B2E;
+    --border: #1A2E4A;
+    --accent: #29B6F6;
+    --accent2: #22c55e;
+    --amber: #f59e0b;
+    --purple: #a855f7;
+    --red: #ef4444;
+    --text: #f0f8ff;
+    --muted: #7A93AC;
+    --dim: #4A6580;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--bg);
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+  }
+
+  /* Cover */
+  .cover {
+    text-align: center;
+    padding: 60px 0 56px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+  .logo-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px; height: 72px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #29B6F620, #29B6F640);
+    border: 1.5px solid #29B6F650;
+    font-size: 36px;
+    margin-bottom: 24px;
+    box-shadow: 0 0 40px rgba(41,182,246,0.15);
+  }
+  .cover-brand {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .cover h1 {
+    font-size: 38px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    color: var(--text);
+    line-height: 1.15;
+    margin-bottom: 16px;
+  }
+  .cover h1 span { color: var(--accent); }
+  .cover-sub {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 520px;
+    margin: 0 auto 32px;
+    line-height: 1.6;
+  }
+  .cover-meta {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    font-size: 13px;
+    color: var(--dim);
+  }
+  .cover-meta strong { color: var(--muted); }
+
+  /* Section */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .section h2 {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section p {
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .section p strong { color: var(--text); }
+
+  /* Cards */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .card-icon { font-size: 26px; margin-bottom: 10px; }
+  .card h3 { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .card p { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
+
+  /* Steps */
+  .steps { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 13px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-body h4 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .step-body p  { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.5; }
+
+  /* Status table */
+  .status-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .status-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .status-table td {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--muted);
+    border-bottom: 1px solid #0D1B2E;
+    vertical-align: top;
+  }
+  .status-table td:first-child { color: var(--text); font-weight: 600; }
+  .badge-live   { display: inline-block; background: #22c55e18; color: #22c55e; border: 1px solid #22c55e30; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+  .badge-soon   { display: inline-block; background: #f59e0b18; color: #f59e0b; border: 1px solid #f59e0b30; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+  .badge-note   { display: inline-block; background: #29B6F618; color: #29B6F6; border: 1px solid #29B6F630; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+
+  /* Alert boxes */
+  .alert {
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .alert-blue   { background: #29B6F610; border: 1px solid #29B6F630; color: #29B6F6; }
+  .alert-green  { background: #22c55e10; border: 1px solid #22c55e30; color: #22c55e; }
+  .alert-amber  { background: #f59e0b10; border: 1px solid #f59e0b30; color: #f59e0b; }
+  .alert strong { font-weight: 700; }
+  .alert p { color: inherit; margin: 4px 0 0; font-size: 13px; }
+
+  /* Pill row */
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .pill.green { background: #22c55e10; border-color: #22c55e30; color: #22c55e; }
+  .pill.blue  { background: #29B6F610; border-color: #29B6F630; color: #29B6F6; }
+  .pill.amber { background: #f59e0b10; border-color: #f59e0b30; color: #f59e0b; }
+
+  /* Code block */
+  .code {
+    background: #020609;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    color: #29B6F6;
+    margin: 14px 0;
+    overflow-x: auto;
+  }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  /* Next steps */
+  .next-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .next-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .next-card.priority { border-color: #29B6F640; }
+  .next-card h4 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .next-card p  { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.5; }
+  .next-num {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  @media print {
+    body { background: #050A15; color: #f0f8ff; padding: 24px 32px; }
+    .cover { padding: 40px 0 40px; }
+    .section { page-break-inside: avoid; }
+    .step { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="logo-mark">📍</div>
+  <div class="cover-brand">HereNow</div>
+  <h1>Product Briefing &amp;<br><span>State of the App</span></h1>
+  <p class="cover-sub">Everything that's been built, how it works end-to-end, and what comes next — for Jacob &amp; Jamie.</p>
+  <div class="cover-meta">
+    <span><strong>Status:</strong> Beta — Active</span>
+    <span><strong>Live venue:</strong> Martha My Dear</span>
+    <span><strong>Date:</strong> July 2026</span>
+  </div>
+</div>
+
+
+<!-- WHAT HERENOW IS -->
+<div class="section">
+  <div class="section-label">Overview</div>
+  <h2>What HereNow Is</h2>
+  <p>HereNow is an IRL social layer for physical venues. It's not a review app, not a check-in gimmick, and not another social feed. It's a presence platform — when you walk into a participating venue, the app knows you're there and unlocks a real-time social experience tied to that space.</p>
+  <p>Users check in, see who else is at the same venue, send connection requests to people they actually met in person, message them through a time-limited DM window, and earn badges the more places they explore. Venue owners get a real-time dashboard, can run promotions, post announcements, schedule events, and see who's in the building.</p>
+  <p><strong>The core idea:</strong> be physically present, be rewarded for it, and meet people in the real world through the app — not the other way around.</p>
+</div>
+
+
+<!-- USER JOURNEY -->
+<div class="section">
+  <div class="section-label">New User</div>
+  <h2>What a New User Experiences</h2>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Download &amp; Sign Up</h4>
+        <p>User opens the app, creates an account with email and password, sets a display name and profile photo. They're dropped onto the home screen immediately — no lengthy onboarding.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Home Screen — Nearby Venues</h4>
+        <p>The home tab shows a live list of venues within 50km sorted by distance. Each venue card shows how many people are there right now, venue chips (like "Cocktails" or "Live Music"), distance, and a "LIVE" badge if anyone is checked in. There's a search bar and a Trending strip showing the busiest venues at that moment.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Arriving at a Venue — Geofenced Check-In</h4>
+        <p>When the user physically walks to Martha My Dear, the app's background location detects they're within range and shows a check-in prompt. They tap to check in. The app runs a precise polygon check — if they're inside the building footprint, the check-in succeeds. If they're standing outside in the parking lot, it won't. No QR codes, no codes to enter, just show up.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Inside the Venue — Four Tabs Unlock</h4>
+        <p><strong>Pulse</strong> — A live social feed just for this venue. Post a vibe, a photo moment, or a quick thought. Posts are venue-scoped and disappear when you leave. <strong>People</strong> — See everyone else checked in right now. Each person shows their display name, social mode (Open/Selective/Not Today), and their top badge. <strong>Chat</strong> — A live group chat room for the venue. Everyone checked in can see it. <strong>Events</strong> — Upcoming events the venue has scheduled, open to anyone whether checked in or not.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>Meeting Someone — We Met</h4>
+        <p>If a user sees someone in the People tab they actually talked to, they send a "We Met" request. If the other person confirms it, both sides unlock a direct message thread. By default the thread expires in 72 hours — creating urgency to keep the conversation going. If both people reply at least once, the connection becomes permanent and never expires.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h4>Messages Tab</h4>
+        <p>All DM threads live in the Messages tab (mail icon in the tab bar). Threads show the other person's name, last message preview, how long until expiry (🔒 = still at venue, "4h left" = expiring soon, red = expired), and an unread badge. Tapping opens the conversation. The mail icon in the tab bar shows total unread count in real time.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <h4>Updates Tab</h4>
+        <p>The bell icon tab shows two things: promos and announcements from venues the user subscribes to, and system activity (We Met confirmations, badges earned). The bell icon shows a badge count for unread activity.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <h4>Badges &amp; Profile</h4>
+        <p>Every action earns toward badges: first check-in, Explorer (5 venues), Explorer II (15), Explorer III (50), Adventurer (3 different venues), Martha My Dear Regular (5+ visits at the same spot), Social Butterfly, Connector, Pulse Master, Photographer, Night Owl, and more. All beta users automatically receive the Founding Member badge. The profile screen shows their badge count, streak, and earned badges grouped by category with a progress bar.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <h4>Ghost Mode</h4>
+        <p>Users can toggle Ghost Mode (mood = "Not Today") from their profile. When active, a red banner appears across the top of the app so they know it's on. In Ghost Mode, their name won't appear in the venue's People tab — they're present but invisible to others.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- VENUE OWNER JOURNEY -->
+<div class="section">
+  <div class="section-label">Venue Owner</div>
+  <h2>What a Venue Owner Experiences</h2>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Apply for a Venue</h4>
+        <p>A venue owner creates a regular user account, then navigates to Create Venue. They submit the venue name, address, type (bar, restaurant, etc.), and description. The submission goes into a Pending queue visible in the Admin panel. Joshua reviews and approves or rejects.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Approval &amp; Geofencing</h4>
+        <p>Once approved, the venue goes live on the map. The Admin panel automatically attempts to pull the building's polygon footprint from OpenStreetMap. If found, check-ins are restricted to the precise building shape. If not found, a circle radius is used as fallback. For Martha My Dear, the polygon has been manually drawn and is active — check-in is polygon-gated to the exact building.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Live Dashboard</h4>
+        <p>The venue owner's dashboard shows: <strong>Live Now</strong> (real-time check-in count with pulse animation), <strong>Today's Activity</strong> (today vs. yesterday with % change), <strong>Customer Mix</strong> (new vs. returning visitors with a proportion bar), a <strong>7-day bar chart</strong>, <strong>Peak Hours</strong> (top 3 busiest times), event count, announcement count, subscriber count, and age/interest breakdowns. All aggregated — no PII exposed.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Promotion Performance</h4>
+        <p>Each active promotion tracks how many users have viewed it. The dashboard shows view counts per promotion sorted by most-viewed, so venue owners can see which promos are getting traction. Promotions can have optional start and end dates for time-window scheduling.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>Event Performance</h4>
+        <p>Each event shows RSVP count and how many actual check-ins occurred during the event window — the difference between people who were interested and people who actually showed up.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h4>Live People Tab</h4>
+        <p>A real-time guest list showing every checked-in user: their name, social mode, and arrival time. Next to each guest, the owner can see which promotions they've claimed and mark them redeemed (or un-redeem if needed). Green chip = redeemed. This replaces the need for staff to manually track who got what deal.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <h4>Announcements, Events &amp; Promotions</h4>
+        <p>From the dashboard the owner can post venue announcements (text + optional image) that appear in the Pulse feed and push to subscribers' Updates tab. They can schedule events with a title, description, and start time. Promotions can be created with custom text and a time window — users see them when browsing the venue or in the Updates tab.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <h4>Venue Gallery</h4>
+        <p>The venue has its own photo gallery. The owner can upload photos directly. Regular users can submit photos for owner review — the owner approves or rejects each submission before it goes live. Photos display in a 2-column Instagram-style grid on the venue detail page.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <h4>Temporarily Closed</h4>
+        <p>If the venue is closed for a private event, renovation, holiday, etc., the owner can toggle "Temporarily Closed" from their admin panel. A custom message can be set (e.g. "Closed for private event — back Friday at 5pm"). On the map, the venue card goes grey with a CLOSED pill and shows the message. Check-ins are not allowed while closed.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- CURRENT FEATURE STATUS -->
+<div class="section">
+  <div class="section-label">What's Built</div>
+  <h2>Full Feature Status</h2>
+
+  <table class="status-table">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Status</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Polygon geofencing (check-in)</td><td><span class="badge-live">Live</span></td><td>Martha polygon manually drawn + active. OSM auto-pull for future venues.</td></tr>
+      <tr><td>User check-in / check-out</td><td><span class="badge-live">Live</span></td><td>Auto-checkout if session goes stale.</td></tr>
+      <tr><td>Pulse (venue social feed)</td><td><span class="badge-live">Live</span></td><td>Text + image posts, requires check-in.</td></tr>
+      <tr><td>People tab (live guest list)</td><td><span class="badge-live">Live</span></td><td>Requires check-in. Ghost Mode hides user from list.</td></tr>
+      <tr><td>Chat (venue group chat)</td><td><span class="badge-live">Live</span></td><td>Requires check-in.</td></tr>
+      <tr><td>Events tab</td><td><span class="badge-live">Live</span></td><td>Open without check-in.</td></tr>
+      <tr><td>We Met (IRL connections)</td><td><span class="badge-live">Live</span></td><td>Both sides must confirm. 72h DM window, permanent if both reply.</td></tr>
+      <tr><td>Direct Messages</td><td><span class="badge-live">Live</span></td><td>Messages tab. Expiry labels, unread badge on tab bar.</td></tr>
+      <tr><td>Updates tab (venue feed + activity)</td><td><span class="badge-live">Live</span></td><td>Promos, announcements, We Met confirmations, badges.</td></tr>
+      <tr><td>Badge system (leveled)</td><td><span class="badge-live">Live</span></td><td>15+ badges. Explorer I/II/III, Regular (venue-named), Founding Member, Photographer, etc.</td></tr>
+      <tr><td>Ghost Mode</td><td><span class="badge-live">Live</span></td><td>Red banner when active. User hidden from People tab.</td></tr>
+      <tr><td>Venue dashboard analytics</td><td><span class="badge-live">Live</span></td><td>Live Now, Today's Activity, Customer Mix, 7-day chart, Peak Hours, Promo Performance, Event Performance.</td></tr>
+      <tr><td>Venue announcements + events + promos</td><td><span class="badge-live">Live</span></td><td>Image support on announcements. Promo time windows (start/end date).</td></tr>
+      <tr><td>Venue Gallery</td><td><span class="badge-live">Live</span></td><td>Owner uploads + user submissions with approval workflow.</td></tr>
+      <tr><td>Temporarily Closed state</td><td><span class="badge-live">Live</span></td><td>Custom closure message. Card goes grey on map.</td></tr>
+      <tr><td>Trending strip on home</td><td><span class="badge-live">Live</span></td><td>Top 5 venues by live check-in count.</td></tr>
+      <tr><td>Venue chips (tags)</td><td><span class="badge-live">Live</span></td><td>18 options. Shown on cards + searchable.</td></tr>
+      <tr><td>Venue subscriptions (follow)</td><td><span class="badge-live">Live</span></td><td>Users subscribe to venues to get announcements in Updates.</td></tr>
+      <tr><td>User profile + settings</td><td><span class="badge-live">Live</span></td><td>Photo, bio, badges, privacy controls, notification prefs, danger zone.</td></tr>
+      <tr><td>Password reset + forgot password</td><td><span class="badge-live">Live</span></td><td>Both flows live.</td></tr>
+      <tr><td>Block / report users</td><td><span class="badge-live">Live</span></td><td>Block prevents any interaction. Report queues for admin review.</td></tr>
+      <tr><td>Interactive map (web)</td><td><span class="badge-live">Live</span></td><td>Animated venue pins with live glow. Polygon outline shown for geofenced venues.</td></tr>
+      <tr><td>Interactive map (native iOS/Android)</td><td><span class="badge-note">Web only</span></td><td>On native, the venue list works fully — the visual map panel isn't rendered yet. Planned.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider" />
+
+<!-- TESTING SETUP -->
+<div class="section">
+  <div class="section-label">Testing</div>
+  <h2>How to Test Right Now (iOS)</h2>
+
+  <div class="alert alert-blue">
+    <strong>Jacob is on iPhone.</strong>
+    <p>The app isn't on the App Store yet — that requires Apple's TestFlight process. For now, Jacob tests via Expo Go, which lets him run the full app directly from Joshua's development server over the internet.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Jacob installs Expo Go on iPhone</h4>
+        <p>App Store → search "Expo Go" → install. Free, no account required. This is a shell app that can run any Expo project when given a link.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Joshua starts the tunnel server</h4>
+        <p>Joshua opens VS Code on his desktop, navigates to the HereNow project folder, and runs:</p>
+        <div class="code">npx expo start --tunnel</div>
+        <p>After 15–20 seconds a URL appears in the terminal that looks like: <br><code style="color:#29B6F6; font-size:13px;">exp://cpn4cg4-gilgameshenterprisellc-8081.exp.direct</code><br>Joshua copies this and texts it to Jacob.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Jacob opens the link on his iPhone</h4>
+        <p>Jacob taps the link in iMessage. It opens Expo Go and loads the full HereNow app. He's now running the latest code on his phone. Joshua must keep VS Code running for the entire test session — if he closes the terminal or laptop goes to sleep, Jacob's connection drops.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>What works vs. what doesn't in Expo Go</h4>
+        <p>Everything works: check-in, Pulse, People, Chat, Messages, We Met, badges, venue dashboard, gallery, settings. The one thing that doesn't render on iPhone is the visual map (the venue list and all other features still work without it). Background location runs slightly differently in Expo Go vs. a production build but is functional for testing.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-amber" style="margin-top: 24px;">
+    <strong>Note on the tunnel URL:</strong>
+    <p>The URL changes every time Joshua starts the tunnel. He needs to text Jacob a new link each session. This is a limitation of the development server — it's not how the final app will work.</p>
+  </div>
+
+  <div style="margin-top: 28px;">
+    <h3 style="font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 10px;">Android (APK)</h3>
+    <p style="color: var(--muted); font-size: 14px;">An Android APK build is already available and can be installed directly on any Android phone. No Play Store required. This is what Android testers use:</p>
+    <div class="alert alert-green" style="margin-top: 12px;">
+      <strong>APK Download:</strong>
+      <p>https://expo.dev/accounts/gilgameshenterprisellc/projects/jbost/builds/25827680-b5f1-4d1b-af76-842dc2185501</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- NEXT STEPS -->
+<div class="section">
+  <div class="section-label">What's Next</div>
+  <h2>Incoming Steps</h2>
+
+  <div class="next-grid">
+    <div class="next-card priority">
+      <div class="next-num">Priority 1</div>
+      <h4>TestFlight (iOS proper distribution)</h4>
+      <p>Right now Jacob tests via Expo Go + tunnel URL, which requires Joshua to have his laptop running the whole time. TestFlight is Apple's official beta distribution platform — Jacob installs the app once from a link and it works standalone forever, no laptop needed. Requires an Apple Developer Program membership ($99/yr). Once enrolled, Joshua builds a production IPA, uploads to App Store Connect, adds Jacob as a tester, and Jacob gets a single install link.</p>
+    </div>
+    <div class="next-card">
+      <div class="next-num">Priority 2</div>
+      <h4>Native Map on iPhone</h4>
+      <p>The interactive venue map is currently web-only. On iPhone, users see the venue list but no visual map. Building the native map uses react-native-maps (a well-supported library) with MapKit on iOS. This unlocks the animated venue glow, pin tapping, and the polygon boundary overlay on Jacob's phone. Medium-sized build.</p>
+    </div>
+    <div class="next-card">
+      <div class="next-num">Priority 3</div>
+      <h4>More Venues</h4>
+      <p>Martha My Dear is the only live venue right now. The app gets significantly more interesting with 3–5 venues in the same city. Any Nashville bar, restaurant, or venue can apply through the app. Joshua approves from the Admin panel. Each new venue immediately gets geofencing, check-in, dashboard, and all features.</p>
+    </div>
+    <div class="next-card">
+      <div class="next-num">Priority 4</div>
+      <h4>Real Users at Martha</h4>
+      <p>The best test is real people using it in the actual venue on a real night. Even a handful of users checking in together surfaces issues that development testing can't catch — concurrent check-ins, real-time Pulse, the We Met flow between strangers, DM expiry behavior. Worth coordinating a soft launch night at Martha with a small invited crowd.</p>
+    </div>
+    <div class="next-card">
+      <div class="next-num">Priority 5</div>
+      <h4>Push Notifications</h4>
+      <p>The in-app notification system is complete. Push notifications (the kind that pop up on your lock screen) need VAPID keys set in the server environment. Once configured, users get notified of We Met requests, badge unlocks, venue announcements, and DM messages even when the app is closed. Essential for real engagement.</p>
+    </div>
+    <div class="next-card">
+      <div class="next-num">Priority 6</div>
+      <h4>App Store (iOS public)</h4>
+      <p>Full App Store submission requires the same Apple Developer account as TestFlight plus a completed App Store listing (screenshots, description, privacy policy, age rating). Can be done once TestFlight is stable and the app has been tested with real users. 3–7 day Apple review period.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- MARTHA STATUS -->
+<div class="section">
+  <div class="section-label">Live Venue</div>
+  <h2>Martha My Dear — Current Status</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">📍</div>
+      <h3>Address</h3>
+      <p>2503 Gallatin Ave, Nashville, TN</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔷</div>
+      <h3>Geofencing</h3>
+      <p>Polygon active. Check-in restricted to the building footprint — no check-in from the parking lot or adjacent buildings.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🟢</div>
+      <h3>Status</h3>
+      <p>Live on the map. Visible to all users within 50km. All features enabled.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏠</div>
+      <h3>Radius Fallback</h3>
+      <p>75m circle fallback if polygon ever fails. Currently polygon takes priority.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-green" style="margin-top: 24px;">
+    <strong>Martha is the proving ground.</strong>
+    <p>Every feature has been built with Martha as the test case. The venue dashboard, promo redemption, gallery, event performance, and polygon geofencing are all live and ready for a real night of use.</p>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- CLOSING -->
+<div style="text-align: center; padding: 32px 0 20px;">
+  <div class="cover-brand" style="margin-bottom: 12px;">HereNow</div>
+  <p style="color: var(--dim); font-size: 14px;">Built by Joshua Bostic &nbsp;·&nbsp; Questions or feedback → text or reply to this</p>
+</div>
+
+</body>
+</html>

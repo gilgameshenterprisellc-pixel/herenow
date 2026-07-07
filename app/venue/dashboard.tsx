@@ -27,6 +27,14 @@ interface AggregateStats {
   total: number
   ageRanges: Record<string, number>
   interests: Record<string, number>
+  socialModes: Record<string, number>
+}
+
+const SOCIAL_MODE_LABELS: Record<string, { label: string; color: string }> = {
+  dating:     { label: 'Dating',     color: '#f43f5e' },
+  friends:    { label: 'Friends',    color: '#22c55e' },
+  networking: { label: 'Networking', color: '#3b82f6' },
+  just_vibes: { label: 'Just Vibes', color: '#a855f7' },
 }
 
 interface DayCount { label: string; count: number }
@@ -53,7 +61,7 @@ export default function VenueDashboard() {
   const [loading, setLoading]         = useState(true)
   const [refreshing, setRefreshing]   = useState(false)
   const [venue, setVenue]             = useState<VenueZone | null>(null)
-  const [stats, setStats]             = useState<AggregateStats>({ total: 0, ageRanges: {}, interests: {} })
+  const [stats, setStats]             = useState<AggregateStats>({ total: 0, ageRanges: {}, interests: {}, socialModes: {} })
   const [ownerName, setOwnerName]         = useState('')
   const [venueStatus, setVenueStatus]     = useState<string | null>(null)
   const [denialReason, setDenialReason]   = useState<string | null>(null)
@@ -98,25 +106,27 @@ export default function VenueDashboard() {
       if (z) {
         const { data: sessions } = await supabase
           .from('sessions')
-          .select('profiles(age_range, interest_tags)')
+          .select('social_mode, profiles(age_range, interest_tags)')
           .eq('zone_id', z.id)
           .is('checked_out_at', null)
 
         const ageRanges: Record<string, number> = {}
         const interests: Record<string, number> = {}
+        const socialModes: Record<string, number> = {}
         let total = 0
 
         for (const s of (sessions ?? []) as any[]) {
+          total++
+          if (s.social_mode) socialModes[s.social_mode] = (socialModes[s.social_mode] ?? 0) + 1
           const p = s.profiles
           if (!p) continue
-          total++
           if (p.age_range) ageRanges[p.age_range] = (ageRanges[p.age_range] ?? 0) + 1
           for (const tag of (p.interest_tags ?? [])) {
             interests[tag] = (interests[tag] ?? 0) + 1
           }
         }
 
-        setStats({ total, ageRanges, interests })
+        setStats({ total, ageRanges, interests, socialModes })
         const subCount = await fetchSubscriberCount(z.id)
         setSubscriberCount(subCount)
 
@@ -494,6 +504,28 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        {/* Social mode breakdown — anonymized aggregate (Jacob Round 2, Q22) */}
+        {stats.total > 0 && Object.keys(stats.socialModes).length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Social Modes Tonight</Text>
+            <View style={styles.barList}>
+              {Object.entries(stats.socialModes).sort((a, b) => b[1] - a[1]).map(([mode, count]) => {
+                const pct = Math.round((count / stats.total) * 100)
+                const cfg = SOCIAL_MODE_LABELS[mode] ?? { label: mode, color: '#29B6F6' }
+                return (
+                  <View key={mode} style={styles.barRow}>
+                    <Text style={styles.barLabel}>{cfg.label}</Text>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.barFill, { width: `${pct}%` as any, backgroundColor: cfg.color }]} />
+                    </View>
+                    <Text style={styles.barPct}>{pct}%</Text>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
+        )}
+
         {/* Interest cloud */}
         {stats.total > 0 && topInterests.length > 0 && (
           <View style={styles.card}>
@@ -610,9 +642,10 @@ export default function VenueDashboard() {
               </View>
             </View>
 
-            {/* 7-day chart */}
-            {analytics.weekChart.some((d) => d.count > 0) && (() => {
+            {/* 7-day chart — always rendered so it never "disappears" on quiet weeks */}
+            {(() => {
               const maxCount = Math.max(...analytics.weekChart.map((d) => d.count), 1)
+              const hasAny = analytics.weekChart.some((d) => d.count > 0)
               return (
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>Check-ins — Last 7 Days</Text>
@@ -630,6 +663,9 @@ export default function VenueDashboard() {
                       )
                     })}
                   </View>
+                  {!hasAny && (
+                    <Text style={styles.chartEmptyNote}>No check-ins in the last 7 days yet.</Text>
+                  )}
                 </View>
               )
             })()}
@@ -927,6 +963,7 @@ const styles = StyleSheet.create({
   },
   chartBarFill: { backgroundColor: '#29B6F6', borderRadius: 4, width: '100%' },
   chartDayLabel: { fontSize: 9, color: '#4A6580', fontWeight: '600', marginTop: 4 },
+  chartEmptyNote: { fontSize: 12, color: '#4A6580', textAlign: 'center', marginTop: 10 },
 
   peakCard: {
     backgroundColor: '#0D1B2E', borderRadius: 14, padding: 14,
