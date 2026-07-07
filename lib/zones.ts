@@ -80,13 +80,15 @@ export async function createZone(params: {
     polygon_wkt:               null,
     is_temporarily_closed:     false,
     temporary_closure_message: null,
+    avatar_url:                null,
+    banner_url:                null,
   }
 }
 
 export async function searchZonesByName(query: string): Promise<Zone[]> {
   const { data, error } = await supabase
     .from('zones')
-    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours, polygon_wkt, is_temporarily_closed, temporary_closure_message')
+    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url')
     .eq('is_active', true)
     .ilike('name', `%${query}%`)
     .limit(20)
