@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { geocodeAddress, fetchBuildingPolygon, geocodeNominatim } from '@/lib/geocoding'
 import { PolygonDrawMap } from '@/components/PolygonDrawMap'
+import BackButton from '@/components/BackButton'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -593,9 +594,7 @@ export default function AdminVenues() {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => router.push('/')} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.push('/')} />
         <Text style={styles.title}>Venues</Text>
         {pending.length > 0 && (
           <View style={styles.countBadge}>

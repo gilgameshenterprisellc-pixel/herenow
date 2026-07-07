@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { sendNotification } from '@/lib/notifications'
+import BackButton from '@/components/BackButton'
 
 interface Announcement {
   id: string
@@ -220,9 +221,7 @@ export default function VenueAnnouncementsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} />
         <Text style={styles.title}>Announcements</Text>
       </View>
 

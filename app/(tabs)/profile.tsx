@@ -12,6 +12,7 @@ import { useSessionContext } from '@/contexts/SessionContext'
 import { fetchUserBadges } from '@/lib/badges'
 import AvatarImage from '@/components/AvatarImage'
 import { TAB_SAFE_BOTTOM } from './_layout'
+import { useTabBarScroll } from '@/contexts/TabBarScrollContext'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -45,20 +46,21 @@ interface NavItem {
 }
 
 const SOCIAL_MODES = [
-  { value: 'just_vibes', label: '✨ Vibes' },
-  { value: 'friends',    label: '👥 Friends' },
-  { value: 'networking', label: '💼 Network' },
-  { value: 'dating',     label: '❤️ Dating' },
+  { value: 'just_vibes', label: 'Vibes' },
+  { value: 'friends',    label: 'Friends' },
+  { value: 'networking', label: 'Network' },
+  { value: 'dating',     label: 'Dating' },
 ]
 
 const MOOD_MODES = [
-  { value: 'open',       label: '🟢 Open' },
-  { value: 'selective',  label: '🟡 Selective' },
-  { value: 'not_today',  label: '🚫 Ghost' },
+  { value: 'open',       label: 'Open' },
+  { value: 'selective',  label: 'Selective' },
+  { value: 'not_today',  label: 'Ghost' },
 ]
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
+  const { onScroll } = useTabBarScroll()
   const [profile, setProfile]               = useState<Profile | null>(null)
   const [loading, setLoading]               = useState(true)
   const [userId, setUserId]                 = useState<string | null>(null)
@@ -182,6 +184,8 @@ export default function ProfileScreen() {
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingBottom: TAB_SAFE_BOTTOM }]}
       showsVerticalScrollIndicator={false}
+      onScroll={(e) => onScroll(e.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
     >
       {/* Avatar + name */}
       <Reanimated.View entering={FadeInDown.delay(0).duration(450)} style={[styles.profileHead, { paddingTop: insets.top + 16 }]}>

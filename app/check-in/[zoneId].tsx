@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import BackButton from '@/components/BackButton'
 import { useSessionContext } from '@/contexts/SessionContext'
 import type { SocialMode, MoodMode } from '@/lib/sessions'
 import { useToast } from '@/contexts/ToastContext'
@@ -189,9 +190,7 @@ export default function CheckInScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any)} />
         <View style={styles.headerText}>
           <Text style={styles.title}>Check In</Text>
           {zoneName ? <Text style={styles.zoneName}>📍 {zoneName}</Text> : null}

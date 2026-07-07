@@ -2,10 +2,10 @@ import { View, Text, StyleSheet } from 'react-native'
 import type { SocialMode } from '@/lib/sessions'
 
 const MODE_CONFIG: Record<SocialMode, { label: string; color: string; bg: string }> = {
-  dating:      { label: '💘 Dating',      color: '#f43f5e', bg: '#f43f5e18' },
-  friends:     { label: '🤝 Friends',     color: '#22c55e', bg: '#22c55e18' },
-  networking:  { label: '💼 Networking',  color: '#3b82f6', bg: '#3b82f618' },
-  just_vibes:  { label: '✌️ Just Vibes', color: '#a855f7', bg: '#a855f718' },
+  dating:      { label: 'Dating',      color: '#f43f5e', bg: '#f43f5e18' },
+  friends:     { label: 'Friends',     color: '#22c55e', bg: '#22c55e18' },
+  networking:  { label: 'Networking',  color: '#3b82f6', bg: '#3b82f618' },
+  just_vibes:  { label: 'Just Vibes',  color: '#a855f7', bg: '#a855f718' },
 }
 
 interface Props {

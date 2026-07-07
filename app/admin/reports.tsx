@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
+import BackButton from '@/components/BackButton'
 
 type ReportTab = 'content' | 'users'
 
@@ -218,9 +219,7 @@ export default function AdminReports() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => router.push('/')} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.push('/')} />
         <Text style={styles.title}>Reports Queue</Text>
       </View>
 

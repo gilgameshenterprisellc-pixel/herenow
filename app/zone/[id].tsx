@@ -12,6 +12,7 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { getActivePeople } from '@/lib/sessions'
+import BackButton from '@/components/BackButton'
 import type { ActivePerson } from '@/lib/sessions'
 import { usePulse } from '@/hooks/usePulse'
 import { useVenueChat } from '@/hooks/useVenueChat'
@@ -464,9 +465,7 @@ export default function ZoneScreen() {
     >
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any)} />
         <View style={styles.headerInfo}>
           <Text style={styles.zoneName}>{zone?.name}</Text>
           <Text style={styles.zoneMeta}>

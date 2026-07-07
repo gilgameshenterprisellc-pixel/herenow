@@ -2,9 +2,9 @@
 import type { MoodMode } from '@/lib/sessions'
 
 const MODE_CONFIG: Record<MoodMode, { label: string; color: string; bg: string }> = {
-  open:       { label: '🟢 Open',        color: '#22c55e', bg: '#22c55e18' },
-  selective:  { label: '🟡 Selective',   color: '#29B6F6', bg: '#29B6F618' },
-  not_today:  { label: '🛡️ Not Today', color: '#7A93AC', bg: '#7A93AC18' },
+  open:       { label: 'Open',       color: '#22c55e', bg: '#22c55e18' },
+  selective:  { label: 'Selective',  color: '#29B6F6', bg: '#29B6F618' },
+  not_today:  { label: 'Not Today',  color: '#7A93AC', bg: '#7A93AC18' },
 }
 
 interface Props {

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
+import BackButton from '@/components/BackButton'
 
 interface PrivacySettings {
   show_social_mode: boolean
@@ -68,12 +69,7 @@ export default function ProfilePrivacyScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/settings')}
-          style={styles.backBtn}
-        >
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/settings')} />
         <Text style={styles.title}>Card Visibility</Text>
         {saving && <ActivityIndicator color="#29B6F6" size="small" style={{ marginRight: 4 }} />}
       </View>

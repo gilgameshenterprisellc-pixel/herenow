@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { getActivePeople } from '@/lib/sessions'
 import { useToast } from '@/contexts/ToastContext'
+import BackButton from '@/components/BackButton'
 import type { ActivePerson } from '@/lib/sessions'
 
 interface Promotion {
@@ -154,9 +155,7 @@ export default function VenuePeopleScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} />
         <View style={styles.headerText}>
           <Text style={styles.title}>Live Now</Text>
           <Text style={styles.subtitle}>{people.length} {people.length === 1 ? 'guest' : 'guests'} checked in</Text>

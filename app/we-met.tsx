@@ -7,6 +7,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useWeMet } from '@/hooks/useWeMet'
 import WemetCard from '@/components/WemetCard'
+import BackButton from '@/components/BackButton'
 
 export default function WeMetScreen() {
   const insets = useSafeAreaInsets()
@@ -25,9 +26,7 @@ export default function WeMetScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} />
         <Text style={styles.title}>We Met 🤝</Text>
         {(pending.length + confirmed.length) > 0 && (
           <View style={styles.badge}>

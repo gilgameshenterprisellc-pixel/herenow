@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import { uploadAvatarWeb } from '@/lib/uploadAvatar'
 import { useToast } from '@/contexts/ToastContext'
+import BackButton from '@/components/BackButton'
 
 const AGE_RANGES    = ['18–22', '23–27', '28–34', '35–45', '45+', 'Prefer not to say']
 const GENDER_OPTIONS = ['Man', 'Woman', 'Non-binary', 'Prefer not to say']
@@ -167,9 +168,7 @@ export default function EditProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} />
         <Text style={styles.title}>Edit Profile</Text>
         <TouchableOpacity
           onPress={handleSave}
