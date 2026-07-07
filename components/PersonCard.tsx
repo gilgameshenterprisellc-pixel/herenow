@@ -37,8 +37,8 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
         person.display_name,
         undefined,
         [
-          { text: '🚩 Report', onPress: () => onReport?.(person) },
-          { text: '🚫 Block', style: 'destructive', onPress: () => onBlock?.(person) },
+          { text: 'Report', onPress: () => onReport?.(person) },
+          { text: 'Block', style: 'destructive', onPress: () => onBlock?.(person) },
           { text: 'Cancel', style: 'cancel' },
         ]
       )
@@ -86,12 +86,12 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
               <View style={styles.webMenu}>
                 {onReport && (
                   <TouchableOpacity onPress={() => { onReport(person); setShowActions(false) }} style={styles.webMenuItem}>
-                    <Text style={styles.webMenuText}>🚩 Report</Text>
+                    <Text style={styles.webMenuText}>Report</Text>
                   </TouchableOpacity>
                 )}
                 {onBlock && (
                   <TouchableOpacity onPress={() => { onBlock(person); setShowActions(false) }} style={styles.webMenuItem}>
-                    <Text style={[styles.webMenuText, { color: '#f87171' }]}>🚫 Block</Text>
+                    <Text style={[styles.webMenuText, { color: '#f87171' }]}>Block</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => setShowActions(false)} style={styles.webMenuItem}>
@@ -118,14 +118,14 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
           onPressOut={onWemetOut}
         >
           <Animated.View style={[styles.wemetBtn, { transform: [{ scale: wemetScale }] }]}>
-            <Text style={styles.wemetBtnText}>🤝 We Met</Text>
+            <Text style={styles.wemetBtnText}>We Met</Text>
           </Animated.View>
         </TouchableOpacity>
       )}
 
       {!isMe && isNotToday && (
         <View style={styles.notTodayRow}>
-          <Text style={styles.notTodayText}>🛡️ Not available right now</Text>
+          <Text style={styles.notTodayText}>Not available right now</Text>
         </View>
       )}
     </View>
@@ -200,16 +200,16 @@ const styles = StyleSheet.create({
   kickoffLabel: { fontSize: 11, color: '#7A93AC', fontWeight: '600' },
   kickoffText: { fontSize: 13, color: '#B8D4E8', fontStyle: 'italic', lineHeight: 18 },
   wemetBtn: {
-    backgroundColor: '#29B6F6',
+    backgroundColor: '#C9940C',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     ...Platform.select({
-      web: { boxShadow: '0 4px 16px rgba(41,182,246,0.35)' } as any,
-      default: { shadowColor: '#29B6F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
+      web: { boxShadow: '0 4px 16px rgba(201,148,12,0.3)' } as any,
+      default: { shadowColor: '#C9940C', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
     }),
   },
-  wemetBtnText: { color: '#050A15', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
+  wemetBtnText: { color: '#050A15', fontWeight: '800', fontSize: 14, letterSpacing: 0.3 },
   notTodayRow: { alignItems: 'center' },
   notTodayText: { fontSize: 12, color: '#7A93AC' },
 })

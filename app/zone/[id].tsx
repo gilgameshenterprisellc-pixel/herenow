@@ -34,11 +34,11 @@ import type { VenueEvent } from '@/lib/events'
 
 type Tab = 'people' | 'pulse' | 'chat' | 'events'
 
-const TABS: { id: Tab; label: string; emoji: string }[] = [
-  { id: 'people', label: 'People',  emoji: '👥' },
-  { id: 'pulse',  label: 'Pulse',   emoji: '✨' },
-  { id: 'chat',   label: 'Chat',    emoji: '💬' },
-  { id: 'events', label: 'Events',  emoji: '📅' },
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'people', label: 'People' },
+  { id: 'pulse',  label: 'Pulse'  },
+  { id: 'chat',   label: 'Chat'   },
+  { id: 'events', label: 'Events' },
 ]
 
 export default function ZoneScreen() {
@@ -148,6 +148,13 @@ export default function ZoneScreen() {
     if (tab === 'events') loadEvents()
   }, [tab, id])
 
+  // Auto-refresh people every 30s for privacy (rotating subset, can't stalk)
+  useEffect(() => {
+    if (tab !== 'people') return
+    const interval = setInterval(loadPeople, 30_000)
+    return () => clearInterval(interval)
+  }, [tab, id])
+
   const loadPeople = async () => {
     setPeopleLoading(true)
     const [data, blockedIds] = await Promise.all([
@@ -155,7 +162,16 @@ export default function ZoneScreen() {
       fetchBlockedIds(),
     ])
     const blockedSet = new Set(blockedIds)
-    setPeople(data.filter((p) => !blockedSet.has(p.user_id)))
+    const filtered = data.filter((p) => !blockedSet.has(p.user_id))
+    // Shuffle on each refresh so no one can be stalked by watching position
+    const meRow = filtered.filter((p) => p.user_id === userId)
+    const others = filtered.filter((p) => p.user_id !== userId)
+    for (let i = others.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [others[i], others[j]] = [others[j], others[i]]
+    }
+    // Show at most 10 at a time — your card always pinned first if present
+    setPeople([...meRow, ...others].slice(0, 10))
     setPeopleLoading(false)
   }
 
@@ -463,7 +479,7 @@ export default function ZoneScreen() {
           disabled={subLoading}
         >
           <Text style={[styles.subBtnText, isSubscribed && styles.subBtnTextActive]}>
-            {subLoading ? '…' : isSubscribed ? '🔔' : '+ Follow'}
+            {subLoading ? '…' : isSubscribed ? '· Following' : '+ Follow'}
           </Text>
         </TouchableOpacity>
 
@@ -495,7 +511,7 @@ export default function ZoneScreen() {
       {/* Temporary closure banner */}
       {zone?.is_temporarily_closed && (
         <View style={styles.closedBanner}>
-          <Text style={styles.closedBannerTitle}>🚫 Temporarily Closed</Text>
+          <Text style={styles.closedBannerTitle}>Temporarily Closed</Text>
           {zone.temporary_closure_message ? (
             <Text style={styles.closedBannerMsg}>{zone.temporary_closure_message}</Text>
           ) : null}
@@ -570,21 +586,21 @@ export default function ZoneScreen() {
           >
             {submittingPhoto
               ? <ActivityIndicator color="#29B6F6" size="small" />
-              : <Text style={styles.photoSubmitText}>📸 Submit a photo to this venue</Text>
+              : <Text style={styles.photoSubmitText}>Submit a photo to this venue</Text>
             }
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Tabs */}
+      {/* Inner tabs — pill toggle */}
       <View style={styles.tabBar}>
         {TABS.map((t) => (
           <TouchableOpacity
             key={t.id}
             style={[styles.tabItem, tab === t.id && styles.tabItemActive]}
             onPress={() => setTab(t.id)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.tabEmoji}>{t.emoji}</Text>
             <Text style={[styles.tabLabel, tab === t.id && styles.tabLabelActive]}>
               {t.label}
             </Text>
@@ -597,7 +613,6 @@ export default function ZoneScreen() {
       {/* Gate: People / Chat require physical check-in (hard wall) */}
       {(tab === 'people' || tab === 'chat') && !isCheckedIn && (
         <View style={styles.gateWall}>
-          <Text style={styles.gateEmoji}>📍</Text>
           <Text style={styles.gateTitle}>Check in to join</Text>
           <Text style={styles.gateSub}>
             {tab === 'people'
@@ -635,7 +650,6 @@ export default function ZoneScreen() {
               ListEmptyComponent={<View style={{ height: 220 }} />}
             />
             <View style={styles.pulseGateOverlay}>
-              <Text style={styles.gateEmoji}>✨</Text>
               <Text style={styles.gateTitle}>The Pulse</Text>
               <Text style={styles.gateSub}>Check in to see what people are posting right now.</Text>
               <TouchableOpacity
@@ -669,7 +683,6 @@ export default function ZoneScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>👥</Text>
               <Text style={styles.emptyTitle}>No one here yet</Text>
               <Text style={styles.emptySub}>
                 {isCheckedIn
@@ -677,6 +690,11 @@ export default function ZoneScreen() {
                   : 'Check in to see who\'s here.'}
               </Text>
             </View>
+          }
+          ListFooterComponent={
+            people.length >= 10 ? (
+              <Text style={styles.peopleFooter}>Showing 10 of {zone?.member_count ?? people.length} — list refreshes every 30s</Text>
+            ) : null
           }
         />
       )}
@@ -828,7 +846,6 @@ export default function ZoneScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>📅</Text>
               <Text style={styles.emptyTitle}>No events yet</Text>
               <Text style={styles.emptySub}>
                 {isCheckedIn ? 'Create an event for this venue.' : 'Check in to create events.'}
@@ -887,22 +904,25 @@ const styles = StyleSheet.create({
   heatBarWrap: { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#0D1B2E' },
   tabBar: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#0D1B2E',
-    backgroundColor: '#050A15',
+    marginHorizontal: 14,
+    marginVertical: 10,
+    backgroundColor: '#07101F',
+    borderRadius: 12,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
-    gap: 2,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: 7,
+    borderRadius: 10,
   },
-  tabItemActive: { borderBottomColor: '#29B6F6' },
-  tabEmoji: { fontSize: 16 },
-  tabLabel: { fontSize: 11, color: '#7A93AC', fontWeight: '600' },
-  tabLabelActive: { color: '#29B6F6' },
+  tabItemActive: {
+    backgroundColor: '#29B6F61A',
+  },
+  tabLabel: { fontSize: 12, color: '#4A6580', fontWeight: '600', letterSpacing: 0.1 },
+  tabLabelActive: { color: '#29B6F6', fontWeight: '700' },
   list: { padding: 14, gap: 10 },
   gateWall: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
@@ -917,9 +937,9 @@ const styles = StyleSheet.create({
   },
   gateBtnText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyEmoji: { fontSize: 36 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#f8fafc' },
   emptySub: { fontSize: 13, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32 },
+  peopleFooter: { fontSize: 11, color: '#3D5A73', textAlign: 'center', paddingVertical: 16, paddingHorizontal: 24 },
   pulseCompose: {
     borderTopWidth: 1,
     borderTopColor: '#0D1B2E',

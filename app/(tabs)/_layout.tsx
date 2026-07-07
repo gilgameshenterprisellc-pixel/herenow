@@ -30,7 +30,6 @@ function TabIcon({ name, nameFocused, focused, badge }: {
           <Text style={ti.badgeText}>{badge > 9 ? '9+' : badge}</Text>
         </View>
       ) : null}
-      {focused && <View style={ti.activeDot} />}
     </View>
   )
 }
@@ -49,22 +48,23 @@ function ProfileTabIcon({ avatarUrl, focused }: { avatarUrl: string | null; focu
       ) : (
         <Ionicons
           name={focused ? 'person-circle' : 'person-circle-outline'}
-          size={24}
+          size={22}
           color={focused ? '#29B6F6' : '#4A6580'}
         />
       )}
-      {focused && <View style={ti.activeDot} />}
     </View>
   )
 }
 
 const ti = StyleSheet.create({
   wrap: {
-    width: 52, height: 44,
+    width: 52, height: 40,
     alignItems: 'center', justifyContent: 'center',
-    borderRadius: 22, position: 'relative',
+    borderRadius: 20, position: 'relative',
   },
-  wrapFocused: { backgroundColor: '#29B6F610' },
+  wrapFocused: {
+    backgroundColor: '#29B6F61C',
+  },
   badge: {
     position: 'absolute', top: 2, right: 4,
     backgroundColor: '#29B6F6', borderRadius: 8,
@@ -73,10 +73,6 @@ const ti = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#050A15',
   },
   badgeText: { fontSize: 9, fontWeight: '800', color: '#050A15' },
-  activeDot: {
-    width: 4, height: 4, borderRadius: 2,
-    backgroundColor: '#29B6F6', position: 'absolute', bottom: 2,
-  },
   avatar: {
     width: 26, height: 26, borderRadius: 13,
     borderWidth: 1.5, borderColor: 'rgba(41,182,246,0.3)',
