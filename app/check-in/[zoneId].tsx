@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Animated,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
@@ -85,6 +86,9 @@ export default function CheckInScreen() {
   const [loadingMsg, setLoadingMsg]   = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
   const [showWelcome, setShowWelcome]   = useState(false)
+  const [showCiAnim, setShowCiAnim]     = useState(false)
+  const ciScale   = useRef(new Animated.Value(0.3)).current
+  const ciOpacity = useRef(new Animated.Value(0)).current
   const [welcomeData, setWelcomeData]   = useState<{
     name: string
     description: string | null
@@ -100,6 +104,24 @@ export default function CheckInScreen() {
     supabase.from('zones').select('name').eq('id', zoneId).maybeSingle()
       .then(({ data }) => setZoneName(data?.name ?? ''))
   }, [zoneId])
+
+  const runCheckInAnim = () =>
+    new Promise<void>(resolve => {
+      setShowCiAnim(true)
+      ciScale.setValue(0.3)
+      ciOpacity.setValue(0)
+      Animated.sequence([
+        Animated.parallel([
+          Animated.spring(ciScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 6 }),
+          Animated.timing(ciOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+        ]),
+        Animated.delay(700),
+        Animated.timing(ciOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start(() => {
+        setShowCiAnim(false)
+        resolve()
+      })
+    })
 
   const handleCheckIn = async () => {
     if (!socialMode) {
@@ -138,6 +160,7 @@ export default function CheckInScreen() {
       return
     }
 
+    await runCheckInAnim()
     await checkAndAwardBadges('checkin', { zoneId })
 
     // First-visit detection: count all sessions at this zone for this user.
@@ -302,6 +325,16 @@ export default function CheckInScreen() {
           router.replace(`/zone/${zoneId}`)
         }}
       />
+
+      {showCiAnim && (
+        <Animated.View style={[StyleSheet.absoluteFillObject, styles.ciOverlay, { opacity: ciOpacity }]} pointerEvents="none">
+          <Animated.View style={[styles.ciContent, { transform: [{ scale: ciScale }] }]}>
+            <Text style={styles.ciPin}>📍</Text>
+            <Text style={styles.ciTitle}>You're In!</Text>
+            {!!zoneName && <Text style={styles.ciVenue}>{zoneName}</Text>}
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   )
 }
@@ -386,4 +419,13 @@ const styles = StyleSheet.create({
   },
   checkInBtnDisabled: { opacity: 0.4 },
   checkInBtnText: { fontSize: 17, fontWeight: '800', color: '#050A15' },
+  ciOverlay: {
+    backgroundColor: 'rgba(5,10,21,0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ciContent: { alignItems: 'center', gap: 8 },
+  ciPin:     { fontSize: 64 },
+  ciTitle:   { fontSize: 30, fontWeight: '800', color: '#f8fafc' },
+  ciVenue:   { fontSize: 15, fontWeight: '600', color: '#29B6F6' },
 })

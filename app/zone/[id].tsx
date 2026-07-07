@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, FlatList, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
-  ActionSheetIOS,
+  ActionSheetIOS, Animated,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useToast } from '@/contexts/ToastContext'
@@ -88,6 +88,11 @@ export default function ZoneScreen() {
 
   // Gallery submission
   const [submittingPhoto, setSubmittingPhoto] = useState(false)
+
+  // We Met celebration
+  const [wemetCelebName, setWemetCelebName] = useState<string | null>(null)
+  const wmScale   = useRef(new Animated.Value(0.5)).current
+  const wmOpacity = useRef(new Animated.Value(0)).current
 
   const isCheckedIn = activeSession?.zone_id === id
 
@@ -222,7 +227,18 @@ export default function ZoneScreen() {
               recipientSessionId: person.session_id,
             })
             await checkAndAwardBadges('wemet_confirmed')
-            showToast(`We Met request sent to ${person.display_name}!`, 'success')
+
+            setWemetCelebName(person.display_name)
+            wmScale.setValue(0.5)
+            wmOpacity.setValue(0)
+            Animated.sequence([
+              Animated.parallel([
+                Animated.spring(wmScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 6 }),
+                Animated.timing(wmOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+              ]),
+              Animated.delay(1200),
+              Animated.timing(wmOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+            ]).start(() => setWemetCelebName(null))
           } catch {
             showToast('Could not send We Met. Try again.', 'error')
           }
@@ -853,6 +869,15 @@ export default function ZoneScreen() {
           }
         />
       )}
+      {wemetCelebName !== null && (
+        <Animated.View style={[StyleSheet.absoluteFillObject, styles.wmOverlay, { opacity: wmOpacity }]} pointerEvents="none">
+          <Animated.View style={[styles.wmContent, { transform: [{ scale: wmScale }] }]}>
+            <Text style={styles.wmEmoji}>🤝</Text>
+            <Text style={styles.wmTitle}>We Met!</Text>
+            <Text style={styles.wmName}>{wemetCelebName}</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -1127,4 +1152,13 @@ const styles = StyleSheet.create({
   },
   badgeChipIcon: { fontSize: 13 },
   badgeChipName: { fontSize: 11, fontWeight: '700', color: '#8EADC7' },
+  wmOverlay: {
+    backgroundColor: 'rgba(5,10,21,0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wmContent: { alignItems: 'center', gap: 10 },
+  wmEmoji:   { fontSize: 64 },
+  wmTitle:   { fontSize: 30, fontWeight: '800', color: '#f8fafc' },
+  wmName:    { fontSize: 15, fontWeight: '600', color: '#29B6F6' },
 })
