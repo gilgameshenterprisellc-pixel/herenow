@@ -961,6 +961,7 @@ const styles = StyleSheet.create({
   },
   gateBtnText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
+  emptyEmoji: { fontSize: 44 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#f8fafc' },
   emptySub: { fontSize: 13, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32 },
   peopleFooter: { fontSize: 11, color: '#3D5A73', textAlign: 'center', paddingVertical: 16, paddingHorizontal: 24 },

@@ -97,7 +97,7 @@ function FloatingTabBar({ unread, dmUnread, avatarUrl }: FloatingTabBarProps) {
     badge?: number
     isProfile?: boolean
   }[] = [
-    { route: '/',              push: '/(tabs)/',              icon: 'map-outline',           iconFocused: 'map'           },
+    { route: '/',              push: '/(tabs)',               icon: 'map-outline',           iconFocused: 'map'           },
     { route: '/feed',          push: '/(tabs)/feed',          icon: 'megaphone-outline',     iconFocused: 'megaphone',    badge: unread },
     { route: '/notifications', push: '/(tabs)/notifications', icon: 'mail-outline',          iconFocused: 'mail',         badge: dmUnread },
     { route: '/profile',       push: '/(tabs)/profile',       icon: 'person-circle-outline', iconFocused: 'person-circle', isProfile: true },

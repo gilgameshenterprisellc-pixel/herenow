@@ -20,8 +20,6 @@
         "NSCameraUsageDescription": "HereNow lets you take a photo for your profile or attach one to an announcement.",
         "UIBackgroundModes": [
           "location",
-          "fetch",
-          "location",
           "fetch"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -96,7 +94,6 @@
           "cameraPermission": "HereNow lets you take a photo for your profile or attach one to an announcement."
         }
       ],
-      "expo-build-properties",
       "expo-asset",
       "expo-font"
     ],
