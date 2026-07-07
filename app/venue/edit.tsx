@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   ScrollView, ActivityIndicator, Platform, KeyboardAvoidingView,
-  Modal,
+  Modal, Image, Alert,
 } from 'react-native'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Location from 'expo-location'
+import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
@@ -133,6 +134,9 @@ export default function VenueEditScreen() {
   const [lng, setLng]               = useState<number | null>(null)
   const [radius, setRadius]         = useState(RADIUS_OPTIONS[0].meters)
   const [chips, setChips]           = useState<string[]>([])
+  const [avatarUrl, setAvatarUrl]   = useState<string | null>(null)
+  const [bannerUrl, setBannerUrl]   = useState<string | null>(null)
+  const [uploadingPhoto, setUploadingPhoto] = useState<'avatar' | 'banner' | null>(null)
 
   // Time picker state
   type TimeTarget = { day: Day; field: 'from' | 'to' }
@@ -148,7 +152,7 @@ export default function VenueEditScreen() {
 
       const { data: zones } = await supabase
         .from('zones')
-        .select('id, name, description, center_lat, center_lng, radius_meters, chips, opening_hours')
+        .select('id, name, description, center_lat, center_lng, radius_meters, chips, opening_hours, avatar_url, banner_url')
         .eq('owner_id', user.id)
         .limit(1)
 
@@ -157,6 +161,8 @@ export default function VenueEditScreen() {
         setExistingZone(z)
         setName(z.name)
         setDescription(z.description ?? '')
+        setAvatarUrl((z as any).avatar_url ?? null)
+        setBannerUrl((z as any).banner_url ?? null)
         const existingHours = (z as any).opening_hours ?? null
         if (existingHours) setPreviousHours(existingHours)
         setLat(z.center_lat)
@@ -250,6 +256,63 @@ export default function VenueEditScreen() {
     }))
     setWebPickerOpen(false)
     setTimeTarget(null)
+  }
+
+  const uploadVenuePhoto = async (type: 'avatar' | 'banner') => {
+    if (!existingZone) {
+      showToast('Save your venue details first, then add photos.', 'error')
+      return
+    }
+    setUploadingPhoto(type)
+    try {
+      let result: ImagePicker.ImagePickerResult
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (status !== 'granted') {
+          Alert.alert('Photos access needed', 'Go to Settings → Expo Go → Photos and allow access.')
+          return
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: type === 'banner' ? [16, 9] : [1, 1],
+          quality: 0.8,
+        })
+      } else {
+        const file = await new Promise<File | null>((resolve) => {
+          const input = document.createElement('input')
+          input.type = 'file'; input.accept = 'image/*'
+          input.onchange = () => resolve(input.files?.[0] ?? null)
+          input.click()
+        })
+        if (!file) return
+        const path = `venues/${existingZone.id}/${type}.jpg`
+        const { error } = await supabase.storage.from('avatars').upload(path, file, { contentType: file.type, upsert: true })
+        if (error) { showToast('Upload failed: ' + error.message, 'error'); return }
+        const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+        const url = `${data.publicUrl}?v=${Date.now()}`
+        await supabase.from('zones').update(type === 'avatar' ? { avatar_url: url } : { banner_url: url }).eq('id', existingZone.id)
+        type === 'avatar' ? setAvatarUrl(url) : setBannerUrl(url)
+        showToast('Photo updated!', 'success')
+        return
+      }
+      if (result.canceled || !result.assets[0]) return
+      const asset = result.assets[0]
+      const response = await fetch(asset.uri)
+      const arrayBuffer = await response.arrayBuffer()
+      const path = `venues/${existingZone.id}/${type}.jpg`
+      const { error } = await supabase.storage.from('avatars').upload(path, arrayBuffer, { contentType: asset.mimeType || 'image/jpeg', upsert: true })
+      if (error) { showToast('Upload failed: ' + error.message, 'error'); return }
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+      const url = `${data.publicUrl}?v=${Date.now()}`
+      await supabase.from('zones').update(type === 'avatar' ? { avatar_url: url } : { banner_url: url }).eq('id', existingZone.id)
+      type === 'avatar' ? setAvatarUrl(url) : setBannerUrl(url)
+      showToast('Photo updated!', 'success')
+    } catch (err: any) {
+      showToast(err?.message ?? 'Upload failed.', 'error')
+    } finally {
+      setUploadingPhoto(null)
+    }
   }
 
   const handleSave = async () => {
@@ -348,6 +411,62 @@ export default function VenueEditScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Venue photos — only shown when a zone already exists */}
+        {existingZone && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Venue Photos</Text>
+
+            {/* Banner */}
+            <TouchableOpacity
+              style={styles.bannerUpload}
+              onPress={() => uploadVenuePhoto('banner')}
+              activeOpacity={0.8}
+              disabled={!!uploadingPhoto}
+            >
+              {bannerUrl ? (
+                <Image source={{ uri: bannerUrl }} style={styles.bannerPreview} resizeMode="cover" />
+              ) : (
+                <View style={styles.bannerPlaceholder}>
+                  <Text style={styles.uploadIcon}>🖼</Text>
+                  <Text style={styles.uploadHint}>Tap to add a banner photo (16:9)</Text>
+                </View>
+              )}
+              {uploadingPhoto === 'banner' && (
+                <View style={styles.uploadOverlay}>
+                  <ActivityIndicator color="#29B6F6" />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Avatar */}
+            <View style={styles.avatarRow}>
+              <TouchableOpacity
+                style={styles.avatarUpload}
+                onPress={() => uploadVenuePhoto('avatar')}
+                activeOpacity={0.8}
+                disabled={!!uploadingPhoto}
+              >
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatarPreview} resizeMode="cover" />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={{ fontSize: 22 }}>🏢</Text>
+                  </View>
+                )}
+                {uploadingPhoto === 'avatar' && (
+                  <View style={styles.uploadOverlay}>
+                    <ActivityIndicator color="#29B6F6" size="small" />
+                  </View>
+                )}
+              </TouchableOpacity>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.avatarLabel}>Profile Photo</Text>
+                <Text style={styles.avatarHint}>Square. Shown on your venue card and map pin.</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Location */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>📍 Venue Location</Text>
@@ -617,6 +736,30 @@ export default function VenueEditScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
   center: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
+
+  bannerUpload: {
+    width: '100%', height: 140, borderRadius: 14,
+    overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(41,182,246,0.2)',
+    backgroundColor: '#07101F',
+  },
+  bannerPreview: { width: '100%', height: '100%' },
+  bannerPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  uploadIcon: { fontSize: 28 },
+  uploadHint: { fontSize: 13, color: '#4A6580', textAlign: 'center' },
+  uploadOverlay: {
+    position: 'absolute', inset: 0, backgroundColor: 'rgba(5,10,21,0.6)',
+    alignItems: 'center', justifyContent: 'center',
+  } as any,
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10 },
+  avatarUpload: {
+    width: 72, height: 72, borderRadius: 36,
+    overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(41,182,246,0.3)',
+    backgroundColor: '#07101F',
+  },
+  avatarPreview: { width: '100%', height: '100%' },
+  avatarPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  avatarLabel: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
+  avatarHint: { fontSize: 12, color: '#4A6580', lineHeight: 16 },
 
   header: {
     flexDirection: 'row',
