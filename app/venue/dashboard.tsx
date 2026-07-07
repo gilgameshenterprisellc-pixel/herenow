@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform, Animated, TextInput, Switch,
+  Linking, Image,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -18,6 +19,8 @@ interface VenueZone {
   center_lat: number | null
   center_lng: number | null
   member_count: number | null
+  avatar_url: string | null
+  banner_url: string | null
 }
 
 interface AggregateStats {
@@ -330,11 +333,25 @@ export default function VenueDashboard() {
       {/* Ambient glow */}
       <View style={[styles.glow, styles.glowTop]} />
 
+      {/* Venue banner photo */}
+      {venue?.banner_url ? (
+        <Image
+          source={{ uri: venue.banner_url }}
+          style={[styles.venueBanner, { marginTop: insets.top }]}
+          resizeMode="cover"
+        />
+      ) : null}
+
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+      <View style={[styles.header, { paddingTop: venue?.banner_url ? 12 : insets.top + 14 }]}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerGreeting}>Hey, {ownerName || 'there'} 👋</Text>
-          <Text style={styles.headerVenue}>{venue?.name ?? 'Your Venue'}</Text>
+          {venue?.avatar_url ? (
+            <Image source={{ uri: venue.avatar_url }} style={styles.venueAvatar} resizeMode="cover" />
+          ) : null}
+          <View style={{ gap: 2 }}>
+            <Text style={styles.headerGreeting}>Hey, {ownerName || 'there'} 👋</Text>
+            <Text style={styles.headerVenue}>{venue?.name ?? 'Your Venue'}</Text>
+          </View>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/venue/edit' as any)}>
@@ -425,6 +442,22 @@ export default function VenueDashboard() {
             )}
           </View>
         )}
+
+        {/* Network Map — lets venue owners see all participating venues */}
+        <TouchableOpacity
+          style={styles.mapCard}
+          onPress={() => Linking.openURL('https://herenow-pi.vercel.app')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.mapCardLeft}>
+            <Ionicons name="map" size={22} color="#29B6F6" />
+            <View style={{ gap: 2 }}>
+              <Text style={styles.mapCardTitle}>Network Map</Text>
+              <Text style={styles.mapCardSub}>See all participating venues</Text>
+            </View>
+          </View>
+          <Ionicons name="open-outline" size={18} color="#4A6580" />
+        </TouchableOpacity>
 
         {/* No venue set up yet */}
         {!venue && (
@@ -718,6 +751,9 @@ const styles = StyleSheet.create({
   glow: { position: 'absolute', borderRadius: 999, opacity: 0.08 },
   glowTop: { width: 400, height: 400, backgroundColor: '#29B6F6', top: -120, right: -100 },
 
+  venueBanner: { width: '100%', height: 140 },
+  venueAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: '#29B6F6' },
+
   header: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -727,7 +763,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#0D1B2E',
   },
-  headerLeft: { gap: 2 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerGreeting: { fontSize: 13, color: '#7A93AC', fontWeight: '500' },
   headerVenue: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -741,6 +777,20 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
+
+  mapCard: {
+    backgroundColor: '#07101F',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(41,182,246,0.2)',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mapCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  mapCardTitle: { fontSize: 15, fontWeight: '700', color: '#f8fafc' },
+  mapCardSub: { fontSize: 12, color: '#4A6580' },
 
   liveCard: {
     backgroundColor: '#0D1B2E',

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform, Image } from 'react-native'
 import type { Zone } from '@/lib/zones'
 
 interface Props {
@@ -87,9 +87,13 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
 
         <View style={styles.top}>
           <View style={[styles.badge, isClosed ? styles.badgeClosed : isLive && styles.badgeLive]}>
-            <Text style={[styles.initial, isClosed ? styles.initialClosed : isLive && styles.initialLive]}>
-              {zone.name[0]?.toUpperCase()}
-            </Text>
+            {zone.avatar_url ? (
+              <Image source={{ uri: zone.avatar_url }} style={styles.venueAvatar} resizeMode="cover" />
+            ) : (
+              <Text style={[styles.initial, isClosed ? styles.initialClosed : isLive && styles.initialLive]}>
+                {zone.name[0]?.toUpperCase()}
+              </Text>
+            )}
             {isLive && <View style={styles.pulsePos}><PulseDot /></View>}
           </View>
 
@@ -236,7 +240,9 @@ const styles = StyleSheet.create({
     width: 50, height: 50, borderRadius: 15,
     backgroundColor: '#29B6F614', borderWidth: 1.5, borderColor: '#29B6F630',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative',
+    overflow: 'hidden',
   },
+  venueAvatar: { width: 50, height: 50, borderRadius: 15 },
   badgeLive: { backgroundColor: '#29B6F620', borderColor: '#29B6F655' },
   initial: { fontSize: 20, fontWeight: '800', color: '#29B6F6' },
   initialLive: { color: '#e0f5ff' },

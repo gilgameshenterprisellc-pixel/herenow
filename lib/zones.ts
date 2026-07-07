@@ -17,6 +17,8 @@ export interface Zone {
   polygon_wkt: string | null
   is_temporarily_closed: boolean
   temporary_closure_message: string | null
+  avatar_url: string | null
+  banner_url: string | null
 }
 
 export async function fetchNearbyZones(
