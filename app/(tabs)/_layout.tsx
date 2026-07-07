@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Tabs } from 'expo-router'
-import { View, Text, StyleSheet, Platform } from 'react-native'
+import { View, Text, StyleSheet, Platform, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { getUnreadCount } from '@/lib/notifications'
 import { getDmUnreadCount } from '@/lib/messages'
@@ -35,6 +35,29 @@ function TabIcon({ name, nameFocused, focused, badge }: {
   )
 }
 
+function ProfileTabIcon({ avatarUrl, focused }: { avatarUrl: string | null; focused: boolean }) {
+  return (
+    <View style={[ti.wrap, focused && ti.wrapFocused]}>
+      {avatarUrl ? (
+        <Image
+          source={{ uri: avatarUrl }}
+          style={[
+            ti.avatar,
+            focused && { borderColor: '#29B6F6', borderWidth: 2 },
+          ]}
+        />
+      ) : (
+        <Ionicons
+          name={focused ? 'person-circle' : 'person-circle-outline'}
+          size={24}
+          color={focused ? '#29B6F6' : '#4A6580'}
+        />
+      )}
+      {focused && <View style={ti.activeDot} />}
+    </View>
+  )
+}
+
 const ti = StyleSheet.create({
   wrap: {
     width: 52, height: 44,
@@ -54,11 +77,16 @@ const ti = StyleSheet.create({
     width: 4, height: 4, borderRadius: 2,
     backgroundColor: '#29B6F6', position: 'absolute', bottom: 2,
   },
+  avatar: {
+    width: 26, height: 26, borderRadius: 13,
+    borderWidth: 1.5, borderColor: 'rgba(41,182,246,0.3)',
+  },
 })
 
 export default function TabsLayout() {
   const [unread, setUnread]       = useState(0)  // system notification count → Updates tab
   const [dmUnread, setDmUnread]   = useState(0)  // DM unread count → Messages tab
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -82,6 +110,15 @@ export default function TabsLayout() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!mounted) return
       const uid = user?.id
+
+      if (uid) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', uid)
+          .maybeSingle()
+        if (mounted && profile?.avatar_url) setAvatarUrl(profile.avatar_url)
+      }
 
       notifSub = supabase
         .channel('badge-notif')
@@ -153,7 +190,7 @@ export default function TabsLayout() {
           name="profile"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon name="person-circle-outline" nameFocused="person-circle" focused={focused} />
+              <ProfileTabIcon avatarUrl={avatarUrl} focused={focused} />
             ),
           }}
         />
