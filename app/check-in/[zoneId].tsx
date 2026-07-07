@@ -17,6 +17,7 @@ import type { SocialMode, MoodMode } from '@/lib/sessions'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { checkAndAwardBadges } from '@/lib/badges'
+import { successBuzz } from '@/lib/haptics'
 import { fetchHighlights } from '@/lib/highlights'
 import BetaFeedbackModal, { shouldShowBetaFeedback, markBetaFeedbackShown } from '@/components/BetaFeedbackModal'
 import VenueWelcomeModal from '@/components/VenueWelcomeModal'
@@ -87,6 +88,7 @@ export default function CheckInScreen() {
   const [showFeedback, setShowFeedback] = useState(false)
   const [showWelcome, setShowWelcome]   = useState(false)
   const [showCiAnim, setShowCiAnim]     = useState(false)
+  const [prefilled, setPrefilled]       = useState(false)
   const ciScale   = useRef(new Animated.Value(0.3)).current
   const ciOpacity = useRef(new Animated.Value(0)).current
   const [welcomeData, setWelcomeData]   = useState<{
@@ -103,6 +105,30 @@ export default function CheckInScreen() {
   useEffect(() => {
     supabase.from('zones').select('name').eq('id', zoneId).maybeSingle()
       .then(({ data }) => setZoneName(data?.name ?? ''))
+  }, [zoneId])
+
+  // Quick re-check-in — pre-fill your last vibe at this venue so regulars
+  // can check in with one tap (Jacob Round 2, Q27)
+  useEffect(() => {
+    let cancelled = false
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('sessions')
+        .select('social_mode, mood_mode')
+        .eq('user_id', user.id)
+        .eq('zone_id', zoneId)
+        .order('checked_in_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (cancelled || !data) return
+          setSocialMode((prev) => prev ?? data.social_mode)
+          setMoodMode(data.mood_mode)
+          setPrefilled(true)
+        })
+    })
+    return () => { cancelled = true }
   }, [zoneId])
 
   const runCheckInAnim = () =>
@@ -160,6 +186,7 @@ export default function CheckInScreen() {
       return
     }
 
+    successBuzz()
     await runCheckInAnim()
     await checkAndAwardBadges('checkin', { zoneId })
 
@@ -225,6 +252,14 @@ export default function CheckInScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {prefilled && (
+          <View style={styles.prefillBanner}>
+            <Text style={styles.prefillText}>
+              Welcome back — your last vibe here is pre-filled. Tap Check In or switch it up.
+            </Text>
+          </View>
+        )}
+
         {/* Social Mode */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What are you here for?</Text>
@@ -358,6 +393,11 @@ const styles = StyleSheet.create({
   zoneName: { fontSize: 13, color: '#7A93AC', marginTop: 2 },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 28, paddingBottom: 40 },
+  prefillBanner: {
+    backgroundColor: '#29B6F612', borderColor: '#29B6F633', borderWidth: 1,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  prefillText: { fontSize: 13, color: '#29B6F6', fontWeight: '600', lineHeight: 18 },
   section: { gap: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '800', color: '#f8fafc' },
   sectionSub: { fontSize: 13, color: '#7A93AC', lineHeight: 18 },

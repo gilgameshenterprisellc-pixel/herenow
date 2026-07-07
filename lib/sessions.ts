@@ -93,6 +93,30 @@ export async function checkIn(params: {
   return { ok: true, session: data }
 }
 
+export async function updateSessionModes(
+  sessionId: string,
+  socialMode: SocialMode,
+  moodMode: MoodMode
+): Promise<Session | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({ social_mode: socialMode, mood_mode: moodMode })
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .select('*')
+    .maybeSingle()
+
+  if (error) {
+    console.error('[sessions] updateSessionModes error:', error.message)
+    return null
+  }
+  return data
+}
+
 export async function checkOut(sessionId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return

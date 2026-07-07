@@ -11,9 +11,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
-import { getActivePeople } from '@/lib/sessions'
+import { getActivePeople, updateSessionModes } from '@/lib/sessions'
 import BackButton from '@/components/BackButton'
-import type { ActivePerson } from '@/lib/sessions'
+import type { ActivePerson, SocialMode, MoodMode } from '@/lib/sessions'
+import SocialModeBadge from '@/components/SocialModeBadge'
+import MoodBadge from '@/components/MoodBadge'
 import { usePulse } from '@/hooks/usePulse'
 import { useVenueChat } from '@/hooks/useVenueChat'
 import { createPulsePost, VIBE_TAGS } from '@/lib/pulse'
@@ -24,6 +26,7 @@ import { checkAndAwardBadges } from '@/lib/badges'
 import { reportUser, reportContent, type ReportReason, type ContentReportReason } from '@/lib/reports'
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
+import { successBuzz } from '@/lib/haptics'
 import { fetchVenueBadges, checkAndAwardVenueBadges, type VenueBadge } from '@/lib/venueBadges'
 import { subscribeToVenue, unsubscribeFromVenue, isSubscribedToVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
@@ -42,10 +45,23 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'events', label: 'Events' },
 ]
 
+const VIBE_SOCIAL_OPTIONS: { mode: SocialMode; label: string; color: string }[] = [
+  { mode: 'dating',     label: 'Dating',     color: '#f43f5e' },
+  { mode: 'friends',    label: 'Friends',    color: '#22c55e' },
+  { mode: 'networking', label: 'Networking', color: '#3b82f6' },
+  { mode: 'just_vibes', label: 'Just Vibes', color: '#a855f7' },
+]
+
+const VIBE_MOOD_OPTIONS: { mode: MoodMode; label: string; color: string }[] = [
+  { mode: 'open',      label: 'Open',      color: '#22c55e' },
+  { mode: 'selective', label: 'Selective', color: '#29B6F6' },
+  { mode: 'not_today', label: 'Not Today', color: '#7A93AC' },
+]
+
 export default function ZoneScreen() {
   const { id }                     = useLocalSearchParams<{ id: string }>()
   const insets                     = useSafeAreaInsets()
-  const { activeSession, checkOut } = useSessionContext()
+  const { activeSession, checkOut, refresh } = useSessionContext()
   const { showToast }              = useToast()
   const [userId, setUserId]         = useState<string | null>(null)
   const [zone, setZone]             = useState<any>(null)
@@ -55,6 +71,12 @@ export default function ZoneScreen() {
   // People
   const [people, setPeople]           = useState<ActivePerson[]>([])
   const [peopleLoading, setPeopleLoading] = useState(false)
+
+  // Mid-session vibe editor
+  const [vibeEditOpen, setVibeEditOpen] = useState(false)
+  const [editSocial, setEditSocial]     = useState<SocialMode>('just_vibes')
+  const [editMood, setEditMood]         = useState<MoodMode>('selective')
+  const [vibeSaving, setVibeSaving]     = useState(false)
 
   // Pulse
   const { posts: pulsePosts, refresh: refreshPulse } = usePulse(id)
@@ -154,21 +176,24 @@ export default function ZoneScreen() {
     if (tab === 'events') loadEvents()
   }, [tab, id])
 
-  // Auto-refresh people every 30s for privacy (rotating subset, can't stalk)
+  // Carousel refresh every 15s — silent re-shuffle so no one stays visible too long
   useEffect(() => {
     if (tab !== 'people') return
-    const interval = setInterval(loadPeople, 30_000)
+    const interval = setInterval(() => loadPeople(true), 15_000)
     return () => clearInterval(interval)
   }, [tab, id])
 
-  const loadPeople = async () => {
-    setPeopleLoading(true)
+  const loadPeople = async (silent = false) => {
+    if (!silent) setPeopleLoading(true)
     const [data, blockedIds] = await Promise.all([
       getActivePeople(id),
       fetchBlockedIds(),
     ])
     const blockedSet = new Set(blockedIds)
-    const filtered = data.filter((p) => !blockedSet.has(p.user_id))
+    // Not Today = opted out of social discovery — hidden from everyone but themselves
+    const filtered = data.filter(
+      (p) => !blockedSet.has(p.user_id) && (p.mood_mode !== 'not_today' || p.user_id === userId)
+    )
     // Shuffle on each refresh so no one can be stalked by watching position
     const meRow = filtered.filter((p) => p.user_id === userId)
     const others = filtered.filter((p) => p.user_id !== userId)
@@ -186,6 +211,21 @@ export default function ZoneScreen() {
     const data = await fetchEvents(id)
     setEvents(data)
     setEventsLoading(false)
+  }
+
+  const handleVibeSave = async () => {
+    if (!activeSession) return
+    setVibeSaving(true)
+    const updated = await updateSessionModes(activeSession.id, editSocial, editMood)
+    if (updated) {
+      await refresh()
+      loadPeople(true)
+      showToast('Vibe updated')
+      setVibeEditOpen(false)
+    } else {
+      showToast('Could not update — try again')
+    }
+    setVibeSaving(false)
   }
 
   const handleWeMet = async (person: ActivePerson) => {
@@ -228,6 +268,7 @@ export default function ZoneScreen() {
             })
             await checkAndAwardBadges('wemet_confirmed')
 
+            successBuzz()
             setWemetCelebName(person.display_name)
             wmScale.setValue(0.5)
             wmOpacity.setValue(0)
@@ -520,6 +561,78 @@ export default function ZoneScreen() {
       {isCheckedIn && (
         <View style={styles.heatBarWrap}>
           <HeatBar count={people.length + (activeSession ? 1 : 0)} />
+        </View>
+      )}
+
+      {/* Your vibe — editable mid-session (people change their minds) */}
+      {isCheckedIn && activeSession && (
+        <View style={styles.vibeWrap}>
+          {!vibeEditOpen ? (
+            <View style={styles.vibeRow}>
+              <Text style={styles.vibeLabel}>Your vibe</Text>
+              <SocialModeBadge mode={activeSession.social_mode} />
+              <MoodBadge mode={activeSession.mood_mode} />
+              <TouchableOpacity
+                onPress={() => {
+                  setEditSocial(activeSession.social_mode)
+                  setEditMood(activeSession.mood_mode)
+                  setVibeEditOpen(true)
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.vibeEditLink}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.vibeEditor}>
+              <Text style={styles.vibeEditorTitle}>Social Mode</Text>
+              <View style={styles.modePillRow}>
+                {VIBE_SOCIAL_OPTIONS.map((o) => (
+                  <TouchableOpacity
+                    key={o.mode}
+                    style={[
+                      styles.modePill,
+                      editSocial === o.mode && { backgroundColor: o.color + '22', borderColor: o.color },
+                    ]}
+                    onPress={() => setEditSocial(o.mode)}
+                  >
+                    <Text style={[styles.modePillText, editSocial === o.mode && { color: o.color }]}>
+                      {o.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.vibeEditorTitle}>Mood</Text>
+              <View style={styles.modePillRow}>
+                {VIBE_MOOD_OPTIONS.map((o) => (
+                  <TouchableOpacity
+                    key={o.mode}
+                    style={[
+                      styles.modePill,
+                      editMood === o.mode && { backgroundColor: o.color + '22', borderColor: o.color },
+                    ]}
+                    onPress={() => setEditMood(o.mode)}
+                  >
+                    <Text style={[styles.modePillText, editMood === o.mode && { color: o.color }]}>
+                      {o.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.vibeEditorActions}>
+                <TouchableOpacity onPress={() => setVibeEditOpen(false)} disabled={vibeSaving}>
+                  <Text style={styles.vibeCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.vibeSaveBtn, vibeSaving && { opacity: 0.6 }]}
+                  onPress={handleVibeSave}
+                  disabled={vibeSaving}
+                >
+                  <Text style={styles.vibeSaveText}>{vibeSaving ? 'Saving…' : 'Save'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       )}
 
@@ -960,6 +1073,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28, paddingVertical: 14, marginTop: 8,
   },
   gateBtnText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
+  vibeWrap: { paddingHorizontal: 16, paddingBottom: 10 },
+  vibeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  vibeLabel: { fontSize: 12, color: '#7A93AC', fontWeight: '600' },
+  vibeEditLink: { fontSize: 12, color: '#29B6F6', fontWeight: '700' },
+  vibeEditor: {
+    backgroundColor: '#0B1524', borderColor: '#1E293B', borderWidth: 1,
+    borderRadius: 16, padding: 14, gap: 8,
+  },
+  vibeEditorTitle: { fontSize: 11, fontWeight: '700', color: '#7A93AC', textTransform: 'uppercase', letterSpacing: 1 },
+  modePillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  modePill: {
+    borderWidth: 1, borderColor: '#1E293B', borderRadius: 999,
+    paddingHorizontal: 14, paddingVertical: 8, minHeight: 36, justifyContent: 'center',
+  },
+  modePillText: { fontSize: 13, fontWeight: '600', color: '#7A93AC' },
+  vibeEditorActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 18, marginTop: 4 },
+  vibeCancelText: { fontSize: 13, color: '#7A93AC', fontWeight: '600' },
+  vibeSaveBtn: { backgroundColor: '#29B6F6', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 9 },
+  vibeSaveText: { fontSize: 13, fontWeight: '800', color: '#050A15' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyEmoji: { fontSize: 44 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#f8fafc' },

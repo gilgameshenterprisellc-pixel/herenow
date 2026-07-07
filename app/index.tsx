@@ -114,7 +114,7 @@ function NativeIndex() {
     return (
       <View style={{ flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
         <Image
-          source={require('@/assets/logo.webp')}
+          source={require('@/assets/logo-flower.png')}
           style={{ width: 120, height: 120, borderRadius: 30 }}
           resizeMode="contain"
         />

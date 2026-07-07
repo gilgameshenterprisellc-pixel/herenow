@@ -125,7 +125,7 @@ export default function LoginScreen() {
       ]}>
 
         <Reanimated.View entering={ZoomIn.springify().damping(14)}>
-          <Image source={require('@/assets/logo.webp')} style={styles.logo} resizeMode="contain" />
+          <Image source={require('@/assets/logo-flower.png')} style={styles.logo} resizeMode="contain" />
         </Reanimated.View>
 
         <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)} style={{ alignItems: 'center' }}>
