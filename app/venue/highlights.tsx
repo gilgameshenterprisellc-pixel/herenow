@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchHighlights, createHighlight, deleteHighlight, type VenueHighlight } from '@/lib/highlights'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
+import BackButton from '@/components/BackButton'
 
 const EMOJIS = ['⭐', '🔥', '🎉', '🍹', '🎵', '🌃', '🎭', '🎮', '🍔', '🥳', '💫', '🏆']
 const MAX = 6
@@ -92,9 +93,7 @@ export default function VenueHighlightsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} />
         <Text style={styles.title}>Venue Highlights</Text>
         <Text style={styles.counter}>{highlights.length}/{MAX}</Text>
       </View>

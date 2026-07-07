@@ -11,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
+import BackButton from '@/components/BackButton'
 
 const RADIUS_OPTIONS = [
   { label: 'Small (bar, coffee shop)', meters: 80 },
@@ -386,12 +387,7 @@ export default function VenueEditScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)}
-          style={styles.backBtn}
-        >
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} />
         <Text style={styles.title}>{existingZone ? 'Edit Venue' : 'Set Up Your Venue'}</Text>
         <TouchableOpacity
           onPress={handleSave}

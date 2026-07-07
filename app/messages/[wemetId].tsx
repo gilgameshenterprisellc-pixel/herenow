@@ -10,6 +10,7 @@ import { useDmThread } from '@/hooks/useMessages'
 import { sendMessage, markMessagesRead } from '@/lib/messages'
 import DmBubble from '@/components/DmBubble'
 import ExpiryLabel from '@/components/ExpiryLabel'
+import BackButton from '@/components/BackButton'
 
 export default function DmConversationScreen() {
   const { wemetId }         = useLocalSearchParams<{ wemetId: string }>()
@@ -70,9 +71,7 @@ export default function DmConversationScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/messages' as any)} style={styles.backBtn}>
-            <Text style={styles.backText}>←</Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/messages' as any)} />
           <View style={styles.headerInfo}>
             <Text style={styles.name}>Conversation</Text>
           </View>
@@ -95,9 +94,7 @@ export default function DmConversationScreen() {
     >
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/messages' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/messages' as any)} />
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{otherName}</Text>
           {!isLocked && expiresAt && (

@@ -9,6 +9,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
+import BackButton from '@/components/BackButton'
 
 interface Promotion {
   id: string
@@ -169,9 +170,7 @@ export default function VenuePromotionsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} />
         <Text style={styles.title}>Promotions</Text>
         {promos.length > 0 && <Text style={styles.count}>{promos.length} active</Text>}
       </View>

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { fetchMyVenues, unsubscribeFromVenue, type VenueSubscription } from '@/lib/venueSubscriptions'
 import { platformConfirm } from '@/lib/confirm'
+import BackButton from '@/components/BackButton'
 
 export default function MyVenuesScreen() {
   const insets = useSafeAreaInsets()
@@ -39,9 +40,7 @@ export default function MyVenuesScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} />
         <Text style={styles.title}>My Venues</Text>
         {venues.length > 0 && <Text style={styles.count}>{venues.length} following</Text>}
       </View>

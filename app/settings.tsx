@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import BackButton from '@/components/BackButton'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -127,12 +128,7 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}
-          style={styles.backBtn}
-        >
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} />
         <Text style={styles.title}>Settings</Text>
       </View>
 

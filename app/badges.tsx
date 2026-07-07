@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchAllBadges, fetchUserBadges } from '@/lib/badges'
 import BadgeCard from '@/components/BadgeCard'
+import BackButton from '@/components/BackButton'
 import type { Badge } from '@/lib/badges'
 
 const CATEGORY_ORDER = ['courage', 'kindness', 'exploration', 'connection', 'presence']
@@ -62,9 +63,7 @@ export default function BadgesScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} />
         <View style={styles.headerInfo}>
           <Text style={styles.title}>Badges 🏅</Text>
           {!loading && (

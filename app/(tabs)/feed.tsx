@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native'
+import { useTabBarScroll } from '@/contexts/TabBarScrollContext'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { TAB_SAFE_BOTTOM } from './_layout'
@@ -56,6 +57,7 @@ export default function UpdatesScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [venueLoaded, setVenueLoaded] = useState(false)
 
+  const { onScroll } = useTabBarScroll()
   const { notifications, loading: notifLoading, refresh: refreshNotifs } = useNotifications()
 
   // Non-DM activity items shown in this tab
@@ -176,6 +178,8 @@ export default function UpdatesScreen() {
 
       <ScrollView
         contentContainerStyle={[styles.list, webCenter]}
+        onScroll={(e) => onScroll(e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />
         }

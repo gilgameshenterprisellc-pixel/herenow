@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { createEvent } from '@/lib/events'
 import { useToast } from '@/contexts/ToastContext'
+import BackButton from '@/components/BackButton'
 
 const EVENT_TYPES = [
   { id: 'music',      emoji: '🎵', label: 'Music' },
@@ -117,9 +118,7 @@ export default function CreateEventScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId}` as any)} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId}` as any)} />
         <Text style={styles.title}>Create Event</Text>
       </View>
 

@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { checkAndAwardBadges } from '@/lib/badges'
+import BackButton from '@/components/BackButton'
 
 interface Photo {
   id: string
@@ -267,12 +268,7 @@ export default function VenueGalleryScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)}
-          style={styles.backBtn}
-        >
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} />
         <View style={styles.headerText}>
           <Text style={styles.title}>Venue Gallery</Text>
           <Text style={styles.subtitle}>{photos.length} photo{photos.length !== 1 ? 's' : ''}</Text>
