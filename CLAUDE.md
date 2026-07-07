@@ -17,32 +17,29 @@ Partner: Jacob (practice venue run in progress)
 
 | Layer | Tech |
 |---|---|
-| Framework | Expo SDK 52 + Expo Router v4 |
+| Framework | Expo SDK 54 + Expo Router v6 (typed routes enabled) |
 | Language | TypeScript |
-| UI | React Native 0.76, React 18 |
+| UI | React Native 0.81, React 19 |
 | Database | Supabase (PostgreSQL + PostGIS) |
 | Realtime | Supabase Realtime (chat, pulse, notifications) |
 | Location | expo-location + expo-task-manager (background geofencing) |
-| Animations | React Native `Animated` API (orbs, pill spring) + react-native-reanimated (entrance) |
+| Animations | React Native `Animated` API (orbs, pill spring) + react-native-reanimated 4 + react-native-worklets |
 | Storage | AsyncStorage (onboarding seen state, session prefs) |
-| Maps | react-native-maps 1.14.0 |
+| Maps | Custom `WebMap` — Leaflet 1.9.4 self-injected on web; native gets a stub (list UI, no map canvas yet). react-native-maps was removed. |
+| Geocoding | Mapbox geocoding API + OpenStreetMap Overpass (building polygons) |
+| iOS builds | Codemagic CI (`codemagic.yaml`) — raw xcodebuild, Apple Distribution signing, uploads to App Store Connect / TestFlight |
 
 ---
 
-## SDK Strategy — Important Note
+## Build & Distribution (updated July 7, 2026)
 
-**Current:** Expo SDK 52 — compatible with the **stable Expo Go app** (no extra installs). Anyone with Expo Go can scan a QR and run. This is intentional for Jacob's practice venue run — lowest friction for testers.
+**The Expo Go era is over.** The app upgraded from SDK 52 → 54 (PR #65) and now ships real signed iOS builds via **Codemagic** (not EAS — EAS Gradle issues led to the Codemagic pipeline in `codemagic.yaml`).
 
-**Future (app store):** When ready to submit to Google Play and Apple App Store:
-1. Upgrade to the latest Expo SDK (likely 53+)
-2. Switch to **EAS Build** (Expo Application Services) — produces a real signed APK/IPA
-3. Remove the Expo Go dependency entirely — real app installs via the stores like any other app
-4. Add push notification credentials (FCM for Android, APNs for iOS) via EAS
-5. Configure `app.json` with real bundle IDs, signing certs, store metadata
-
-The upgrade is a 1-2 day process when the time comes. Do not start until Jacob's test run is complete and the core features are validated on real hardware.
-
-react-native-maps is currently **shimmed for web** (web gets a placeholder). The real map component is backed up as `NearbyMap.tsx.bak` and will be restored when EAS native build starts.
+- **iOS bundle ID: `Com.gilgameshenterprise.herenow`** — yes, capital C. It looks like a typo but it is registered in App Store Connect and baked into the Codemagic provisioning profile. **NEVER change it** — changing it orphans the TestFlight builds.
+- **TestFlight:** buildNumber 4 is current (bumps 2→3→4 cleared App Store Connect duplicate-version errors). Version 1.0.0.
+- EAS project ID `961a1251-c044-441c-802e-1e3f7711bcf4` still wired in `app.json` for push tokens.
+- Native map: `WebMap.tsx` is a native stub — native builds show the venue list + filter chips without a map canvas. A real native MapView is a known TODO (the old react-native-maps component lives in `NearbyMap.native.tsx.bak` history but the dependency was removed).
+- `react-native-worklets` is pinned at 0.8.0 (Expo expects 0.5.1) — deliberate; TestFlight build 4 shipped with it. If aligning later, run `npx expo install --fix` and retest the check-in animation.
 
 ---
 
@@ -67,7 +64,7 @@ react-native-maps is currently **shimmed for web** (web gets a placeholder). The
 2. `supabase/phase2.sql` — Phase 2: sessions, pulse_posts, venue_chat, we_met, direct_messages, afterglow, badges, user_badges, venue_events, event_rsvps, notifications, `active_sessions_in_zone()` RPC
 3. `supabase/safety.sql` — safety_reports, user_blocks
 
-**Status: SQL has NOT been applied to the live Supabase project yet.** This is the first thing that must happen before any real device testing. Apply all 3 files in order via the Supabase SQL editor.
+**Status: All SQL applied to the live Supabase project** (confirmed July 3, 2026). The `supabase/` folder now holds 30+ migration files beyond the original 3 (venue photos/gallery/hours/chips/address, polygon geofencing, admin controls, jacob sprints 1-3, safety, promo redemptions, profile privacy, badge seeds, etc.) — all run.
 
 Supabase project: `https://orxtyreipavkrdiycpht.supabase.co`
 
@@ -77,7 +74,9 @@ Supabase project: `https://orxtyreipavkrdiycpht.supabase.co`
 
 ---
 
-## What's Built — Full Inventory (as of June 21, 2026)
+## What's Built — Full Inventory (screens table as of June 21, 2026 — see additions below)
+
+**Added since June 21 (PRs #50–#101):** `app/admin/` suite (index, users, venues, reports — user list, venue approval queue with map preview + polygon draw tool, content reports), `app/settings.tsx`, `app/profile/privacy.tsx` (profile card visibility controls), `app/my-venues.tsx`, `app/venue/gallery.tsx`, `app/venue/highlights.tsx`, `app/venue/people.tsx`, `app/venue/promotions.tsx`, `app/venue/announcements.tsx`, `app/(auth)/forgot-password.tsx` + `reset-password.tsx`. Total: 37 screen files. New components: `BackButton`, `BetaFeedbackModal`, `VenueWelcomeModal`, `PinPicker`(+web), `PolygonDrawMap`, `WebMap`(+web).
 
 ### Screens (22 files)
 
@@ -244,8 +243,19 @@ Both login and signup use the same electric premium design:
 | #21 | feat/venue-subs-privacy-feed-sweep | **Venue subscriptions** — users follow venues, get promos/announcements in feed. **MY VENUES** chip row + **FROM YOUR VENUES** feed section. **Venue promotions** (`/venue/promotions`) — title, discount label, description, feed toggle, delete. **Venue announcements** (`/venue/announcements`) — 280-char, feed toggle, history. **My Venues screen** (`/my-venues`). **Check-in privacy toggle** (Full vs Minimal, saved to `checkin_visibility` on profiles). **Venue dashboard subscriber count**. Content moderation wired into `fetchPulse` + `fetchChat`. Login Enter key fix. 4 screens safe-area fixed. 2 screens KAV added. `.maybeSingle()` on afterglow + check-in. Messages list bottom padding. 2 redundant `getUser()` calls removed. `docs/herenow-scope-june2026.html` scope document added. |
 | #22 | chore/eas-push-claudemd-update | EAS project ID wired into `app.json` (ID: `961a1251-c044-441c-802e-1e3f7711bcf4`, project: `@gilgameshenterprisellc/jbost` on expo.dev). `push_token TEXT` column added to profiles (SQL applied June 23). Push notifications now fully active — tokens register on every sign-in. CLAUDE.md updated. Master doc updated. |
 | #47 | feat/mapbox-precision-auto-approve | Mapbox geocoding integrated (replaces Nominatim), `auto_approve_venue` RPC, confidence badge in admin panel. Only first commit merged to main — two sweep commits were cherry-picked into PR #48. |
-| #48 | fix/full-sweep-june27 | Full codebase sweep: cherry-picked two commits from #47, fixed broken RSVP decrement in `lib/events.ts` (was storing a Promise as column value), `.single()` → `.maybeSingle()` across weMet/sessions/events, default zone radius 500 → 75m in `lib/zones.ts`, removed debug console.logs from `useGeofenceTask.ts`. **OPEN — not yet merged to main.** |
+| #48 | fix/full-sweep-june27 | Full codebase sweep: cherry-picked two commits from #47, fixed broken RSVP decrement in `lib/events.ts` (was storing a Promise as column value), `.single()` → `.maybeSingle()` across weMet/sessions/events, default zone radius 500 → 75m in `lib/zones.ts`, removed debug console.logs from `useGeofenceTask.ts`. Merged. |
 | #49 | feat/polygon-geofencing | Building polygon geofencing via OpenStreetMap Overpass API. `fetchBuildingPolygon()` in `lib/geocoding.ts`. `supabase/polygon_geofencing.sql` run in Supabase (supersedes `mapbox_precision.sql`). `user_in_zone()` now polygon-first with circle fallback. Admin panel shows polygon badge. Auto-approve path fetches polygon at signup. Background geofence uses `Math.max(radius_meters, 150)`. **Merged June 27, 2026.** |
+| #50–#56 | (various) | Admin fixes (save spinner, back arrow), date picker + venue profile + image uploads + analytics dashboard, canGoBack() guards, vibe picker taps, mobile avatar upload, announcement notifications, image uploads via arrayBuffer, two-step Android date picker, camera support + photo replacement sweep |
+| #57–#59 | (build) | eas.json added, newArchEnabled disabled, Kotlin 1.9.25 pinned via expo-build-properties (EAS Gradle fixes — later superseded by Codemagic pipeline) |
+| #60–#64 | (features) | Geofence enforcement + member_count trigger + promo redemption; password UX, ghost mode, joined date, dashboard analytics, access gate, venue chips, settings; activity previews, operating hours, venue gallery; map glow, trending section, badge leveling, promo+event performance; full web+mobile sweep |
+| #65 | fix/sdk-upgrade | **Expo SDK 52 → 54 upgrade** + polygon geofencing fixes + Jacob Q1/Q12 |
+| #66–#68 | (build) | react-native-worklets peer dep, Node 22.x engine + babel-preset-expo devDep (Vercel build fixes) |
+| #69–#83 | (features+fixes) | Photo upload UX, post-check-in beta feedback survey + BETA badge, day-by-day operating hours picker, profile privacy controls, Overpass radius 100→200m + Nominatim fallback + broader amenity/leisure query, **manual polygon draw tool** in admin (SECURITY DEFINER RPC to save), map shows building polygon outline instead of circle, polygon geofencing enforced + default radius → 10m, 5-bug sweep |
+| #84–#89 | Jacob sprints 1–3 | Notif prefs, mutual blocks, auto-checkout, profile completeness; DM expiry, Pulse preview, venue temp-closed, promo windows, We Met cap; gallery submissions + first-visit welcome modal; Updates tab + Messages tab + DM unread badge; `zones_near()` missing fields fix; venue Regular badge shows venue name |
+| #90–#94 | Jacob feedback | Gallery bug, avatar bug, map chip multi-select filter, branding; Safari iOS avatar race fix; 6-bug code review sweep (July 3); venue badge system + megaphone Updates icon |
+| #95–#97 | (features) | Auth session persistence on native + avatar upload upsert fix; profile picture in bottom nav tab icon; **venue photos (profile pic + banner)** + network map card |
+| #98–#100 | Design uplift 1–3 | Pill tabs, amber We Met, people privacy refresh; tab bar auto-hide on scroll, `BackButton` component, badge/mood emoji cleanup; social mode icons, check-in animation, We Met celebration |
+| #101 | fix/sweep-typecheck-config | July 7 sweep: 5 tsc errors from design uplift fixed (tab route path, zone emptyEmoji style, Zone avatar_url/banner_url in createZone + search), app.json dedup (UIBackgroundModes + duplicate expo-build-properties plugin), babel-preset-expo pinned back to 54.0.11 |
 
 ---
 
@@ -329,11 +339,13 @@ How it works:
 
 ### Before App Store Launch
 
-11. **Expo SDK upgrade** — SDK 52 → latest (53+). Required for EAS Build.
-12. **EAS Build setup** — Signed APK (Android) and IPA (iOS). Google Play and Apple App Store.
-13. **FCM + APNs push credentials** — Set up via EAS after SDK upgrade.
-14. **Restore native maps** — `NearbyMap.tsx.bak` → `NearbyMap.tsx` for native builds (shimmed for web).
-15. **App store metadata** — Bundle IDs, icons, screenshots, store descriptions.
+11. ✅ **Expo SDK upgrade** — done, SDK 54 (PR #65).
+12. ✅ **iOS build pipeline** — done via Codemagic (not EAS). Signed IPAs upload to App Store Connect; TestFlight buildNumber 4 current.
+13. **TestFlight beta run** — get Jacob + testers on the TestFlight build, validate GPS/geofencing/push on real hardware.
+14. **APNs push delivery verification** — push tokens register (EAS project ID in app.json), but confirm delivery works in TestFlight builds.
+15. **Native map canvas** — `WebMap.tsx` native stub shows list-only UI. Build a real native MapView (react-native-maps was removed; needs re-adding or an alternative) before store launch.
+16. **Android build** — eas.json has Android profiles but the current pipeline is iOS-only. Google Play comes after iOS validation.
+17. **App store metadata** — icons exist; screenshots + store descriptions still needed.
 
 ### Longer Roadmap (V2+)
 
@@ -360,7 +372,7 @@ How it works:
   default: {},
 }),
 ```
-Profile uses 640px. Never add date filters to calendar queries (they silently drop SOMA posts with null `created_at`).
+Profile uses 640px.
 
 **`AnimatedBackground` on all tab screens.** All 4 tabs render `<AnimatedBackground />` as the first child of their container View. It uses `StyleSheet.absoluteFill` + `pointerEvents="none"` — it never affects layout or touches.
 
@@ -385,3 +397,5 @@ The `+ Venue` zone-create button is hidden from users where `is_venue_owner = fa
 - **Never use `git add app/(auth)/...` in PowerShell** — use Bash. Parentheses break PowerShell argument parsing.
 - Auth files: login.tsx and signup.tsx now have the premium electric UI. Do not revert to the plain version. The toggle uses `onLayout` — do not replace with a hardcoded translateX value.
 - PostgREST WKT for geography columns: `POINT(${lng} ${lat})` — longitude first, then latitude. Not the other way.
+- **NEVER change `bundleIdentifier: Com.gilgameshenterprise.herenow`** — the capital C looks wrong but it's registered in App Store Connect and the Codemagic provisioning profile. Changing it orphans all TestFlight builds.
+- Run `npx tsc --noEmit` before opening a PR — Metro doesn't typecheck, so type errors ship silently (5 did during the design uplift, caught in the July 7 sweep).
