@@ -10,11 +10,31 @@ import { supabase } from '@/lib/supabase'
 
 type Mode = 'person' | 'venue'
 
+type AuthMethod = 'email' | 'phone'
+
+// Normalize a typed phone number to E.164 (Supabase/Twilio require it).
+// Bare 10-digit input is assumed US (+1); anything already starting with + is kept.
+function toE164(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('+')) {
+    const digits = trimmed.slice(1).replace(/\D/g, '')
+    return digits.length >= 8 ? `+${digits}` : null
+  }
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return null
+}
+
 export default function LoginScreen() {
   const [mode, setMode]         = useState<Mode>('person')
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('email')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
+  const [phone, setPhone]       = useState('')
+  const [otp, setOtp]           = useState('')
+  const [otpSent, setOtpSent]   = useState(false)
   const [loading, setLoading]   = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [toggleWidth, setToggleWidth] = useState(0)
@@ -77,6 +97,47 @@ export default function LoginScreen() {
     } else {
       router.replace('/(tabs)')
     }
+  }
+
+  const handleSendOtp = async () => {
+    const e164 = toE164(phone)
+    if (!e164) { setErrorMsg('Enter a valid phone number (e.g. 615 555 0198).'); return }
+    setErrorMsg('')
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithOtp({ phone: e164 })
+    setLoading(false)
+    if (error) {
+      // Provider not configured yet → clear, non-scary message for beta
+      setErrorMsg(
+        /provider|not enabled|unsupported/i.test(error.message)
+          ? 'Phone sign-in is being switched on. Use email for now.'
+          : error.message
+      )
+      return
+    }
+    setOtpSent(true)
+  }
+
+  const handleVerifyOtp = async () => {
+    const e164 = toE164(phone)
+    if (!e164 || otp.trim().length < 4) return
+    setErrorMsg('')
+    setLoading(true)
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone: e164,
+      token: otp.trim(),
+      type:  'sms',
+    })
+    setLoading(false)
+    if (error) { setErrorMsg(error.message); return }
+
+    // New phone user with no profile row yet → send to profile setup
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', data.user!.id)
+      .maybeSingle()
+    router.replace(profile ? '/(tabs)' : '/profile/edit' as any)
   }
 
   const pillX = toggleWidth > 0
@@ -164,39 +225,95 @@ export default function LoginScreen() {
           </View>
         </Reanimated.View>
 
+        {/* Email / Phone method switch — Person only (venues are email-only) */}
+        {!isVenue && (
+          <Reanimated.View entering={FadeInDown.delay(150).springify().damping(16)} style={{ flexDirection: 'row', gap: 8 }}>
+            {(['email', 'phone'] as AuthMethod[]).map((m) => (
+              <TouchableOpacity
+                key={m}
+                style={[styles.methodChip, authMethod === m && styles.methodChipOn]}
+                onPress={() => { setAuthMethod(m); setErrorMsg(''); setOtpSent(false) }}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.methodChipTxt, authMethod === m && styles.methodChipTxtOn]}>
+                  {m === 'email' ? 'Email' : 'Phone'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </Reanimated.View>
+        )}
+
         {/* Inputs */}
-        <Reanimated.View entering={FadeInDown.delay(180).springify().damping(16)} style={{ width: '100%', gap: 10 }}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#2B4560"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            returnKeyType="next"
-          />
-          <View style={{ position: 'relative' }}>
+        {(isVenue || authMethod === 'email') ? (
+          <Reanimated.View entering={FadeInDown.delay(180).springify().damping(16)} style={{ width: '100%', gap: 10 }}>
             <TextInput
-              style={[styles.input, { paddingRight: 46 }]}
-              placeholder="Password"
+              style={styles.input}
+              placeholder="Email"
               placeholderTextColor="#2B4560"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setErrorMsg('') }}
-              secureTextEntry={!showPw}
-              autoComplete="current-password"
-              returnKeyType="go"
-              onSubmitEditing={handleLogin}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              returnKeyType="next"
             />
-            <TouchableOpacity
-              style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
-              onPress={() => setShowPw(v => !v)}
-            >
-              <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
-            </TouchableOpacity>
-          </View>
-        </Reanimated.View>
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                style={[styles.input, { paddingRight: 46 }]}
+                placeholder="Password"
+                placeholderTextColor="#2B4560"
+                value={password}
+                onChangeText={(t) => { setPassword(t); setErrorMsg('') }}
+                secureTextEntry={!showPw}
+                autoComplete="current-password"
+                returnKeyType="go"
+                onSubmitEditing={handleLogin}
+              />
+              <TouchableOpacity
+                style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+                onPress={() => setShowPw(v => !v)}
+              >
+                <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
+              </TouchableOpacity>
+            </View>
+          </Reanimated.View>
+        ) : (
+          <Reanimated.View entering={FadeInDown.delay(180).springify().damping(16)} style={{ width: '100%', gap: 10 }}>
+            <TextInput
+              style={[styles.input, otpSent && { opacity: 0.6 }]}
+              placeholder="Phone number"
+              placeholderTextColor="#2B4560"
+              value={phone}
+              onChangeText={(t) => { setPhone(t); setErrorMsg('') }}
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              editable={!otpSent}
+              returnKeyType="go"
+              onSubmitEditing={handleSendOtp}
+            />
+            {otpSent && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="6-digit code"
+                  placeholderTextColor="#2B4560"
+                  value={otp}
+                  onChangeText={(t) => { setOtp(t); setErrorMsg('') }}
+                  keyboardType="number-pad"
+                  autoComplete="sms-otp"
+                  maxLength={6}
+                  returnKeyType="go"
+                  onSubmitEditing={handleVerifyOtp}
+                />
+                <TouchableOpacity onPress={() => { setOtpSent(false); setOtp('') }}>
+                  <Text style={[styles.footerLink, { color: '#29B6F6', textAlign: 'left' }]}>
+                    ← Use a different number
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </Reanimated.View>
+        )}
 
         {!!errorMsg && (
           <Text style={styles.errorMsg}>{errorMsg}</Text>
@@ -211,13 +328,23 @@ export default function LoginScreen() {
                 ? { boxShadow: '0 0 24px rgba(41,182,246,0.55), 0 4px 20px rgba(41,182,246,0.4)' } as any
                 : { shadowColor: '#29B6F6', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 4 } }
             ]}
-            onPress={handleLogin}
+            onPress={
+              isVenue || authMethod === 'email'
+                ? handleLogin
+                : (otpSent ? handleVerifyOtp : handleSendOtp)
+            }
             disabled={loading}
             activeOpacity={0.85}
           >
             {loading
               ? <ActivityIndicator color="#050A15" />
-              : <Text style={styles.btnTxt}>{isVenue ? 'Sign In to Venue Dashboard' : 'Sign In'}</Text>
+              : <Text style={styles.btnTxt}>
+                  {isVenue
+                    ? 'Sign In to Venue Dashboard'
+                    : authMethod === 'phone'
+                      ? (otpSent ? 'Verify & Sign In' : 'Text Me a Code')
+                      : 'Sign In'}
+                </Text>
             }
           </TouchableOpacity>
         </Reanimated.View>
@@ -311,6 +438,14 @@ const styles = StyleSheet.create({
   toggleOpt: { flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   toggleTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
   toggleTxtOn: { color: '#020810' },
+  methodChip: {
+    flex: 1, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#0B1526',
+    alignItems: 'center',
+  },
+  methodChipOn: { borderColor: '#29B6F6', backgroundColor: '#29B6F615' },
+  methodChipTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
+  methodChipTxtOn: { color: '#29B6F6' },
   input: {
     backgroundColor: '#0B1526',
     borderWidth: 1,
