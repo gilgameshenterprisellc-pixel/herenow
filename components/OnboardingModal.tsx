@@ -41,7 +41,7 @@ const SLIDES = [
     emoji: '🤝',
     title: 'We Met',
     subtitle: 'The IRL handshake.',
-    body: 'When you actually meet someone in person — both of you confirm it with a "We Met" tap.\n\nNo We Met = no DMs. It keeps things real and intentional.\n\nOnce you check out of the venue, DMs unlock — you both have 72 hours to reach out. The clock starts when you leave, not when you confirm.\n\nWe Met requests expire 4 hours after you leave. So actually go talk to people first.',
+    body: 'When you actually meet someone in person — both of you confirm it with a "We Met" tap.\n\nNo We Met = no DMs. It keeps things real and intentional.\n\nThe moment you both confirm, DMs open. Someone has 48 hours to make the first move — and one reply keeps the chat open for good.\n\nSo actually go talk to people first.',
     accent: '#f43f5e',
   },
   {

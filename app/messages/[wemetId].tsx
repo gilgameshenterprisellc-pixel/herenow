@@ -7,7 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useDmThread } from '@/hooks/useMessages'
-import { sendMessage, markMessagesRead } from '@/lib/messages'
+import { sendMessage, markMessagesRead, isPermanentDm } from '@/lib/messages'
+import { unmeet } from '@/lib/weMet'
+import { platformConfirm } from '@/lib/confirm'
 import DmBubble from '@/components/DmBubble'
 import ExpiryLabel from '@/components/ExpiryLabel'
 import BackButton from '@/components/BackButton'
@@ -64,8 +66,22 @@ export default function DmConversationScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100)
   }
 
-  const isLocked  = expiresAt === null   // confirmed but still at venue — DMs not yet open
-  const isExpired = !isLocked && expiresAt !== null && new Date(expiresAt) < new Date()
+  const isPermanent = isPermanentDm(expiresAt)
+  const isExpired   = !isPermanent && expiresAt !== null && new Date(expiresAt) < new Date()
+
+  const handleUnmeet = () => {
+    platformConfirm(
+      'Unmeet',
+      `End your connection with ${otherName || 'this person'}? The chat disappears for both of you. They won't be notified.`,
+      async () => {
+        const ok = await unmeet(wemetId)
+        if (ok) {
+          router.canGoBack() ? router.back() : router.replace('/messages' as any)
+        }
+      },
+      { confirmText: 'Unmeet', cancelText: 'Keep', destructive: true }
+    )
+  }
 
   if (notFound) {
     return (
@@ -97,20 +113,23 @@ export default function DmConversationScreen() {
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/messages' as any)} />
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{otherName}</Text>
-          {!isLocked && expiresAt && (
-            <ExpiryLabel expiresAt={expiresAt} prefix="Expires" />
-          )}
-          {isLocked && (
-            <Text style={styles.lockedLabel}>🔒 Unlocks when you leave</Text>
+          {expiresAt && !isExpired && (
+            <ExpiryLabel
+              expiresAt={expiresAt}
+              prefix={messages.length === 0 ? 'First move' : 'Reply window'}
+            />
           )}
         </View>
+        <TouchableOpacity onPress={handleUnmeet} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.unmeetText}>Unmeet</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Locked notice — still at the venue */}
-      {isLocked && (
+      {/* First 48 hint — window is live, nobody has made the first move yet */}
+      {!isExpired && !isPermanent && !loading && messages.length === 0 && (
         <View style={styles.lockedBanner}>
           <Text style={styles.lockedText}>
-            🔒 DMs unlock when you leave the venue. You'll have 72 hours to reach out.
+            ⏱ First 48 — someone has 48 hours to say hi. One reply keeps this chat open for good.
           </Text>
         </View>
       )}
@@ -152,7 +171,7 @@ export default function DmConversationScreen() {
       )}
 
       {/* Compose */}
-      {!isExpired && !isLocked && (
+      {!isExpired && (
         <View style={[styles.compose, { paddingBottom: insets.bottom + 10 }]}>
           <TextInput
             style={styles.input}
@@ -205,7 +224,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lockedText: { fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 },
-  lockedLabel: { fontSize: 11, color: '#7A93AC', marginTop: 2 },
+  unmeetText: { fontSize: 12, fontWeight: '700', color: '#ef4444' },
   expiredBanner: {
     backgroundColor: '#1e1010',
     borderBottomWidth: 1,

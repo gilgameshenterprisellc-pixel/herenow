@@ -11,7 +11,7 @@ export interface WeMet {
   status: 'pending' | 'confirmed' | 'declined' | 'expired'
   initiated_at: string
   confirmed_at: string | null
-  expires_at: string | null  // NULL = confirmed but DMs locked until checkout
+  expires_at: string | null  // window deadline; '2099-12-31…' sentinel = permanent (mutual reply)
   initiator_profile?: {
     id: string
     display_name: string
@@ -83,17 +83,22 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
 
   const { data: record } = await supabase
     .from('we_met')
-    .select('initiator_id')
+    .select(`
+      initiator_id,
+      initiator_profile:profiles!we_met_initiator_id_fkey(display_name)
+    `)
     .eq('id', wemetId)
     .maybeSingle()
 
-  // Leave expires_at as NULL — DM window opens when the user checks out of the venue
+  // First 48: DMs open the moment both confirm — someone has 48h to make the first move.
+  const firstMoveDeadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+
   await supabase
     .from('we_met')
     .update({
       status:       'confirmed',
       confirmed_at: new Date().toISOString(),
-      expires_at:   null,
+      expires_at:   firstMoveDeadline,
     })
     .eq('id', wemetId)
     .eq('recipient_id', user.id)
@@ -103,58 +108,43 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
       userId: record.initiator_id,
       type:   'we_met_confirmed',
       title:  'We Met confirmed! 🤝',
-      body:   'DMs unlock when you both leave the venue. You\'ll have 72 hours.',
+      body:   'DMs are open — someone has 48 hours to make the first move.',
       data:   { we_met_id: wemetId },
     })
+
+    // Local reminder before the first-move window closes (respects dm_expiry pref)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('notification_prefs')
+      .eq('id', user.id)
+      .maybeSingle()
+    const prefs = (profile?.notification_prefs as Record<string, boolean>) ?? {}
+    if (prefs['dm_expiry'] !== false) {
+      const partnerName = (record as any).initiator_profile?.display_name ?? 'your connection'
+      await scheduleDmExpiryAlert(partnerName, firstMoveDeadline).catch(() => {})
+    }
   }
 }
 
-// Called on checkout — opens the 72-hour DM window for all confirmed We Mets from this session.
-// Also schedules a local dm_expiry alert 6h before each window closes (if user pref enabled).
-export async function unlockWeMetsOnCheckout(sessionId: string): Promise<void> {
+// Unmeet — either party can end the connection at any time. The we_met row is
+// deleted and all direct messages cascade with it. The other person is NOT notified.
+export async function unmeet(wemetId: string): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
+  if (!user) return false
 
-  const dmWindowExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
-
-  // Fetch the we_mets being unlocked so we can get partner display names
-  const { data: toUnlock } = await supabase
+  const { data, error } = await supabase
     .from('we_met')
-    .select(`
-      id,
-      initiator_id,
-      recipient_id,
-      initiator_profile:profiles!we_met_initiator_id_fkey(display_name),
-      recipient_profile:profiles!we_met_recipient_id_fkey(display_name)
-    `)
-    .eq('status', 'confirmed')
-    .or(`initiator_session_id.eq.${sessionId},recipient_session_id.eq.${sessionId}`)
-    .is('expires_at', null)
+    .delete()
+    .eq('id', wemetId)
+    .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`)
+    .select('id')
 
-  await supabase
-    .from('we_met')
-    .update({ expires_at: dmWindowExpiry })
-    .eq('status', 'confirmed')
-    .or(`initiator_session_id.eq.${sessionId},recipient_session_id.eq.${sessionId}`)
-    .is('expires_at', null)
-
-  if (!toUnlock || toUnlock.length === 0) return
-
-  // Check user's dm_expiry pref before scheduling any local alerts
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('notification_prefs')
-    .eq('id', user.id)
-    .maybeSingle()
-  const prefs = (profile?.notification_prefs as Record<string, boolean>) ?? {}
-  if (prefs['dm_expiry'] === false) return
-
-  for (const wm of toUnlock as any[]) {
-    const partnerName = wm.initiator_id === user.id
-      ? (wm.initiator_profile?.display_name ?? wm.recipient_profile?.display_name ?? 'your connection')
-      : (wm.recipient_profile?.display_name ?? wm.initiator_profile?.display_name ?? 'your connection')
-    await scheduleDmExpiryAlert(partnerName, dmWindowExpiry).catch(() => {})
+  if (error) {
+    console.error('[we_met] unmeet error:', error.message)
+    return false
   }
+  // Empty result = RLS delete policy missing (run supabase/jacob_first48_dms.sql)
+  return (data?.length ?? 0) > 0
 }
 
 export async function declineWeMet(wemetId: string): Promise<void> {
