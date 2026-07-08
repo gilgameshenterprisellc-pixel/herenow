@@ -29,6 +29,7 @@ export default function SignupScreen() {
   const [venueZip, setVenueZip]         = useState('')
   const [gender, setGender]             = useState('')
   const [loading, setLoading]           = useState(false)
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [errorMsg, setErrorMsg]         = useState('')
   const [toggleWidth, setToggleWidth] = useState(0)
 
@@ -88,6 +89,10 @@ export default function SignupScreen() {
     } else {
       if (!displayName.trim() || !username.trim() || !email.trim() || !password.trim()) {
         setErrorMsg('Please fill in all fields.')
+        return
+      }
+      if (!ageConfirmed) {
+        setErrorMsg('HereNow is 18+. Confirm your age to create an account.')
         return
       }
     }
@@ -431,6 +436,19 @@ export default function SignupScreen() {
             </Reanimated.View>
           )}
 
+          {!isVenue && (
+            <TouchableOpacity
+              style={styles.ageRow}
+              onPress={() => setAgeConfirmed(!ageConfirmed)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.ageBox, ageConfirmed && styles.ageBoxChecked]}>
+                {ageConfirmed && <Text style={styles.ageCheck}>✓</Text>}
+              </View>
+              <Text style={styles.ageText}>I'm 18 or older</Text>
+            </TouchableOpacity>
+          )}
+
           {!!errorMsg && (
             <Text style={styles.errorMsg}>{errorMsg}</Text>
           )}
@@ -545,4 +563,13 @@ const styles = StyleSheet.create({
   btnTxt: { color: '#020810', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
   footerLink: { color: '#3A5C7A', fontSize: 13, textAlign: 'center', paddingTop: 4 },
   errorMsg: { color: '#f87171', fontSize: 13, textAlign: 'center', paddingHorizontal: 4, lineHeight: 18 },
+  ageRow: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start', paddingVertical: 2 },
+  ageBox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
+    borderColor: '#1A2E4A', backgroundColor: '#0D1B2E',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ageBoxChecked: { borderColor: '#29B6F6', backgroundColor: '#29B6F622' },
+  ageCheck: { color: '#29B6F6', fontSize: 14, fontWeight: '800', lineHeight: 16 },
+  ageText: { color: '#7A93AC', fontSize: 13 },
 })

@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { logEvent } from './analytics'
 
 export interface PulsePost {
   id: string
@@ -72,6 +73,7 @@ export async function createPulsePost(params: {
     return null
   }
 
+  logEvent('pulse_posted', { zoneId: params.zoneId })
   return data as PulsePost
 }
 

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { sendNotification, scheduleDmExpiryAlert } from './notifications'
+import { logEvent } from './analytics'
 
 export interface WeMet {
   id: string
@@ -74,6 +75,7 @@ export async function sendWeMet(params: {
     data:   { we_met_id: data.id },
   })
 
+  logEvent('we_met_sent', { zoneId: params.zoneId })
   return data
 }
 
@@ -107,6 +109,8 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
       data:   { we_met_id: wemetId },
     })
   }
+
+  logEvent('we_met_confirmed')
 }
 
 // Called on checkout — opens the 72-hour DM window for all confirmed We Mets from this session.
