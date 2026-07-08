@@ -108,6 +108,17 @@ export default function AdminOverview() {
               <Text style={styles.arrow}>›</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/submissions' as any)}>
+              <View style={styles.actionLeft}>
+                <Text style={styles.actionEmoji}>🗺️</Text>
+                <View>
+                  <Text style={styles.actionTitle}>Venue Suggestions</Text>
+                  <Text style={styles.actionSub}>User-nominated venues to review and go live</Text>
+                </View>
+              </View>
+              <Text style={styles.arrow}>›</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/reports' as any)}>
               <View style={styles.actionLeft}>
                 <Text style={styles.actionEmoji}>🚩</Text>

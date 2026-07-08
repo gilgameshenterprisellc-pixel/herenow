@@ -88,6 +88,7 @@ export default function RootLayout() {
           <Stack.Screen name="venue/highlights" />
           <Stack.Screen name="venue/promotions" />
           <Stack.Screen name="venue/announcements" />
+          <Stack.Screen name="venue/submit" />
           <Stack.Screen name="my-venues" />
           <Stack.Screen name="admin" />
         </Stack>
