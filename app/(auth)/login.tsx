@@ -227,19 +227,21 @@ export default function LoginScreen() {
 
         {/* Email / Phone method switch — Person only (venues are email-only) */}
         {!isVenue && (
-          <Reanimated.View entering={FadeInDown.delay(150).springify().damping(16)} style={{ flexDirection: 'row', gap: 8 }}>
-            {(['email', 'phone'] as AuthMethod[]).map((m) => (
-              <TouchableOpacity
-                key={m}
-                style={[styles.methodChip, authMethod === m && styles.methodChipOn]}
-                onPress={() => { setAuthMethod(m); setErrorMsg(''); setOtpSent(false) }}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.methodChipTxt, authMethod === m && styles.methodChipTxtOn]}>
-                  {m === 'email' ? 'Email' : 'Phone'}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <Reanimated.View entering={FadeInDown.delay(150).springify().damping(16)} style={{ width: '100%' }}>
+            <View style={styles.methodToggle}>
+              {(['email', 'phone'] as AuthMethod[]).map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.methodSeg, authMethod === m && styles.methodSegOn]}
+                  onPress={() => { setAuthMethod(m); setErrorMsg(''); setOtpSent(false) }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.methodSegTxt, authMethod === m && styles.methodSegTxtOn]}>
+                    {m === 'email' ? '✉  Email' : '☎  Phone'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </Reanimated.View>
         )}
 
@@ -438,14 +440,20 @@ const styles = StyleSheet.create({
   toggleOpt: { flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   toggleTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
   toggleTxtOn: { color: '#020810' },
-  methodChip: {
-    flex: 1, paddingVertical: 8, borderRadius: 10,
-    borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#0B1526',
-    alignItems: 'center',
+  methodToggle: {
+    height: 44,
+    flexDirection: 'row',
+    backgroundColor: '#0B1526',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(41,182,246,0.15)',
+    padding: 2,
+    gap: 2,
   },
-  methodChipOn: { borderColor: '#29B6F6', backgroundColor: '#29B6F615' },
-  methodChipTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
-  methodChipTxtOn: { color: '#29B6F6' },
+  methodSeg: { flex: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  methodSegOn: { backgroundColor: '#29B6F6' },
+  methodSegTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
+  methodSegTxtOn: { color: '#020810' },
   input: {
     backgroundColor: '#0B1526',
     borderWidth: 1,
