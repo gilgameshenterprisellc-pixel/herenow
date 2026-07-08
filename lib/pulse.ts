@@ -9,6 +9,8 @@ export interface PulsePost {
   content: string | null
   media_url: string | null
   vibe_tag: string | null
+  is_pinned: boolean
+  is_venue_post: boolean
   expires_at: string
   created_at: string
   profiles: {
@@ -36,6 +38,8 @@ export async function fetchPulse(zoneId: string): Promise<PulsePost[]> {
     .eq('zone_id', zoneId)
     .eq('is_hidden', false)
     .gt('expires_at', new Date().toISOString())
+    // Pinned venue posts first, then newest
+    .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(30)
 
@@ -52,6 +56,8 @@ export async function createPulsePost(params: {
   sessionId: string
   content?: string
   vibeTag?: string
+  mediaUrl?: string | null
+  isVenuePost?: boolean
 }): Promise<PulsePost | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -64,6 +70,8 @@ export async function createPulsePost(params: {
       user_id: user.id,
       content: params.content ?? null,
       vibe_tag: params.vibeTag ?? null,
+      media_url: params.mediaUrl ?? null,
+      is_venue_post: params.isVenuePost ?? false,
     })
     .select('*, profiles(id, display_name, avatar_url)')
     .single()
@@ -75,6 +83,15 @@ export async function createPulsePost(params: {
 
   logEvent('pulse_posted', { zoneId: params.zoneId })
   return data as PulsePost
+}
+
+// Venue owners can pin one of their own Pulse posts to the top.
+export async function togglePinPulse(postId: string, pinned: boolean): Promise<boolean> {
+  const { error } = await supabase
+    .from('pulse_posts')
+    .update({ is_pinned: pinned })
+    .eq('id', postId)
+  return !error
 }
 
 export async function deletePulsePost(postId: string): Promise<void> {

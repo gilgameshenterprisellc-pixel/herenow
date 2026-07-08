@@ -47,6 +47,17 @@ export async function reportContent(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
+  // Report + immediately hide the content pending review (err on caution for
+  // photos). RPC returns errors rather than throwing — fall back to a plain
+  // report insert if report_content_auto_hide SQL hasn't been run.
+  const { error: rpcError } = await supabase.rpc('report_content_auto_hide', {
+    p_content_type: params.contentType,
+    p_content_id:   params.contentId,
+    p_zone_id:      params.zoneId,
+    p_reason:       params.reason,
+  })
+  if (!rpcError) return
+
   const { error } = await supabase.from('content_reports').insert({
     reporter_id:  user.id,
     zone_id:      params.zoneId,

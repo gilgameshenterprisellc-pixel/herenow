@@ -19,6 +19,7 @@ import MoodBadge from '@/components/MoodBadge'
 import { usePulse } from '@/hooks/usePulse'
 import { useVenueChat } from '@/hooks/useVenueChat'
 import { createPulsePost, VIBE_TAGS } from '@/lib/pulse'
+import { screenImage } from '@/lib/moderation'
 import { sendChatMessage } from '@/lib/chat'
 import { sendWeMet, existingWeMet } from '@/lib/weMet'
 import { fetchEvents, toggleRsvp } from '@/lib/events'
@@ -84,6 +85,10 @@ export default function ZoneScreen() {
   const [vibeTag, setVibeTag]     = useState<string | null>(null)
   const [postingPulse, setPostingPulse] = useState(false)
   const [showVibePicker, setShowVibePicker] = useState(false)
+  const [pulsePhotoUrl, setPulsePhotoUrl] = useState<string | null>(null)
+  const [pulsePhotoUploading, setPulsePhotoUploading] = useState(false)
+
+  const isVenueOwner = !!zone?.owner_id && zone.owner_id === userId
 
   // Chat
   const { messages: chatMsgs, refresh: refreshChat } = useVenueChat(id)
@@ -125,7 +130,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id')
         .eq('id', id)
         .maybeSingle()
 
@@ -335,8 +340,66 @@ export default function ZoneScreen() {
     )
   }
 
+  const attachPulsePhoto = async (source: 'library' | 'camera') => {
+    setPulsePhotoUploading(true)
+    try {
+      let result: ImagePicker.ImagePickerResult
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync()
+        if (status !== 'granted') { showToast('Camera access needed for photos.', 'error'); return }
+        result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 })
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (status !== 'granted') { showToast('Photo access needed.', 'error'); return }
+        result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.7 })
+      }
+      if (result.canceled || !result.assets[0]) return
+
+      const asset = result.assets[0]
+      const fileName = `pulse/${id}/${userId}/${Date.now()}.jpg`
+      const response = await fetch(asset.uri)
+      const arrayBuffer = await response.arrayBuffer()
+
+      const { error: uploadError } = await supabase.storage
+        .from('venue-media')
+        .upload(fileName, arrayBuffer, { contentType: asset.mimeType || 'image/jpeg' })
+      if (uploadError) { showToast('Upload failed. Try again.', 'error'); return }
+
+      const { data: urlData } = supabase.storage.from('venue-media').getPublicUrl(fileName)
+
+      // Optional proactive screening (free by default — no-op without a key)
+      const screen = await screenImage(urlData.publicUrl)
+      if (!screen.ok) {
+        await supabase.storage.from('venue-media').remove([fileName]).catch(() => {})
+        showToast(screen.reason ?? 'That photo can\'t be posted.', 'error')
+        return
+      }
+
+      setPulsePhotoUrl(urlData.publicUrl)
+    } catch {
+      showToast('Could not attach photo. Try again.', 'error')
+    } finally {
+      setPulsePhotoUploading(false)
+    }
+  }
+
+  const pickPulsePhoto = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        (i) => { if (i === 1) attachPulsePhoto('camera'); else if (i === 2) attachPulsePhoto('library') },
+      )
+    } else {
+      Alert.alert('Add a photo', 'Share a moment from the venue.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => attachPulsePhoto('camera') },
+        { text: 'From Library', onPress: () => attachPulsePhoto('library') },
+      ])
+    }
+  }
+
   const handlePostPulse = async () => {
-    if (!activeSession || (!newPulse.trim() && !vibeTag)) return
+    if (!activeSession || (!newPulse.trim() && !vibeTag && !pulsePhotoUrl)) return
     setPostingPulse(true)
     try {
       await createPulsePost({
@@ -344,10 +407,14 @@ export default function ZoneScreen() {
         sessionId: activeSession.id,
         content: newPulse.trim() || undefined,
         vibeTag: vibeTag ?? undefined,
+        mediaUrl: pulsePhotoUrl,
+        isVenuePost: isVenueOwner,
       })
       setNewPulse('')
       setVibeTag(null)
+      setPulsePhotoUrl(null)
       setShowVibePicker(false)
+      successBuzz()
       await checkAndAwardBadges('pulse_post')
       await refreshPulse()
     } catch {
@@ -875,8 +942,10 @@ export default function ZoneScreen() {
               <PulsePostCard
                 post={item}
                 currentUserId={userId ?? ''}
+                canPin={isVenueOwner}
                 onDeleted={refreshPulse}
                 onReport={handleReportPost}
+                onPinChanged={refreshPulse}
               />
             )}
             ListEmptyComponent={
@@ -905,12 +974,30 @@ export default function ZoneScreen() {
                   ))}
                 </View>
               )}
+              {/* Attached photo preview */}
+              {pulsePhotoUrl && (
+                <View style={styles.pulsePhotoPreview}>
+                  <Image source={{ uri: pulsePhotoUrl }} style={styles.pulsePhotoImg} resizeMode="cover" />
+                  <TouchableOpacity style={styles.pulsePhotoRemove} onPress={() => setPulsePhotoUrl(null)}>
+                    <Text style={styles.pulsePhotoRemoveText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               <View style={[styles.pulseRow, { paddingBottom: insets.bottom + 10 }]}>
                 <TouchableOpacity
                   style={styles.vibeToggle}
                   onPress={() => setShowVibePicker(!showVibePicker)}
                 >
                   <Text style={styles.vibeToggleText}>{vibeTag ? '🏷️' : '✨'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.vibeToggle}
+                  onPress={pickPulsePhoto}
+                  disabled={pulsePhotoUploading}
+                >
+                  {pulsePhotoUploading
+                    ? <ActivityIndicator color="#29B6F6" size="small" />
+                    : <Text style={styles.vibeToggleText}>{pulsePhotoUrl ? '🖼️' : '📷'}</Text>}
                 </TouchableOpacity>
                 <TextInput
                   style={styles.pulseInput}
@@ -921,9 +1008,9 @@ export default function ZoneScreen() {
                   maxLength={280}
                 />
                 <TouchableOpacity
-                  style={[styles.postBtn, (!newPulse.trim() && !vibeTag) && styles.postBtnDisabled]}
+                  style={[styles.postBtn, (!newPulse.trim() && !vibeTag && !pulsePhotoUrl) && styles.postBtnDisabled]}
                   onPress={handlePostPulse}
-                  disabled={postingPulse || (!newPulse.trim() && !vibeTag)}
+                  disabled={postingPulse || (!newPulse.trim() && !vibeTag && !pulsePhotoUrl)}
                 >
                   {postingPulse
                     ? <ActivityIndicator color="#050A15" size="small" />
@@ -1146,6 +1233,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28, paddingVertical: 14, marginTop: 8,
   },
   gateBtnText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
+  pulsePhotoPreview: {
+    position: 'relative', marginHorizontal: 12, marginBottom: 8,
+    borderRadius: 12, overflow: 'hidden',
+  },
+  pulsePhotoImg: { width: '100%', height: 140, backgroundColor: '#07101F' },
+  pulsePhotoRemove: {
+    position: 'absolute', top: 8, right: 8,
+    width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(5,10,21,0.8)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pulsePhotoRemoveText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   vibeWrap: { paddingHorizontal: 16, paddingBottom: 10 },
   vibeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   vibeLabel: { fontSize: 12, color: '#7A93AC', fontWeight: '600' },
