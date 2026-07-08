@@ -34,6 +34,7 @@ export default function VenueAnnouncementsScreen() {
 
   const [message, setMessage]         = useState('')
   const [postToFeed, setPostToFeed]   = useState(false)
+  const [audience, setAudience]       = useState<'all' | 'subscribers'>('all')
   const [localImageUri, setLocalImageUri] = useState<string | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
 
@@ -154,6 +155,7 @@ export default function VenueAnnouncementsScreen() {
         created_by:   authUser.id,
         message:      message.trim(),
         post_to_feed: postToFeed,
+        audience,
         image_url:    uploadedImageUrl ?? null,
       })
       .select('id, message, post_to_feed, image_url, created_at')
@@ -292,6 +294,27 @@ export default function VenueAnnouncementsScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Audience — who among your followers sees this */}
+          <View style={styles.audienceWrap}>
+            <Text style={styles.feedLabel}>Who sees this?</Text>
+            <View style={styles.audienceRow}>
+              <TouchableOpacity
+                style={[styles.audienceChip, audience === 'all' && styles.audienceChipOn]}
+                onPress={() => setAudience('all')}
+              >
+                <Text style={[styles.audienceChipText, audience === 'all' && styles.audienceChipTextOn]}>All followers</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.audienceChip, audience === 'subscribers' && styles.audienceChipGoldOn]}
+                onPress={() => setAudience('subscribers')}
+              >
+                <Text style={[styles.audienceChipText, audience === 'subscribers' && styles.audienceChipTextGoldOn]}>
+                  ★ Subscribers only
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <View style={styles.feedRow}>
             <View style={styles.feedRowText}>
               <Text style={styles.feedLabel}>Post to universal feed</Text>
@@ -415,6 +438,17 @@ const styles = StyleSheet.create({
   },
   feedRowText: { flex: 1, gap: 2 },
   feedLabel:   { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
+  audienceWrap: { gap: 8 },
+  audienceRow: { flexDirection: 'row', gap: 8 },
+  audienceChip: {
+    flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#07101F',
+  },
+  audienceChipOn: { borderColor: '#29B6F6', backgroundColor: '#29B6F620' },
+  audienceChipGoldOn: { borderColor: '#f59e0b', backgroundColor: '#f59e0b20' },
+  audienceChipText: { fontSize: 13, fontWeight: '700', color: '#7A93AC' },
+  audienceChipTextOn: { color: '#29B6F6' },
+  audienceChipTextGoldOn: { color: '#f59e0b' },
   feedSub:     { fontSize: 12, color: '#7A93AC' },
   sendBtn: {
     backgroundColor: '#29B6F6', borderRadius: 12,

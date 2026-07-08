@@ -76,12 +76,18 @@ export default function UpdatesScreen() {
 
     if (subs.length > 0) {
       const zoneIds = subs.map((s) => s.zone_id)
+      // Zones where this user is a paid-in-attention subscriber (checked in)
+      const subscribedZones = new Set(subs.filter((s) => s.is_subscriber).map((s) => s.zone_id))
       const now = new Date().toISOString()
 
-      const [{ data: promos }, { data: annos }] = await Promise.all([
+      // A 'subscribers'-only post is visible only if you subscribe to that venue.
+      const audienceOk = (row: { zone_id: string; audience?: string | null }) =>
+        row.audience !== 'subscribers' || subscribedZones.has(row.zone_id)
+
+      const [{ data: promosRaw }, { data: annosRaw }] = await Promise.all([
         supabase
           .from('venue_promotions')
-          .select('id, zone_id, title, description, discount_label, created_at, zones(name)')
+          .select('id, zone_id, title, description, discount_label, audience, created_at, zones(name)')
           .in('zone_id', zoneIds)
           .or(`starts_at.is.null,starts_at.lte.${now}`)
           .or(`ends_at.is.null,ends_at.gte.${now}`)
@@ -89,11 +95,14 @@ export default function UpdatesScreen() {
           .limit(20),
         supabase
           .from('venue_announcements')
-          .select('id, zone_id, message, created_at, zones(name)')
+          .select('id, zone_id, message, audience, created_at, zones(name)')
           .in('zone_id', zoneIds)
           .order('created_at', { ascending: false })
           .limit(20),
       ])
+
+      const promos = (promosRaw ?? []).filter(audienceOk)
+      const annos  = (annosRaw ?? []).filter(audienceOk)
 
       // Log promo views (fire-and-forget)
       if ((promos ?? []).length > 0) {
