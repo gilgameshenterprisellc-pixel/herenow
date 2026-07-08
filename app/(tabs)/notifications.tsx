@@ -31,11 +31,14 @@ export default function MessagesTab() {
   }
 
   const getExpiryStatus = (expiresAt: string | null) => {
-    if (expiresAt === null) return { locked: true, expired: false, label: '🔒', warn: false }
+    // Permanent thread (mutual-reply sentinel) or legacy null — open, no countdown
+    if (expiresAt === null || new Date(expiresAt).getFullYear() >= 2099) {
+      return { locked: false, expired: false, label: null, warn: false }
+    }
     const ms = new Date(expiresAt).getTime() - Date.now()
     if (ms < 0) return { locked: false, expired: true, label: 'Expired', warn: false }
     const hrs = Math.floor(ms / 3_600_000)
-    if (hrs < 2) return { locked: false, expired: false, label: `${hrs}h left`, warn: true }
+    if (hrs < 12) return { locked: false, expired: false, label: hrs < 1 ? 'Closing soon' : `${hrs}h left`, warn: true }
     return { locked: false, expired: false, label: null, warn: false }
   }
 
@@ -108,9 +111,6 @@ export default function MessagesTab() {
                           : item.last_content
                         : 'No messages yet'}
                     </Text>
-                    {expiry.locked && (
-                      <Text style={styles.expiryLocked}>🔒 At venue</Text>
-                    )}
                     {expiry.warn && !expiry.expired && (
                       <Text style={styles.expiryWarn}>{expiry.label}</Text>
                     )}
@@ -137,8 +137,8 @@ export default function MessagesTab() {
               <Text style={styles.emptyEmoji}>💌</Text>
               <Text style={styles.emptyTitle}>No messages yet</Text>
               <Text style={styles.emptySub}>
-                Confirm a "We Met" with someone you actually met in person to unlock DMs.
-                Messages expire after 72 hours unless both of you reply.
+                Confirm a "We Met" with someone you actually met in person and DMs open right away.
+                Someone has 48 hours to say hi — one reply keeps the chat open for good.
               </Text>
               <TouchableOpacity
                 style={styles.wemetLink}

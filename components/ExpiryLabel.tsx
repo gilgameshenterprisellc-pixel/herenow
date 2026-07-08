@@ -26,6 +26,9 @@ export default function ExpiryLabel({ expiresAt, style, prefix }: Props) {
     return () => clearInterval(interval)
   }, [expiresAt])
 
+  // Permanent threads (mutual-reply sentinel) show no countdown
+  if (new Date(expiresAt).getFullYear() >= 2099) return null
+
   const isExpiringSoon = new Date(expiresAt).getTime() - Date.now() < 2 * 60 * 60 * 1000
 
   return (

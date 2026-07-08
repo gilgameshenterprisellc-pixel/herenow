@@ -21,7 +21,7 @@ export interface DmThread {
   last_message_at: string | null
   last_sender_id: string | null
   unread_count: number
-  expires_at: string | null  // NULL = locked until checkout; '2099-12-31...' = permanent (mutual-reply)
+  expires_at: string | null  // window deadline; '2099-12-31...' sentinel = permanent (mutual-reply)
   zone_name: string | null
 }
 
@@ -40,6 +40,16 @@ export async function fetchMessages(wemetId: string): Promise<DirectMessage[]> {
   return data ?? []
 }
 
+// First 48 rules (Jacob, July 7 2026):
+// - DMs open at mutual We Met confirmation with a 48h first-move window
+// - The first message resets the window: the other person has 48h to reply
+// - A reply from the other party makes the thread permanent (sentinel date)
+export const DM_PERMANENT_SENTINEL = '2099-12-31T00:00:00Z'
+
+export function isPermanentDm(expiresAt: string | null): boolean {
+  return !!expiresAt && new Date(expiresAt).getFullYear() >= 2099
+}
+
 export async function sendMessage(params: {
   wemetId: string
   content: string
@@ -48,16 +58,18 @@ export async function sendMessage(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  let recipientId = params.recipientId
-  if (!recipientId) {
-    const { data: wm } = await supabase
-      .from('we_met')
-      .select('initiator_id, recipient_id')
-      .eq('id', params.wemetId)
-      .single()
-    if (!wm) return null
-    recipientId = wm.initiator_id === user.id ? wm.recipient_id : wm.initiator_id
-  }
+  const { data: wm } = await supabase
+    .from('we_met')
+    .select('initiator_id, recipient_id, expires_at')
+    .eq('id', params.wemetId)
+    .maybeSingle()
+  if (!wm) return null
+
+  const recipientId = params.recipientId
+    ?? (wm.initiator_id === user.id ? wm.recipient_id : wm.initiator_id)
+
+  const permanent = isPermanentDm(wm.expires_at)
+  const windowDeadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
 
   const { data, error } = await supabase
     .from('direct_messages')
@@ -66,6 +78,9 @@ export async function sendMessage(params: {
       sender_id:    user.id,
       recipient_id: recipientId,
       content:      params.content.trim(),
+      // Message rows carry their own RLS expiry — align with the thread state so
+      // messages in permanent threads never vanish out from under the conversation.
+      expires_at:   permanent ? DM_PERMANENT_SENTINEL : windowDeadline,
     })
     .select('*')
     .single()
@@ -75,8 +90,6 @@ export async function sendMessage(params: {
     return null
   }
 
-  if (!recipientId) return null
-
   await sendNotification({
     userId: recipientId,
     type:   'message',
@@ -85,22 +98,41 @@ export async function sendMessage(params: {
     data:   { we_met_id: params.wemetId },
   })
 
-  // Mutual-reply persistence: if the other party has already replied,
-  // make this DM thread permanent by setting expires_at to a far-future sentinel.
-  // Using a sentinel date (not null) so null keeps its one meaning: locked/pre-checkout.
-  // The .not() guard ensures we only update threads that are already unlocked
-  // (post-checkout, has a real expiry date), never pre-checkout locked threads (null).
-  const { count: partnerMsgCount } = await supabase
-    .from('direct_messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('we_met_id', params.wemetId)
-    .eq('sender_id', recipientId)
-  if ((partnerMsgCount ?? 0) > 0) {
-    await supabase
-      .from('we_met')
-      .update({ expires_at: '2099-12-31T00:00:00Z' })
-      .eq('id', params.wemetId)
-      .not('expires_at', 'is', null)
+  if (!permanent) {
+    const { count: partnerMsgCount } = await supabase
+      .from('direct_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('we_met_id', params.wemetId)
+      .eq('sender_id', recipientId)
+
+    if ((partnerMsgCount ?? 0) > 0) {
+      // Reciprocated — thread goes permanent. The RPC also backfills the partner's
+      // message rows past their 72h RLS expiry; falls back to a direct we_met update
+      // if the SQL hasn't been run yet (.rpc returns errors, it doesn't throw).
+      const { error: rpcError } = await supabase.rpc('make_thread_permanent', {
+        p_we_met_id: params.wemetId,
+      })
+      if (rpcError) {
+        await supabase
+          .from('we_met')
+          .update({ expires_at: DM_PERMANENT_SENTINEL })
+          .eq('id', params.wemetId)
+      }
+    } else {
+      const { count: totalCount } = await supabase
+        .from('direct_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('we_met_id', params.wemetId)
+
+      // Only the actual first move starts the 48h reply window — later unanswered
+      // nudges don't extend it, or a sender could keep a dead thread alive forever.
+      if ((totalCount ?? 0) === 1) {
+        await supabase
+          .from('we_met')
+          .update({ expires_at: windowDeadline })
+          .eq('id', params.wemetId)
+      }
+    }
   }
 
   return data

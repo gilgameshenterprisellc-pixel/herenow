@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { unlockWeMetsOnCheckout } from './weMet'
 import { getCurrentCoords } from './location'
 import { checkUserInZone } from './zones'
 
@@ -147,8 +146,7 @@ export async function checkOut(sessionId: string): Promise<void> {
     throw new Error(sessionError.message)
   }
 
-  // Unlock DM windows for all confirmed We Mets from this session
-  await unlockWeMetsOnCheckout(sessionId)
+  // (First 48 rules: DM windows now open at We Met confirmation, not at checkout)
 
   // Mark not present in zone_members
   const { error: memberError } = await supabase

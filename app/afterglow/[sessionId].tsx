@@ -120,7 +120,7 @@ export default function AfterglowScreen() {
           <Text style={styles.reflectionBody}>
             {hadConnections
               ? `${glow.we_met_count === 1 ? 'One person' : `${glow.we_met_count} people`} confirmed they actually met you tonight. ` +
-                `Check your messages — DMs are now unlocked for 72 hours.`
+                `Check your messages — someone has 48 hours to make the first move.`
               : hadPeople
               ? `You spent ${formatDuration(glow.duration_mins)} in a space with ${glow.people_count} other ${glow.people_count === 1 ? 'person' : 'people'}. ` +
                 `No pressure. Some nights are just for the vibe.`
