@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView, Platform,
+  Alert, ActivityIndicator, ScrollView, Platform, Image,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -10,6 +10,7 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { fetchUserBadges } from '@/lib/badges'
+import { fetchConfirmedWeMets, type WeMet } from '@/lib/weMet'
 import AvatarImage from '@/components/AvatarImage'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { useTabBarScroll } from '@/contexts/TabBarScrollContext'
@@ -68,13 +69,14 @@ export default function ProfileScreen() {
   const [checkinCount, setCheckinCount]     = useState(0)
   const [connectionCount, setConnectionCount] = useState(0)
   const [venueCount, setVenueCount]         = useState(0)
+  const [wemetHistory, setWemetHistory]     = useState<{ id: string; name: string; avatar: string | null; zone: string | null; when: string | null }[]>([])
   const { activeSession }                   = useSessionContext()
 
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/(auth)/login'); return }
 
-    const [profileRes, earned, sessRes, connRes, venueRes] = await Promise.all([
+    const [profileRes, earned, sessRes, connRes, venueRes, wemets] = await Promise.all([
       supabase.from('profiles').select('*, created_at').eq('id', user.id).maybeSingle(),
       fetchUserBadges(user.id),
       supabase.from('sessions')
@@ -88,6 +90,7 @@ export default function ProfileScreen() {
       supabase.from('venue_subscriptions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id),
+      fetchConfirmedWeMets(),
     ])
 
     setProfile(profileRes.data)
@@ -96,6 +99,21 @@ export default function ProfileScreen() {
     setCheckinCount(sessRes.count ?? 0)
     setConnectionCount(connRes.count ?? 0)
     setVenueCount(venueRes.count ?? 0)
+
+    // We Met history — private to you (RLS scopes we_met to the two parties).
+    // Map each row to the *other* person.
+    setWemetHistory(
+      (wemets as WeMet[]).map((wm) => {
+        const other = wm.initiator_id === user.id ? wm.recipient_profile : wm.initiator_profile
+        return {
+          id:     wm.id,
+          name:   other?.display_name ?? 'Someone',
+          avatar: other?.avatar_url ?? null,
+          zone:   null,
+          when:   wm.confirmed_at,
+        }
+      })
+    )
     setLoading(false)
   }
 
@@ -346,6 +364,36 @@ export default function ProfileScreen() {
         )
       })()}
 
+      {/* We Met history — private to you */}
+      {wemetHistory.length > 0 && (
+        <Reanimated.View entering={FadeInDown.delay(140).duration(450)} style={styles.wemetCard}>
+          <View style={styles.wemetHeader}>
+            <Text style={styles.wemetTitle}>People you've met</Text>
+            <View style={styles.wemetLockRow}>
+              <Ionicons name="lock-closed" size={11} color="#4A6580" />
+              <Text style={styles.wemetPrivate}>Only you can see this</Text>
+            </View>
+          </View>
+          <View style={styles.wemetGrid}>
+            {wemetHistory.slice(0, 12).map((w) => (
+              <View key={w.id} style={styles.wemetItem}>
+                {w.avatar ? (
+                  <Image source={{ uri: w.avatar }} style={styles.wemetAvatar} />
+                ) : (
+                  <View style={[styles.wemetAvatar, styles.wemetAvatarFallback]}>
+                    <Text style={styles.wemetAvatarLetter}>{w.name[0]?.toUpperCase()}</Text>
+                  </View>
+                )}
+                <Text style={styles.wemetName} numberOfLines={1}>{w.name}</Text>
+              </View>
+            ))}
+          </View>
+          {wemetHistory.length > 12 && (
+            <Text style={styles.wemetMore}>+{wemetHistory.length - 12} more connections</Text>
+          )}
+        </Reanimated.View>
+      )}
+
       {/* Edit profile */}
       <Reanimated.View entering={FadeInDown.delay(160).duration(450)}>
         <TouchableOpacity
@@ -509,6 +557,22 @@ const styles = StyleSheet.create({
   },
   sessionDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' },
   sessionText: { flex: 1, fontSize: 13, color: '#22c55e', fontWeight: '600' },
+  wemetCard: {
+    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: '#0D1B2E', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#1A2E4A', gap: 12,
+  },
+  wemetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  wemetTitle: { fontSize: 15, fontWeight: '800', color: '#f0f8ff' },
+  wemetLockRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  wemetPrivate: { fontSize: 10, color: '#4A6580', fontWeight: '600' },
+  wemetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  wemetItem: { width: 60, alignItems: 'center', gap: 4 },
+  wemetAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1A2E4A' },
+  wemetAvatarFallback: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#29B6F640' },
+  wemetAvatarLetter: { color: '#29B6F6', fontSize: 20, fontWeight: '800' },
+  wemetName: { fontSize: 10, color: '#7A93AC', fontWeight: '600', maxWidth: 58, textAlign: 'center' },
+  wemetMore: { fontSize: 12, color: '#4A6580', textAlign: 'center' },
   editBtn: {
     marginHorizontal: 16,
     backgroundColor: '#0D1B2E',
