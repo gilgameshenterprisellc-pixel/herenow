@@ -39,9 +39,9 @@ import type { VenueEvent } from '@/lib/events'
 type Tab = 'people' | 'pulse' | 'chat' | 'events'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'people', label: 'People' },
   { id: 'pulse',  label: 'Pulse'  },
   { id: 'chat',   label: 'Chat'   },
+  { id: 'people', label: 'People' },
   { id: 'events', label: 'Events' },
 ]
 
@@ -66,7 +66,7 @@ export default function ZoneScreen() {
   const [userId, setUserId]         = useState<string | null>(null)
   const [zone, setZone]             = useState<any>(null)
   const [loading, setLoading]       = useState(true)
-  const [tab, setTab]               = useState<Tab>('people')
+  const [tab, setTab]               = useState<Tab>('pulse')
 
   // People
   const [people, setPeople]           = useState<ActivePerson[]>([])
@@ -125,7 +125,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url')
         .eq('id', id)
         .maybeSingle()
 
@@ -520,41 +520,79 @@ export default function ZoneScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any)} />
-        <View style={styles.headerInfo}>
-          <Text style={styles.zoneName}>{zone?.name}</Text>
-          <Text style={styles.zoneMeta}>
-            {zone?.opening_hours ?? (zone?.polygon_wkt ? 'Polygon Venue' : `${zone?.radius_meters}m radius`)}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.subBtn, isSubscribed && styles.subBtnActive]}
-          onPress={handleSubscribeToggle}
-          disabled={subLoading}
-        >
-          <Text style={[styles.subBtnText, isSubscribed && styles.subBtnTextActive]}>
-            {subLoading ? '…' : isSubscribed ? '· Following' : '+ Follow'}
-          </Text>
-        </TouchableOpacity>
-
-        {isCheckedIn ? (
-          <TouchableOpacity style={styles.checkOutBtn} onPress={handleCheckOut}>
-            <Text style={styles.checkOutText}>Leave</Text>
-          </TouchableOpacity>
-        ) : zone?.is_temporarily_closed ? (
-          <View style={styles.closedBadge}>
-            <Text style={styles.closedBadgeText}>Closed</Text>
+      {/* Hero — banner + identity (venue landing, per Jacob's mockup) */}
+      <View>
+        <View style={styles.banner}>
+          {zone?.banner_url ? (
+            <Image source={{ uri: zone.banner_url }} style={styles.bannerImg} resizeMode="cover" />
+          ) : (
+            <View style={styles.bannerFallback} />
+          )}
+          <View style={styles.bannerScrim} pointerEvents="none" />
+          <View style={[styles.bannerTopRow, { top: insets.top + 6 }]}>
+            <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any)} />
+            {isCheckedIn && (
+              <View style={styles.hereNowPill}>
+                <View style={styles.hereNowDot} />
+                <Text style={styles.hereNowText}>HERE NOW</Text>
+              </View>
+            )}
           </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.checkInBtn}
-            onPress={() => router.push(`/check-in/${id}`)}
-          >
-            <Text style={styles.checkInText}>Check In</Text>
-          </TouchableOpacity>
-        )}
+        </View>
+
+        <View style={styles.heroInfo}>
+          <View style={styles.heroRow}>
+            {zone?.avatar_url ? (
+              <Image source={{ uri: zone.avatar_url }} style={styles.heroAvatar} />
+            ) : (
+              <View style={[styles.heroAvatar, styles.heroAvatarFallback]}>
+                <Text style={styles.heroAvatarLetter}>{(zone?.name ?? '?')[0]}</Text>
+              </View>
+            )}
+            <View style={styles.headerInfo}>
+              <Text style={styles.zoneName} numberOfLines={1}>{zone?.name}</Text>
+              <Text style={styles.zoneMeta} numberOfLines={1}>
+                {zone?.opening_hours
+                  ?? (zone?.chips?.length
+                    ? zone.chips.slice(0, 3).join(' · ')
+                    : (zone?.polygon_wkt ? 'Polygon Venue' : `${zone?.radius_meters}m radius`))}
+              </Text>
+            </View>
+          </View>
+
+          {zone?.description ? (
+            <Text style={styles.heroBio} numberOfLines={2}>{zone.description}</Text>
+          ) : null}
+
+          <View style={styles.heroActions}>
+            <TouchableOpacity
+              style={[styles.subBtn, isSubscribed && styles.subBtnActive]}
+              onPress={handleSubscribeToggle}
+              disabled={subLoading}
+            >
+              <Text style={[styles.subBtnText, isSubscribed && styles.subBtnTextActive]}>
+                {subLoading ? '…' : isSubscribed ? '· Following' : '+ Follow'}
+              </Text>
+            </TouchableOpacity>
+
+            {isCheckedIn ? (
+              <TouchableOpacity style={styles.checkOutBtn} onPress={handleCheckOut}>
+                <Text style={styles.checkOutText}>Leave</Text>
+              </TouchableOpacity>
+            ) : zone?.is_temporarily_closed ? (
+              <View style={styles.closedBadge}>
+                <Text style={styles.closedBadgeText}>Closed</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.checkInBtn}
+                onPress={() => router.push(`/check-in/${id}`)}
+              >
+                <Text style={styles.checkInText}>Check In</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
       </View>
 
       {/* Heat bar — only when checked in */}
@@ -821,7 +859,7 @@ export default function ZoneScreen() {
           }
           ListFooterComponent={
             people.length >= 10 ? (
-              <Text style={styles.peopleFooter}>Showing 10 of {zone?.member_count ?? people.length} — list refreshes every 30s</Text>
+              <Text style={styles.peopleFooter}>Showing 10 of {zone?.member_count ?? people.length} — list refreshes every 15s</Text>
             ) : null
           }
         />
@@ -999,15 +1037,50 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
   center:    { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
   flex:      { flex: 1 },
-  header: {
+  banner: { height: 120, backgroundColor: '#07101F' },
+  bannerImg: { width: '100%', height: '100%' },
+  bannerFallback: { flex: 1, backgroundColor: '#081426' },
+  bannerScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,10,21,0.35)' },
+  bannerTopRow: {
+    position: 'absolute',
+    left: 8,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  hereNowPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(5,10,21,0.78)',
+    borderColor: '#29B6F6',
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  hereNowDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
+  hereNowText: { color: '#29B6F6', fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
+  heroInfo: {
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#0D1B2E',
-    gap: 12,
   },
+  heroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: -24 },
+  heroAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#050A15',
+    backgroundColor: '#0D1B2E',
+  },
+  heroAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
+  heroAvatarLetter: { color: '#29B6F6', fontSize: 22, fontWeight: '900' },
+  heroBio: { color: '#7A93AC', fontSize: 13, lineHeight: 18, marginTop: 8 },
+  heroActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
   backBtn: { padding: 8 },
   backText: { fontSize: 22, color: '#f8fafc' },
   headerInfo: { flex: 1 },
