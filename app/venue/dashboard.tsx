@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { fetchSubscriberCount } from '@/lib/venueSubscriptions'
+import { fetchSubscriberCount, fetchFollowerCount } from '@/lib/venueSubscriptions'
 import { platformConfirm } from '@/lib/confirm'
 
 interface VenueZone {
@@ -66,6 +66,7 @@ export default function VenueDashboard() {
   const [venueStatus, setVenueStatus]     = useState<string | null>(null)
   const [denialReason, setDenialReason]   = useState<string | null>(null)
   const [subscriberCount, setSubscriberCount] = useState(0)
+  const [followerCount, setFollowerCount]     = useState(0)
   const [wemetsToday, setWemetsToday] = useState(0)
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [isClosed, setIsClosed]           = useState(false)
@@ -128,8 +129,12 @@ export default function VenueDashboard() {
         }
 
         setStats({ total, ageRanges, interests, socialModes })
-        const subCount = await fetchSubscriberCount(z.id)
+        const [subCount, folCount] = await Promise.all([
+          fetchSubscriberCount(z.id),
+          fetchFollowerCount(z.id),
+        ])
         setSubscriberCount(subCount)
+        setFollowerCount(folCount)
 
         // We Mets confirmed here in the last 24h (aggregate count, no individual data)
         const { data: wemetsToday } = await supabase.rpc('venue_wemets_today', { zone_uuid: z.id })
@@ -559,20 +564,27 @@ export default function VenueDashboard() {
           </View>
         )}
 
-        {/* Subscriber + connections stats */}
+        {/* Followers / Subscribers / connections stats */}
         {venue && (
           <View style={styles.statPairRow}>
             <View style={[styles.subStatCard, styles.statPairItem]}>
-              <Text style={styles.subStatNum}>{subscriberCount}</Text>
+              <Text style={styles.subStatNum}>{followerCount}</Text>
               <Text style={styles.subStatLabel}>
-                {subscriberCount === 1 ? 'follower' : 'followers'}
+                {followerCount === 1 ? 'follower' : 'followers'}
               </Text>
-              <Text style={styles.subStatHint}>Subscribed to your venue</Text>
+              <Text style={styles.subStatHint}>Following from anywhere</Text>
+            </View>
+            <View style={[styles.subStatCard, styles.statPairItem, styles.subStatCardGold]}>
+              <Text style={[styles.subStatNum, { color: '#f59e0b' }]}>{subscriberCount}</Text>
+              <Text style={styles.subStatLabel}>
+                {subscriberCount === 1 ? 'subscriber' : 'subscribers'}
+              </Text>
+              <Text style={styles.subStatHint}>Patrons who checked in</Text>
             </View>
             <View style={[styles.subStatCard, styles.statPairItem]}>
               <Text style={styles.subStatNum}>{wemetsToday}</Text>
               <Text style={styles.subStatLabel}>connections</Text>
-              <Text style={styles.subStatHint}>We Mets confirmed here today</Text>
+              <Text style={styles.subStatHint}>We Mets here today</Text>
             </View>
           </View>
         )}
@@ -1007,7 +1019,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D1B2E', borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: '#29B6F625', alignItems: 'center', gap: 2,
   },
-  subStatNum:   { fontSize: 32, fontWeight: '900', color: '#29B6F6' },
+  subStatCardGold: { borderColor: '#f59e0b40' },
+  subStatNum:   { fontSize: 28, fontWeight: '900', color: '#29B6F6' },
   subStatLabel: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
   subStatHint:  { fontSize: 12, color: '#7A93AC', textAlign: 'center' },
   statPairRow:  { flexDirection: 'row', gap: 10 },

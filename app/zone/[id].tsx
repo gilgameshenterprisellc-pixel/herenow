@@ -28,7 +28,7 @@ import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
 import { successBuzz } from '@/lib/haptics'
 import { fetchVenueBadges, checkAndAwardVenueBadges, type VenueBadge } from '@/lib/venueBadges'
-import { subscribeToVenue, unsubscribeFromVenue, isSubscribedToVenue } from '@/lib/venueSubscriptions'
+import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
 import ChatMessage from '@/components/ChatMessage'
@@ -102,8 +102,10 @@ export default function ZoneScreen() {
   const [photos, setPhotos] = useState<{ id: string; public_url: string; caption: string | null }[]>([])
 
   // Subscription
-  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [isSubscribed, setIsSubscribed] = useState(false)   // "following"
+  const [isPatron, setIsPatron]         = useState(false)   // subscribed (checked-in)
   const [subLoading, setSubLoading]     = useState(false)
+  const [patronLoading, setPatronLoading] = useState(false)
 
   // Venue badges
   const [venueBadges, setVenueBadges] = useState<VenueBadge[]>([])
@@ -152,8 +154,12 @@ export default function ZoneScreen() {
 
       // Check subscription state
       if (user) {
-        const subbed = await isSubscribedToVenue(id)
-        setIsSubscribed(subbed)
+        const [following, patron] = await Promise.all([
+          isFollowingVenue(id),
+          isSubscriberOfVenue(id),
+        ])
+        setIsSubscribed(following)
+        setIsPatron(patron)
       }
 
       // Load venue badges — check for new ones while we're here (fire-and-forget on error)
@@ -409,10 +415,11 @@ export default function ZoneScreen() {
     setSubLoading(true)
     try {
       if (isSubscribed) {
-        await unsubscribeFromVenue(id)
+        await unfollowVenue(id)
         setIsSubscribed(false)
+        setIsPatron(false) // unfollow drops subscription too
       } else {
-        await subscribeToVenue(id)
+        await followVenue(id)
         setIsSubscribed(true)
         showToast(`Following ${zone?.name ?? 'this venue'}! You'll see their updates in your feed.`, 'success')
       }
@@ -420,6 +427,27 @@ export default function ZoneScreen() {
       showToast('Could not update follow status. Try again.', 'error')
     } finally {
       setSubLoading(false)
+    }
+  }
+
+  const handleSubscribe = async () => {
+    if (!isCheckedIn) {
+      showToast('Check in here first — subscribing is for people who show up.', 'info')
+      return
+    }
+    setPatronLoading(true)
+    try {
+      const ok = await subscribeAsPatron(id)
+      if (ok) {
+        setIsPatron(true)
+        setIsSubscribed(true) // subscribing implies following
+        successBuzz()
+        showToast(`You're a subscriber of ${zone?.name ?? 'this venue'}. You'll get their promos + announcements.`, 'success')
+      } else {
+        showToast('Could not subscribe. Make sure you\'re checked in here.', 'error')
+      }
+    } finally {
+      setPatronLoading(false)
     }
   }
 
@@ -574,6 +602,21 @@ export default function ZoneScreen() {
                 {subLoading ? '…' : isSubscribed ? '· Following' : '+ Follow'}
               </Text>
             </TouchableOpacity>
+
+            {/* Subscribe — earned, checked-in patrons only */}
+            {isPatron ? (
+              <View style={styles.patronBadge}>
+                <Text style={styles.patronBadgeText}>★ Subscriber</Text>
+              </View>
+            ) : isCheckedIn ? (
+              <TouchableOpacity
+                style={styles.patronBtn}
+                onPress={handleSubscribe}
+                disabled={patronLoading}
+              >
+                <Text style={styles.patronBtnText}>{patronLoading ? '…' : '★ Subscribe'}</Text>
+              </TouchableOpacity>
+            ) : null}
 
             {isCheckedIn ? (
               <TouchableOpacity style={styles.checkOutBtn} onPress={handleCheckOut}>
@@ -1096,6 +1139,16 @@ const styles = StyleSheet.create({
   subBtnActive: { backgroundColor: '#29B6F618' },
   subBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 12 },
   subBtnTextActive: { color: '#29B6F6' },
+  patronBtn: {
+    borderWidth: 1, borderColor: '#f59e0b', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#f59e0b12',
+  },
+  patronBtnText: { color: '#f59e0b', fontWeight: '800', fontSize: 12 },
+  patronBadge: {
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: '#f59e0b22', borderWidth: 1, borderColor: '#f59e0b55',
+  },
+  patronBadgeText: { color: '#f59e0b', fontWeight: '800', fontSize: 12 },
   checkInBtn: {
     backgroundColor: '#29B6F6',
     borderRadius: 20,
