@@ -125,7 +125,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, category, wait_time_minutes, wait_time_updated_at')
         .eq('id', id)
         .maybeSingle()
 
@@ -552,13 +552,23 @@ export default function ZoneScreen() {
             <View style={styles.headerInfo}>
               <Text style={styles.zoneName} numberOfLines={1}>{zone?.name}</Text>
               <Text style={styles.zoneMeta} numberOfLines={1}>
-                {zone?.opening_hours
-                  ?? (zone?.chips?.length
+                {[zone?.category, zone?.opening_hours].filter(Boolean).join(' · ')
+                  || (zone?.chips?.length
                     ? zone.chips.slice(0, 3).join(' · ')
                     : (zone?.polygon_wkt ? 'Polygon Venue' : `${zone?.radius_meters}m radius`))}
               </Text>
             </View>
           </View>
+
+          {/* Live wait time (venue-set) */}
+          {typeof zone?.wait_time_minutes === 'number' && (
+            <View style={styles.waitPill}>
+              <View style={styles.waitDot} />
+              <Text style={styles.waitText}>
+                {zone.wait_time_minutes === 0 ? 'No wait right now' : `~${zone.wait_time_minutes} min wait`}
+              </Text>
+            </View>
+          )}
 
           {zone?.description ? (
             <Text style={styles.heroBio} numberOfLines={2}>{zone.description}</Text>
@@ -1080,6 +1090,13 @@ const styles = StyleSheet.create({
   heroAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
   heroAvatarLetter: { color: '#29B6F6', fontSize: 22, fontWeight: '900' },
   heroBio: { color: '#7A93AC', fontSize: 13, lineHeight: 18, marginTop: 8 },
+  waitPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
+    marginTop: 10, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#1A2E4A', borderWidth: 1, borderColor: '#29B6F640',
+  },
+  waitDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#29B6F6' },
+  waitText: { color: '#cfe8fb', fontSize: 12, fontWeight: '700' },
   heroActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
   backBtn: { padding: 8 },
   backText: { fontSize: 22, color: '#f8fafc' },

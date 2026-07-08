@@ -110,6 +110,9 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
                 </View>
               )}
             </View>
+            {!isClosed && zone.category ? (
+              <Text style={styles.categoryText}>{zone.category}</Text>
+            ) : null}
             {isClosed ? (
               <Text style={styles.closureMsg} numberOfLines={2}>
                 {zone.temporary_closure_message ?? 'Temporarily unavailable'}
@@ -155,13 +158,20 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
         )}
 
         {/* Activity preview — hidden when closed */}
-        {(isLive || nextEventSoon) && (
+        {(isLive || nextEventSoon || (!isClosed && typeof zone.wait_time_minutes === 'number')) && (
           <View style={styles.activityRow}>
             {isLive && (
               <View style={styles.activityPill}>
                 <View style={styles.activityDot} />
                 <Text style={styles.activityText}>
                   {zone.member_count} {zone.member_count === 1 ? 'person' : 'people'} here right now
+                </Text>
+              </View>
+            )}
+            {!isClosed && typeof zone.wait_time_minutes === 'number' && (
+              <View style={styles.waitPill}>
+                <Text style={styles.waitText}>
+                  {zone.wait_time_minutes === 0 ? '⏱ No wait' : `⏱ ~${zone.wait_time_minutes}m wait`}
                 </Text>
               </View>
             )}
@@ -285,6 +295,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#29B6F630',
   },
   eventText: { fontSize: 11, color: '#29B6F6', fontWeight: '600' },
+  waitPill: {
+    backgroundColor: '#1A2E4A', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1, borderColor: '#29B6F630',
+  },
+  waitText: { fontSize: 11, color: '#cfe8fb', fontWeight: '700' },
+  categoryText: { fontSize: 11, color: '#29B6F6', fontWeight: '700', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.5 },
   hoursText: { fontSize: 11, color: '#4A6580' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
   chip: {
