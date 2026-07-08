@@ -71,6 +71,15 @@
       ],
       "expo-router",
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo-wordmark.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#050A15"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "HereNow uses your location to show nearby zones and notify you when you enter one.",

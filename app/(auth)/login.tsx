@@ -130,7 +130,7 @@ export default function LoginScreen() {
 
         <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)} style={{ alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={styles.title}>HereNow</Text>
+            <Image source={require('@/assets/logo-wordmark.png')} style={styles.wordmark} resizeMode="contain" />
             <View style={styles.betaBadge}>
               <Text style={styles.betaBadgeText}>BETA</Text>
             </View>
@@ -283,18 +283,12 @@ const styles = StyleSheet.create({
     color: '#29B6F6',
     letterSpacing: 1.5,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#f8fafc',
-    letterSpacing: -0.5,
-    textAlign: 'center',
-  },
+  wordmark: { width: 180, height: 32 },
   subtitle: {
     fontSize: 13,
     color: '#3A5C7A',
     textAlign: 'center',
-    marginTop: -8,
+    marginTop: 10,
   },
   toggle: {
     height: 44,

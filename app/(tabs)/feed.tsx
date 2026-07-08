@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import {
   View,
   Text,
+  Image,
   ScrollView,
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
   Platform,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTabBarScroll } from '@/contexts/TabBarScrollContext'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
@@ -157,6 +159,8 @@ export default function UpdatesScreen() {
     }
   }
 
+  const insets = useSafeAreaInsets()
+
   const webCenter = Platform.select({
     web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
     default: {},
@@ -169,8 +173,8 @@ export default function UpdatesScreen() {
       <AnimatedBackground />
       <View style={styles.headerWrap}>
         <View style={styles.accentLine} />
-        <View style={[styles.header, webCenter]}>
-          <Text style={styles.brand}>HERENOW</Text>
+        <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 20 }, webCenter]}>
+          <Image source={require('@/assets/logo-wordmark.png')} style={styles.brandLogo} resizeMode="contain" />
           <Text style={styles.headerTitle}>Updates</Text>
           <Text style={styles.headerSub}>From your venues & activity</Text>
         </View>
@@ -304,10 +308,7 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { boxShadow: '0 0 12px rgba(41,182,246,0.8), 0 0 24px rgba(41,182,246,0.4)' } as any, default: {} }),
   },
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, gap: 2 },
-  brand: {
-    fontSize: 10, fontWeight: '800', color: '#29B6F6', letterSpacing: 3, marginBottom: 4,
-    ...Platform.select({ web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any, default: {} }),
-  },
+  brandLogo: { width: 96, height: 17, marginBottom: 4 },
   headerTitle: { fontSize: 26, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
   headerSub:   { fontSize: 13, color: '#7A93AC', marginTop: 2 },
   list:        { paddingHorizontal: 16, paddingBottom: TAB_SAFE_BOTTOM, paddingTop: 12, gap: 0 },
