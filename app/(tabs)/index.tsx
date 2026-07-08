@@ -327,9 +327,23 @@ export default function NearbyScreen() {
                 {searchQuery ? 'No venues match' : 'No venues nearby yet'}
               </Text>
               <Text style={styles.emptySub}>
-                {searchQuery ? 'Try a different search term.' : 'Be the first to create one.'}
+                {searchQuery ? 'Try a different search term.' : 'Know a spot? Suggest it and we\'ll invite them.'}
               </Text>
+              {!searchQuery && (
+                <TouchableOpacity style={styles.suggestBtn} onPress={() => router.push('/venue/submit' as any)}>
+                  <Ionicons name="add-circle-outline" size={18} color="#050A15" />
+                  <Text style={styles.suggestBtnText}>Suggest a venue</Text>
+                </TouchableOpacity>
+              )}
             </View>
+          }
+          ListFooterComponent={
+            filteredZones.length > 0 ? (
+              <TouchableOpacity style={styles.suggestLink} onPress={() => router.push('/venue/submit' as any)}>
+                <Ionicons name="add-circle-outline" size={16} color="#29B6F6" />
+                <Text style={styles.suggestLinkText}>Know a spot that's not here? Suggest a venue</Text>
+              </TouchableOpacity>
+            ) : null
           }
         />
       )}
@@ -459,6 +473,16 @@ const styles = StyleSheet.create({
   trendingName:  { fontSize: 13, fontWeight: '700', color: '#f8fafc', flex: 1 },
   trendingCount: { fontSize: 12, fontWeight: '800', color: '#22c55e', flexShrink: 0 },
   empty:      { alignItems: 'center', paddingTop: 60, gap: 10 },
+  suggestBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8,
+    backgroundColor: '#29B6F6', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 11,
+  },
+  suggestBtnText: { color: '#050A15', fontWeight: '800', fontSize: 14 },
+  suggestLink: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    paddingVertical: 18,
+  },
+  suggestLinkText: { color: '#29B6F6', fontWeight: '600', fontSize: 13 },
   emptyIcon:  { width: 64, height: 64, borderRadius: 20, backgroundColor: '#29B6F610', borderWidth: 1, borderColor: '#29B6F620', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#f8fafc' },
   emptySub:   { fontSize: 13, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32, lineHeight: 22 },
