@@ -191,16 +191,11 @@ function WebLanding() {
           </Reanimated.View>
 
           <Reanimated.View entering={FadeInDown.delay(120).duration(800)}>
-            <Text
-              style={[
-                s.headline,
-                Platform.OS === 'web' ? ({
-                  textShadow: '0 0 12px rgba(41,182,246,1), 0 0 24px rgba(41,182,246,0.8), 0 0 48px rgba(41,182,246,0.5), 0 0 96px rgba(41,182,246,0.25)',
-                }) as any : null,
-              ]}
-            >
-              HereNow
-            </Text>
+            <Image
+              source={require('@/assets/logo-wordmark.png')}
+              style={s.heroWordmark}
+              resizeMode="contain"
+            />
           </Reanimated.View>
 
           <Reanimated.View entering={FadeInDown.delay(260).duration(800)}>
@@ -326,6 +321,7 @@ const s = StyleSheet.create({
 
   // headline + sub
   headline:     { fontSize: 88, fontWeight: '900', color: '#29B6F6', textAlign: 'center', letterSpacing: -4, lineHeight: 90 },
+  heroWordmark: { width: '82%', maxWidth: 360, aspectRatio: 822 / 147, alignSelf: 'center' },
   sub:          { fontSize: 19, color: '#7A93AC', textAlign: 'center', lineHeight: 28, fontWeight: '400' },
 
   // CTAs
