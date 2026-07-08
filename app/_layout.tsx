@@ -3,6 +3,7 @@ import { Platform, View } from 'react-native'
 import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useGeofenceTask } from '@/hooks/useGeofenceTask'
+import { useNotificationTaps } from '@/hooks/useNotificationTaps'
 import { SessionProvider } from '@/contexts/SessionContext'
 import { ToastProvider } from '@/contexts/ToastContext'
 import { supabase } from '@/lib/supabase'
@@ -11,6 +12,7 @@ import { AnalyticsProvider } from '@/components/AnalyticsProvider'
 
 export default function RootLayout() {
   useGeofenceTask()
+  useNotificationTaps()
 
   useEffect(() => {
     if (Platform.OS === 'web') {
