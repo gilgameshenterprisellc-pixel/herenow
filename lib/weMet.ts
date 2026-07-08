@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { sendNotification, scheduleDmExpiryAlert } from './notifications'
+import { logEvent } from './analytics'
 
 export interface WeMet {
   id: string
@@ -74,6 +75,7 @@ export async function sendWeMet(params: {
     data:   { we_met_id: data.id },
   })
 
+  logEvent('we_met_sent', { zoneId: params.zoneId })
   return data
 }
 
@@ -124,6 +126,8 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
       await scheduleDmExpiryAlert(partnerName, firstMoveDeadline).catch(() => {})
     }
   }
+
+  logEvent('we_met_confirmed')
 }
 
 // Unmeet — either party can end the connection at any time. The we_met row is

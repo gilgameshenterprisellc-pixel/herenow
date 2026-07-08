@@ -11,6 +11,17 @@ export async function reportUser(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
+  // Report + auto-hide the reported user from People tabs for 24h pending review.
+  // (.rpc returns errors, it doesn't throw — fall back to a plain report insert
+  // without the hide if supabase/jacob_report_autohide.sql hasn't been run yet)
+  const { error: rpcError } = await supabase.rpc('report_user_auto_hide', {
+    p_reported_id: params.reportedId,
+    p_zone_id:     params.zoneId,
+    p_reason:      params.reason,
+    p_note:        params.note ?? null,
+  })
+  if (!rpcError) return
+
   const { error } = await supabase.from('safety_reports').insert({
     reporter_id: user.id,
     reported_id: params.reportedId,

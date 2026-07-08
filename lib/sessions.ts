@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { getCurrentCoords } from './location'
 import { checkUserInZone } from './zones'
+import { logEvent } from './analytics'
 
 export type SocialMode = 'dating' | 'friends' | 'networking' | 'just_vibes'
 export type MoodMode   = 'open' | 'selective' | 'not_today'
@@ -89,6 +90,7 @@ export async function checkIn(params: {
       { onConflict: 'zone_id,user_id' }
     )
 
+  logEvent('check_in', { zoneId: params.zoneId, socialMode: params.socialMode, moodMode: params.moodMode })
   return { ok: true, session: data }
 }
 
@@ -205,6 +207,8 @@ export async function checkOut(sessionId: string): Promise<void> {
   })
 
   if (afterglowError) console.error('[sessions] checkOut — afterglow insert error:', afterglowError.message)
+
+  logEvent('check_out', { zoneId: session.zone_id, durationMins, weMets: wemetCount ?? 0 })
 }
 
 export async function getActiveSession(): Promise<Session | null> {

@@ -18,6 +18,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { checkAndAwardBadges } from '@/lib/badges'
 import { successBuzz } from '@/lib/haptics'
+import { registerPushToken } from '@/lib/push'
 import { fetchHighlights } from '@/lib/highlights'
 import BetaFeedbackModal, { shouldShowBetaFeedback, markBetaFeedbackShown } from '@/components/BetaFeedbackModal'
 import VenueWelcomeModal from '@/components/VenueWelcomeModal'
@@ -187,6 +188,9 @@ export default function CheckInScreen() {
     }
 
     successBuzz()
+    // First check-in is the moment the permission ask makes sense (Jacob Q29) —
+    // "someone sent you a We Met" pushes only matter once you're actually out.
+    registerPushToken(true).catch(() => {})
     await runCheckInAnim()
     await checkAndAwardBadges('checkin', { zoneId })
 

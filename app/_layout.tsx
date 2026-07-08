@@ -26,8 +26,9 @@ export default function RootLayout() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event !== 'SIGNED_IN' || !session?.user) return
 
-      // Register for push notifications on every sign-in (idempotent — just updates the token)
-      registerPushToken()
+      // Silently refresh the push token on sign-in if permission is already granted.
+      // The permission prompt itself waits for the first check-in (Jacob Q29).
+      registerPushToken(false)
 
       if (Platform.OS !== 'web') return
 

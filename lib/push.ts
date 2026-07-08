@@ -16,12 +16,16 @@ if (Platform.OS !== 'web') {
   })
 }
 
-export async function registerPushToken(): Promise<void> {
+// promptIfNeeded=false registers silently only when permission was already granted.
+// The actual permission dialog waits for the first check-in (Jacob Q29) — ask when
+// the user has a reason to care, not during onboarding.
+export async function registerPushToken(promptIfNeeded = true): Promise<void> {
   if (Platform.OS === 'web') return
 
   const { status: existing } = await Notifications.getPermissionsAsync()
   let finalStatus = existing
   if (existing !== 'granted') {
+    if (!promptIfNeeded) return
     const { status } = await Notifications.requestPermissionsAsync()
     finalStatus = status
   }

@@ -150,8 +150,12 @@ export default function UpdatesScreen() {
   const handleNotifPress = (n: Notification) => {
     if (!n.is_read) markOneRead(n.id).catch(() => {})
     const d = n.data as Record<string, any> | null
-    if (n.type === 'wemet_request' || n.type === 'wemet_confirmed') {
+    // Type strings as written by lib/weMet.ts are 'we_met_*'; keep the old
+    // 'wemet_*' spellings too so legacy notification rows still route.
+    if (['we_met_request', 'we_met_confirmed', 'wemet_request', 'wemet_confirmed'].includes(n.type)) {
       router.push('/we-met')
+    } else if (n.type === 'message' && d?.we_met_id) {
+      router.push(`/messages/${d.we_met_id}` as any)
     } else if (n.type === 'badge_earned') {
       router.push('/badges')
     } else if (d?.zone_id) {

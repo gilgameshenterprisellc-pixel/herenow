@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { logEvent } from './analytics'
 
 export interface VenueSubscription {
   id: string
@@ -17,6 +18,7 @@ export async function subscribeToVenue(zoneId: string): Promise<boolean> {
   const { error } = await supabase
     .from('venue_subscriptions')
     .insert({ user_id: user.id, zone_id: zoneId })
+  if (!error) logEvent('venue_follow', { zoneId })
   return !error
 }
 

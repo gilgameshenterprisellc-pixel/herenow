@@ -66,6 +66,7 @@ export default function VenueDashboard() {
   const [venueStatus, setVenueStatus]     = useState<string | null>(null)
   const [denialReason, setDenialReason]   = useState<string | null>(null)
   const [subscriberCount, setSubscriberCount] = useState(0)
+  const [wemetsToday, setWemetsToday] = useState(0)
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [isClosed, setIsClosed]           = useState(false)
   const [closureMessage, setClosureMessage] = useState('')
@@ -129,6 +130,10 @@ export default function VenueDashboard() {
         setStats({ total, ageRanges, interests, socialModes })
         const subCount = await fetchSubscriberCount(z.id)
         setSubscriberCount(subCount)
+
+        // We Mets confirmed here in the last 24h (aggregate count, no individual data)
+        const { data: wemetsToday } = await supabase.rpc('venue_wemets_today', { zone_uuid: z.id })
+        setWemetsToday(typeof wemetsToday === 'number' ? wemetsToday : 0)
 
         // Analytics queries — run in parallel
         const weekAgo    = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -554,14 +559,21 @@ export default function VenueDashboard() {
           </View>
         )}
 
-        {/* Subscriber stat */}
+        {/* Subscriber + connections stats */}
         {venue && (
-          <View style={styles.subStatCard}>
-            <Text style={styles.subStatNum}>{subscriberCount}</Text>
-            <Text style={styles.subStatLabel}>
-              {subscriberCount === 1 ? 'follower' : 'followers'}
-            </Text>
-            <Text style={styles.subStatHint}>People subscribed to your venue</Text>
+          <View style={styles.statPairRow}>
+            <View style={[styles.subStatCard, styles.statPairItem]}>
+              <Text style={styles.subStatNum}>{subscriberCount}</Text>
+              <Text style={styles.subStatLabel}>
+                {subscriberCount === 1 ? 'follower' : 'followers'}
+              </Text>
+              <Text style={styles.subStatHint}>Subscribed to your venue</Text>
+            </View>
+            <View style={[styles.subStatCard, styles.statPairItem]}>
+              <Text style={styles.subStatNum}>{wemetsToday}</Text>
+              <Text style={styles.subStatLabel}>connections</Text>
+              <Text style={styles.subStatHint}>We Mets confirmed here today</Text>
+            </View>
           </View>
         )}
 
@@ -997,7 +1009,9 @@ const styles = StyleSheet.create({
   },
   subStatNum:   { fontSize: 32, fontWeight: '900', color: '#29B6F6' },
   subStatLabel: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
-  subStatHint:  { fontSize: 12, color: '#7A93AC' },
+  subStatHint:  { fontSize: 12, color: '#7A93AC', textAlign: 'center' },
+  statPairRow:  { flexDirection: 'row', gap: 10 },
+  statPairItem: { flex: 1 },
 
   // Pending approval styles
   pendingGlow: {
