@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
+  View, Text, Image, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TAB_SAFE_BOTTOM } from './_layout'
@@ -51,7 +51,7 @@ export default function MessagesTab() {
       <View style={styles.headerWrap}>
         <View style={styles.accentLine} />
         <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 20 }, webCenter]}>
-          <Text style={styles.brand}>HERENOW</Text>
+          <Image source={require('@/assets/logo-wordmark.png')} style={styles.brandLogo} resizeMode="contain" />
           <Text style={styles.title}>Messages 💌</Text>
         </View>
       </View>
@@ -171,10 +171,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     gap: 6,
   },
-  brand: {
-    fontSize: 10, fontWeight: '800', color: '#29B6F6', letterSpacing: 3, marginBottom: 2,
-    ...Platform.select({ web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any, default: {} }),
-  },
+  brandLogo: { width: 96, height: 17, marginBottom: 2 },
   title: { fontSize: 26, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
   list: {
     padding: 14,

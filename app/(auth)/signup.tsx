@@ -239,8 +239,8 @@ export default function SignupScreen() {
             <Image source={require('@/assets/logo-flower.png')} style={styles.logo} resizeMode="contain" />
           </Reanimated.View>
 
-          <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)}>
-            <Text style={styles.title}>Join HereNow</Text>
+          <Reanimated.View entering={FadeInDown.delay(60).springify().damping(16)} style={{ alignItems: 'center' }}>
+            <Image source={require('@/assets/logo-wordmark.png')} style={styles.wordmark} resizeMode="contain" />
             <Text style={styles.subtitle}>Be present. Connect locally.</Text>
           </Reanimated.View>
 
@@ -490,8 +490,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   logo: { width: 76, height: 76, borderRadius: 18, marginBottom: 2 },
-  title: { fontSize: 24, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.4, textAlign: 'center' },
-  subtitle: { fontSize: 13, color: '#3A5C7A', textAlign: 'center', marginTop: -8 },
+  wordmark: { width: 170, height: 30 },
+  subtitle: { fontSize: 13, color: '#3A5C7A', textAlign: 'center', marginTop: 10 },
   toggle: {
     height: 44,
     backgroundColor: '#0B1526',

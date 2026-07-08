@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native'
+import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import type { Zone } from '@/lib/zones'
 import WebMap, { WEB_MAP_HEIGHT } from './WebMap'
@@ -35,6 +36,7 @@ export default function NearbyMap({
   selectedChips, onChipsChange,
 }: Props) {
   const [searchFocused, setSearchFocused] = useState(false)
+  const insets = useSafeAreaInsets()
 
   const liveCount       = zones.filter(z => (z.member_count ?? 0) > 0).length
   const subscribedCount = zones.filter(z => subscribedIds.has(z.id)).length
@@ -44,9 +46,9 @@ export default function NearbyMap({
       <View style={styles.accentLine} />
 
       {/* Header row */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 14 }]}>
         <View style={{ gap: 2 }}>
-          <Text style={styles.brand}>HERENOW</Text>
+          <Image source={require('@/assets/logo-wordmark.png')} style={styles.brandLogo} resizeMode="contain" />
           <Text style={styles.title}>Nearby</Text>
           <Text style={styles.sub}>
             {location
@@ -192,17 +194,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  brand: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#29B6F6',
-    letterSpacing: 3,
-    marginBottom: 2,
-    ...Platform.select({
-      web: { textShadow: '0 0 8px rgba(41,182,246,0.6)' } as any,
-      default: {},
-    }),
-  },
+  brandLogo: { width: 96, height: 17, marginBottom: 2 },
   title:   { fontSize: 22, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5 },
   sub:     { fontSize: 12, color: '#7A93AC', marginTop: 2 },
   locRow:  { flexDirection: 'row', alignItems: 'center', gap: 5 },

@@ -118,9 +118,11 @@ function NativeIndex() {
           style={{ width: 120, height: 120, borderRadius: 30 }}
           resizeMode="contain"
         />
-        <Text style={{ fontSize: 40, fontWeight: '900', color: '#29B6F6', letterSpacing: -1.5 }}>
-          HereNow
-        </Text>
+        <Image
+          source={require('@/assets/logo-wordmark.png')}
+          style={{ width: 220, height: 39 }}
+          resizeMode="contain"
+        />
         <ActivityIndicator color="#29B6F6" style={{ marginTop: 4 }} />
       </View>
     )
