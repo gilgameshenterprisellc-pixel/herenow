@@ -19,6 +19,9 @@ export interface Zone {
   temporary_closure_message: string | null
   avatar_url: string | null
   banner_url: string | null
+  category: string | null
+  wait_time_minutes: number | null
+  wait_time_updated_at: string | null
 }
 
 export async function fetchNearbyZones(
@@ -82,13 +85,16 @@ export async function createZone(params: {
     temporary_closure_message: null,
     avatar_url:                null,
     banner_url:                null,
+    category:                  null,
+    wait_time_minutes:         null,
+    wait_time_updated_at:      null,
   }
 }
 
 export async function searchZonesByName(query: string): Promise<Zone[]> {
   const { data, error } = await supabase
     .from('zones')
-    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url')
+    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, category, wait_time_minutes, wait_time_updated_at')
     .eq('is_active', true)
     .ilike('name', `%${query}%`)
     .limit(20)

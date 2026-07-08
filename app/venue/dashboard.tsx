@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { fetchSubscriberCount } from '@/lib/venueSubscriptions'
+import { fetchSubscriberCount, fetchFollowerCount } from '@/lib/venueSubscriptions'
 import { platformConfirm } from '@/lib/confirm'
 
 interface VenueZone {
@@ -21,7 +21,16 @@ interface VenueZone {
   member_count: number | null
   avatar_url: string | null
   banner_url: string | null
+  category: string | null
+  wait_time_minutes: number | null
 }
+
+const VENUE_CATEGORIES = [
+  'Bar', 'Cocktail Lounge', 'Restaurant', 'Coffee Shop', 'Brewery',
+  'Music Venue', 'Club', 'Cafe', 'Park', 'Gym', 'Coworking', 'Other',
+]
+
+const WAIT_PRESETS = [0, 5, 15, 30, 45, 60] // minutes; null = not shown
 
 interface AggregateStats {
   total: number
@@ -66,6 +75,7 @@ export default function VenueDashboard() {
   const [venueStatus, setVenueStatus]     = useState<string | null>(null)
   const [denialReason, setDenialReason]   = useState<string | null>(null)
   const [subscriberCount, setSubscriberCount] = useState(0)
+  const [followerCount, setFollowerCount]     = useState(0)
   const [wemetsToday, setWemetsToday] = useState(0)
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [isClosed, setIsClosed]           = useState(false)
@@ -128,8 +138,12 @@ export default function VenueDashboard() {
         }
 
         setStats({ total, ageRanges, interests, socialModes })
-        const subCount = await fetchSubscriberCount(z.id)
+        const [subCount, folCount] = await Promise.all([
+          fetchSubscriberCount(z.id),
+          fetchFollowerCount(z.id),
+        ])
         setSubscriberCount(subCount)
+        setFollowerCount(folCount)
 
         // We Mets confirmed here in the last 24h (aggregate count, no individual data)
         const { data: wemetsToday } = await supabase.rpc('venue_wemets_today', { zone_uuid: z.id })
@@ -262,6 +276,21 @@ export default function VenueDashboard() {
     if (!venue) return
     await supabase.from('zones').update({ temporary_closure_message: closureMessage.trim() || null }).eq('id', venue.id)
     setClosureEditing(false)
+  }
+
+  const setWaitTime = async (minutes: number | null) => {
+    if (!venue) return
+    setVenue({ ...venue, wait_time_minutes: minutes })
+    await supabase.from('zones').update({
+      wait_time_minutes:    minutes,
+      wait_time_updated_at: minutes === null ? null : new Date().toISOString(),
+    }).eq('id', venue.id)
+  }
+
+  const setCategory = async (category: string) => {
+    if (!venue) return
+    setVenue({ ...venue, category })
+    await supabase.from('zones').update({ category }).eq('id', venue.id)
   }
 
   const topInterests = Object.entries(stats.interests)
@@ -458,6 +487,54 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        {/* Live wait time — guests see this on the venue card + page */}
+        {venue && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Wait Time</Text>
+            <Text style={styles.cardHint}>Set the current wait so guests know before they come.</Text>
+            <View style={styles.chipWrap}>
+              {WAIT_PRESETS.map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.waitChip, venue.wait_time_minutes === m && styles.waitChipOn]}
+                  onPress={() => setWaitTime(m)}
+                >
+                  <Text style={[styles.waitChipText, venue.wait_time_minutes === m && styles.waitChipTextOn]}>
+                    {m === 0 ? 'No wait' : `${m}m`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={[styles.waitChip, venue.wait_time_minutes == null && styles.waitChipOff]}
+                onPress={() => setWaitTime(null)}
+              >
+                <Text style={[styles.waitChipText, venue.wait_time_minutes == null && styles.waitChipTextOff]}>
+                  Hide
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Venue category — shows on the card + map, feeds discovery */}
+        {venue && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Category</Text>
+            <Text style={styles.cardHint}>Helps people find your kind of spot.</Text>
+            <View style={styles.chipWrap}>
+              {VENUE_CATEGORIES.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.waitChip, venue.category === c && styles.waitChipOn]}
+                  onPress={() => setCategory(c)}
+                >
+                  <Text style={[styles.waitChipText, venue.category === c && styles.waitChipTextOn]}>{c}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Network Map — lets venue owners see all participating venues */}
         <TouchableOpacity
           style={styles.mapCard}
@@ -559,20 +636,27 @@ export default function VenueDashboard() {
           </View>
         )}
 
-        {/* Subscriber + connections stats */}
+        {/* Followers / Subscribers / connections stats */}
         {venue && (
           <View style={styles.statPairRow}>
             <View style={[styles.subStatCard, styles.statPairItem]}>
-              <Text style={styles.subStatNum}>{subscriberCount}</Text>
+              <Text style={styles.subStatNum}>{followerCount}</Text>
               <Text style={styles.subStatLabel}>
-                {subscriberCount === 1 ? 'follower' : 'followers'}
+                {followerCount === 1 ? 'follower' : 'followers'}
               </Text>
-              <Text style={styles.subStatHint}>Subscribed to your venue</Text>
+              <Text style={styles.subStatHint}>Following from anywhere</Text>
+            </View>
+            <View style={[styles.subStatCard, styles.statPairItem, styles.subStatCardGold]}>
+              <Text style={[styles.subStatNum, { color: '#f59e0b' }]}>{subscriberCount}</Text>
+              <Text style={styles.subStatLabel}>
+                {subscriberCount === 1 ? 'subscriber' : 'subscribers'}
+              </Text>
+              <Text style={styles.subStatHint}>Patrons who checked in</Text>
             </View>
             <View style={[styles.subStatCard, styles.statPairItem]}>
               <Text style={styles.subStatNum}>{wemetsToday}</Text>
               <Text style={styles.subStatLabel}>connections</Text>
-              <Text style={styles.subStatHint}>We Mets confirmed here today</Text>
+              <Text style={styles.subStatHint}>We Mets here today</Text>
             </View>
           </View>
         )}
@@ -885,6 +969,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D1B2E', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#1A2E4A', gap: 14,
   },
   cardTitle: { fontSize: 13, fontWeight: '800', color: '#8EADC7', textTransform: 'uppercase', letterSpacing: 0.5 },
+  cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  waitChip: {
+    paddingHorizontal: 13, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#07101F',
+  },
+  waitChipOn:  { borderColor: '#29B6F6', backgroundColor: '#29B6F620' },
+  waitChipOff: { borderColor: '#4A6580', backgroundColor: '#1A2E4A' },
+  waitChipText:    { fontSize: 13, fontWeight: '700', color: '#7A93AC' },
+  waitChipTextOn:  { color: '#29B6F6' },
+  waitChipTextOff: { color: '#cbd5e1' },
   barList: { gap: 10 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   barLabel: { fontSize: 12, color: '#7A93AC', width: 60 },
@@ -1007,7 +1102,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D1B2E', borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: '#29B6F625', alignItems: 'center', gap: 2,
   },
-  subStatNum:   { fontSize: 32, fontWeight: '900', color: '#29B6F6' },
+  subStatCardGold: { borderColor: '#f59e0b40' },
+  subStatNum:   { fontSize: 28, fontWeight: '900', color: '#29B6F6' },
   subStatLabel: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
   subStatHint:  { fontSize: 12, color: '#7A93AC', textAlign: 'center' },
   statPairRow:  { flexDirection: 'row', gap: 10 },

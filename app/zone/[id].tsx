@@ -29,7 +29,7 @@ import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
 import { successBuzz } from '@/lib/haptics'
 import { fetchVenueBadges, checkAndAwardVenueBadges, type VenueBadge } from '@/lib/venueBadges'
-import { subscribeToVenue, unsubscribeFromVenue, isSubscribedToVenue } from '@/lib/venueSubscriptions'
+import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
 import ChatMessage from '@/components/ChatMessage'
@@ -107,8 +107,10 @@ export default function ZoneScreen() {
   const [photos, setPhotos] = useState<{ id: string; public_url: string; caption: string | null }[]>([])
 
   // Subscription
-  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [isSubscribed, setIsSubscribed] = useState(false)   // "following"
+  const [isPatron, setIsPatron]         = useState(false)   // subscribed (checked-in)
   const [subLoading, setSubLoading]     = useState(false)
+  const [patronLoading, setPatronLoading] = useState(false)
 
   // Venue badges
   const [venueBadges, setVenueBadges] = useState<VenueBadge[]>([])
@@ -130,7 +132,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at')
         .eq('id', id)
         .maybeSingle()
 
@@ -157,8 +159,12 @@ export default function ZoneScreen() {
 
       // Check subscription state
       if (user) {
-        const subbed = await isSubscribedToVenue(id)
-        setIsSubscribed(subbed)
+        const [following, patron] = await Promise.all([
+          isFollowingVenue(id),
+          isSubscriberOfVenue(id),
+        ])
+        setIsSubscribed(following)
+        setIsPatron(patron)
       }
 
       // Load venue badges — check for new ones while we're here (fire-and-forget on error)
@@ -476,10 +482,11 @@ export default function ZoneScreen() {
     setSubLoading(true)
     try {
       if (isSubscribed) {
-        await unsubscribeFromVenue(id)
+        await unfollowVenue(id)
         setIsSubscribed(false)
+        setIsPatron(false) // unfollow drops subscription too
       } else {
-        await subscribeToVenue(id)
+        await followVenue(id)
         setIsSubscribed(true)
         showToast(`Following ${zone?.name ?? 'this venue'}! You'll see their updates in your feed.`, 'success')
       }
@@ -487,6 +494,27 @@ export default function ZoneScreen() {
       showToast('Could not update follow status. Try again.', 'error')
     } finally {
       setSubLoading(false)
+    }
+  }
+
+  const handleSubscribe = async () => {
+    if (!isCheckedIn) {
+      showToast('Check in here first — subscribing is for people who show up.', 'info')
+      return
+    }
+    setPatronLoading(true)
+    try {
+      const ok = await subscribeAsPatron(id)
+      if (ok) {
+        setIsPatron(true)
+        setIsSubscribed(true) // subscribing implies following
+        successBuzz()
+        showToast(`You're a subscriber of ${zone?.name ?? 'this venue'}. You'll get their promos + announcements.`, 'success')
+      } else {
+        showToast('Could not subscribe. Make sure you\'re checked in here.', 'error')
+      }
+    } finally {
+      setPatronLoading(false)
     }
   }
 
@@ -619,13 +647,23 @@ export default function ZoneScreen() {
             <View style={styles.headerInfo}>
               <Text style={styles.zoneName} numberOfLines={1}>{zone?.name}</Text>
               <Text style={styles.zoneMeta} numberOfLines={1}>
-                {zone?.opening_hours
-                  ?? (zone?.chips?.length
+                {[zone?.category, zone?.opening_hours].filter(Boolean).join(' · ')
+                  || (zone?.chips?.length
                     ? zone.chips.slice(0, 3).join(' · ')
                     : (zone?.polygon_wkt ? 'Polygon Venue' : `${zone?.radius_meters}m radius`))}
               </Text>
             </View>
           </View>
+
+          {/* Live wait time (venue-set) */}
+          {typeof zone?.wait_time_minutes === 'number' && (
+            <View style={styles.waitPill}>
+              <View style={styles.waitDot} />
+              <Text style={styles.waitText}>
+                {zone.wait_time_minutes === 0 ? 'No wait right now' : `~${zone.wait_time_minutes} min wait`}
+              </Text>
+            </View>
+          )}
 
           {zone?.description ? (
             <Text style={styles.heroBio} numberOfLines={2}>{zone.description}</Text>
@@ -641,6 +679,21 @@ export default function ZoneScreen() {
                 {subLoading ? '…' : isSubscribed ? '· Following' : '+ Follow'}
               </Text>
             </TouchableOpacity>
+
+            {/* Subscribe — earned, checked-in patrons only */}
+            {isPatron ? (
+              <View style={styles.patronBadge}>
+                <Text style={styles.patronBadgeText}>★ Subscriber</Text>
+              </View>
+            ) : isCheckedIn ? (
+              <TouchableOpacity
+                style={styles.patronBtn}
+                onPress={handleSubscribe}
+                disabled={patronLoading}
+              >
+                <Text style={styles.patronBtnText}>{patronLoading ? '…' : '★ Subscribe'}</Text>
+              </TouchableOpacity>
+            ) : null}
 
             {isCheckedIn ? (
               <TouchableOpacity style={styles.checkOutBtn} onPress={handleCheckOut}>
@@ -1167,6 +1220,13 @@ const styles = StyleSheet.create({
   heroAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
   heroAvatarLetter: { color: '#29B6F6', fontSize: 22, fontWeight: '900' },
   heroBio: { color: '#7A93AC', fontSize: 13, lineHeight: 18, marginTop: 8 },
+  waitPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
+    marginTop: 10, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#1A2E4A', borderWidth: 1, borderColor: '#29B6F640',
+  },
+  waitDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#29B6F6' },
+  waitText: { color: '#cfe8fb', fontSize: 12, fontWeight: '700' },
   heroActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
   backBtn: { padding: 8 },
   backText: { fontSize: 22, color: '#f8fafc' },
@@ -1183,6 +1243,16 @@ const styles = StyleSheet.create({
   subBtnActive: { backgroundColor: '#29B6F618' },
   subBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 12 },
   subBtnTextActive: { color: '#29B6F6' },
+  patronBtn: {
+    borderWidth: 1, borderColor: '#f59e0b', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#f59e0b12',
+  },
+  patronBtnText: { color: '#f59e0b', fontWeight: '800', fontSize: 12 },
+  patronBadge: {
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: '#f59e0b22', borderWidth: 1, borderColor: '#f59e0b55',
+  },
+  patronBadgeText: { color: '#f59e0b', fontWeight: '800', fontSize: 12 },
   checkInBtn: {
     backgroundColor: '#29B6F6',
     borderRadius: 20,
