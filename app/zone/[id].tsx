@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   View, Text, FlatList, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
@@ -124,6 +124,18 @@ export default function ZoneScreen() {
   const wmOpacity = useRef(new Animated.Value(0)).current
 
   const isCheckedIn = activeSession?.zone_id === id
+
+  // Anonymous chat: assign each other user a stable "Guest N" in order of first
+  // appearance in the chat, so nobody's real name is ever shown (Jacob #6).
+  const guestNumbers = useMemo(() => {
+    const map = new Map<string, number>()
+    let n = 0
+    for (const m of chatMsgs) {
+      if (m.user_id === userId) continue
+      if (!map.has(m.user_id)) map.set(m.user_id, ++n)
+    }
+    return map
+  }, [chatMsgs, userId])
 
   useEffect(() => {
     const init = async () => {
@@ -1085,7 +1097,11 @@ export default function ZoneScreen() {
             contentContainerStyle={[styles.list, { paddingBottom: 8 }]}
             onContentSizeChange={() => chatListRef.current?.scrollToEnd({ animated: false })}
             renderItem={({ item }) => (
-              <ChatMessage message={item} currentUserId={userId ?? ''} />
+              <ChatMessage
+                message={item}
+                currentUserId={userId ?? ''}
+                senderLabel={`Guest ${guestNumbers.get(item.user_id) ?? '?'}`}
+              />
             )}
             ListEmptyComponent={
               <View style={styles.empty}>
