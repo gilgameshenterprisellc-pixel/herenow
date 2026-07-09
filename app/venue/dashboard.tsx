@@ -83,6 +83,7 @@ export default function VenueDashboard() {
   const [isClosed, setIsClosed]           = useState(false)
   const [closureMessage, setClosureMessage] = useState('')
   const [closureEditing, setClosureEditing] = useState(false)
+  const [customWait, setCustomWait]       = useState('')
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -546,6 +547,26 @@ export default function VenueDashboard() {
                 <Text style={[styles.waitChipText, venue.wait_time_minutes == null && styles.waitChipTextOff]}>
                   Hide
                 </Text>
+              </TouchableOpacity>
+            </View>
+            {/* Custom wait time */}
+            <View style={styles.customWaitRow}>
+              <TextInput
+                style={styles.customWaitInput}
+                value={customWait}
+                onChangeText={(t) => setCustomWait(t.replace(/[^0-9]/g, '').slice(0, 3))}
+                placeholder="Custom"
+                placeholderTextColor="#4A6580"
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+              <Text style={styles.customWaitUnit}>min</Text>
+              <TouchableOpacity
+                style={[styles.customWaitBtn, !customWait && { opacity: 0.4 }]}
+                disabled={!customWait}
+                onPress={() => { setWaitTime(parseInt(customWait, 10)); setCustomWait('') }}
+              >
+                <Text style={styles.customWaitBtnText}>Set</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1024,6 +1045,14 @@ const styles = StyleSheet.create({
   waitChipText:    { fontSize: 13, fontWeight: '700', color: '#7A93AC' },
   waitChipTextOn:  { color: '#29B6F6' },
   waitChipTextOff: { color: '#cbd5e1' },
+  customWaitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  customWaitInput: {
+    width: 88, backgroundColor: '#07101F', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
+    color: '#f8fafc', fontSize: 15, borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  customWaitUnit: { color: '#7A93AC', fontSize: 13 },
+  customWaitBtn: { marginLeft: 'auto', backgroundColor: '#1A2E4A', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 9, borderWidth: 1, borderColor: '#29B6F640' },
+  customWaitBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 13 },
   barList: { gap: 10 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   barLabel: { fontSize: 12, color: '#7A93AC', width: 60 },

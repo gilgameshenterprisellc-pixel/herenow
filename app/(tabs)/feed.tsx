@@ -18,7 +18,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchMyVenues, type VenueSubscription } from '@/lib/venueSubscriptions'
 import { useNotifications } from '@/hooks/useNotifications'
 import AnimatedBackground from '@/components/AnimatedBackground'
-import { markOneRead, type Notification } from '@/lib/notifications'
+import { markOneRead, markAllRead, type Notification } from '@/lib/notifications'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -155,6 +155,11 @@ export default function UpdatesScreen() {
   // Load venue feed on first render (notifications loaded by hook)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadVenueFeed() }, [])
+
+  // Opening the Updates tab clears the unread badge (Jacob #12).
+  useEffect(() => {
+    markAllRead().catch(() => {})
+  }, [])
 
   const handleNotifPress = (n: Notification) => {
     if (!n.is_read) markOneRead(n.id).catch(() => {})
