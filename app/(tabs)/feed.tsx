@@ -168,6 +168,8 @@ export default function UpdatesScreen() {
     // 'wemet_*' spellings too so legacy notification rows still route.
     if (['we_met_request', 'we_met_confirmed', 'wemet_request', 'wemet_confirmed'].includes(n.type)) {
       router.push('/we-met')
+    } else if (['circle_request', 'circle_accepted'].includes(n.type)) {
+      router.push('/circle' as any)
     } else if (n.type === 'message' && d?.we_met_id) {
       router.push(`/messages/${d.we_met_id}` as any)
     } else if (n.type === 'badge_earned') {

@@ -174,6 +174,7 @@ export default function ProfileScreen() {
       ]
     : [
         { label: 'We Met',    route: '/we-met',    icon: 'people-outline' },
+        { label: 'My Circle', route: '/circle',    icon: 'ellipse-outline' },
         { label: 'Messages',  route: '/messages',  icon: 'chatbubble-ellipses-outline' },
         { label: 'My Venues', route: '/my-venues', icon: 'business-outline' },
         { label: 'Badges',    route: '/badges',    icon: 'ribbon-outline' },
