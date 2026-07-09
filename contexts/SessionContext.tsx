@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from 'react'
-import { Platform } from 'react-native'
+import { Platform, AppState } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import type { Session, CheckInResult } from '@/lib/sessions'
-import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut } from '@/lib/sessions'
+import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut, touchSession } from '@/lib/sessions'
 import type { SocialMode, MoodMode } from '@/lib/sessions'
 import { getCurrentCoords } from '@/lib/location'
 import { checkUserInZone } from '@/lib/zones'
@@ -24,6 +24,7 @@ const SessionContext = createContext<SessionContextValue>({
 })
 
 const AUTO_CHECKOUT_MS = 10 * 60 * 1000 // 10 minutes
+const HEARTBEAT_MS     = 2 * 60 * 1000  // 2 minutes — keeps presence fresh
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<Session | null>(null)
@@ -55,6 +56,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (result.ok) setActiveSession(result.session)
     return result
   }, [])
+
+  // Presence heartbeat: keep the active session "fresh" so the venue sees you as
+  // here. Refreshes every 2 min while the app is open, and immediately whenever
+  // the app returns to the foreground. When the app is closed and you've left,
+  // heartbeats stop and you drop out of the live count within the staleness
+  // window (server-side) — no more ghost check-ins.
+  useEffect(() => {
+    if (!activeSession) return
+    touchSession(activeSession.id).catch(() => {})
+
+    const beat = setInterval(() => { touchSession(activeSession.id).catch(() => {}) }, HEARTBEAT_MS)
+    const appSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') touchSession(activeSession.id).catch(() => {})
+    })
+
+    return () => { clearInterval(beat); appSub.remove() }
+  }, [activeSession?.id])
 
   const checkOut = useCallback(async () => {
     if (!activeSession) return
