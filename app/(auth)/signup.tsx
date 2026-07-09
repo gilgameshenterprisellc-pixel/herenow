@@ -13,12 +13,26 @@ type Mode = 'person' | 'venue'
 
 const VENUE_TYPES = ['Bar', 'Restaurant', 'Coffee Shop', 'Venue / Event Space', 'Gym', 'Other']
 
+// Normalize a typed phone to E.164. Bare 10-digit input is assumed US (+1).
+function toE164(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('+')) {
+    const digits = trimmed.slice(1).replace(/\D/g, '')
+    return digits.length >= 8 ? `+${digits}` : null
+  }
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return null
+}
+
 export default function SignupScreen() {
   const [mode, setMode]             = useState<Mode>('person')
   const [displayName, setDisplayName] = useState('')
   const [username, setUsername]       = useState('')
   const [email, setEmail]             = useState('')
   const [password, setPassword]       = useState('')
+  const [phone, setPhone]             = useState('')
   const [showPw, setShowPw]           = useState(false)
   const [venueName, setVenueName]     = useState('')
   const [venueType, setVenueType]     = useState<string | null>(null)
@@ -97,6 +111,13 @@ export default function SignupScreen() {
       }
     }
 
+    // Phone required for everyone — one number per account (anti-fraud).
+    const e164 = toE164(phone)
+    if (!e164) {
+      setErrorMsg('Enter a valid phone number (e.g. 615 555 0198).')
+      return
+    }
+
     setErrorMsg('')
     setLoading(true)
     const { data, error } = await supabase.auth.signUp({
@@ -133,6 +154,7 @@ export default function SignupScreen() {
       id: data.user.id,
       display_name: isVenue ? venueName.trim() : displayName.trim(),
       username: cleanUsername,
+      phone: e164,
       is_venue_owner: isVenue,
       // Always insert as pending — auto_approve_venue RPC sets it to approved atomically.
       // This ensures no venue is ever marked approved without a zone existing.
@@ -155,7 +177,12 @@ export default function SignupScreen() {
 
     if (profileError) {
       setLoading(false)
-      setErrorMsg(profileError.message)
+      // Unique phone violation — the deterrent Jacob asked for.
+      if (/duplicate|unique/i.test(profileError.message) && /phone/i.test(profileError.message)) {
+        setErrorMsg('That phone number is already registered. One account per number.')
+      } else {
+        setErrorMsg(profileError.message)
+      }
       return
     }
 
@@ -317,6 +344,15 @@ export default function SignupScreen() {
                 keyboardType="email-address"
                 autoComplete="email"
               />
+              <TextInput
+                style={styles.input}
+                placeholder="Phone number"
+                placeholderTextColor="#2B4560"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+              />
               <View style={{ position: 'relative' }}>
                 <TextInput
                   style={[styles.input, { paddingRight: 46 }]}
@@ -415,6 +451,15 @@ export default function SignupScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Phone number"
+                placeholderTextColor="#2B4560"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                autoComplete="tel"
               />
               <View style={{ position: 'relative' }}>
                 <TextInput
