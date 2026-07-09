@@ -181,6 +181,8 @@ export default function CheckInScreen() {
         showToast("You're not at this venue yet — check in once you arrive.", 'error')
       } else if (result.reason === 'location_unavailable') {
         showToast('Turn on location access to check in.', 'error')
+      } else if (result.reason === 'low_accuracy') {
+        showToast("Couldn't pin your location precisely. Step inside or near a window and try again.", 'error')
       } else {
         showToast('Check-in failed — something went wrong. Try again.', 'error')
       }

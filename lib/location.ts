@@ -3,6 +3,9 @@ import { Platform } from 'react-native'
 interface Coords {
   latitude: number
   longitude: number
+  // Estimated horizontal accuracy in meters (95% confidence). May be null when
+  // the platform can't report it. Used to reject fuzzy fixes at check-in.
+  accuracy: number | null
 }
 
 // One-shot current position fetch (not a hook) — used for point-in-time
@@ -13,7 +16,11 @@ export async function getCurrentCoords(): Promise<Coords | null> {
     if (!navigator.geolocation) return null
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        (pos) => resolve({
+          latitude:  pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy:  pos.coords.accuracy ?? null,
+        }),
         () => resolve(null),
         { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 }
       )
@@ -26,7 +33,11 @@ export async function getCurrentCoords(): Promise<Coords | null> {
 
   try {
     const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
-    return { latitude: pos.coords.latitude, longitude: pos.coords.longitude }
+    return {
+      latitude:  pos.coords.latitude,
+      longitude: pos.coords.longitude,
+      accuracy:  pos.coords.accuracy ?? null,
+    }
   } catch {
     return null
   }
