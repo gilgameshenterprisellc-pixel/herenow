@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscriberCount, fetchFollowerCount } from '@/lib/venueSubscriptions'
+import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } from '@/lib/venuePhotos'
 import { platformConfirm } from '@/lib/confirm'
 
 interface VenueZone {
@@ -77,6 +78,7 @@ export default function VenueDashboard() {
   const [subscriberCount, setSubscriberCount] = useState(0)
   const [followerCount, setFollowerCount]     = useState(0)
   const [wemetsToday, setWemetsToday] = useState(0)
+  const [pendingPhotos, setPendingPhotos] = useState<PendingVenuePhoto[]>([])
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [isClosed, setIsClosed]           = useState(false)
   const [closureMessage, setClosureMessage] = useState('')
@@ -148,6 +150,9 @@ export default function VenueDashboard() {
         // We Mets confirmed here in the last 24h (aggregate count, no individual data)
         const { data: wemetsToday } = await supabase.rpc('venue_wemets_today', { zone_uuid: z.id })
         setWemetsToday(typeof wemetsToday === 'number' ? wemetsToday : 0)
+
+        // Pending photo submissions awaiting the owner's review
+        setPendingPhotos(await fetchPendingVenuePhotos(z.id))
 
         // Analytics queries — run in parallel
         const weekAgo    = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -291,6 +296,11 @@ export default function VenueDashboard() {
     if (!venue) return
     setVenue({ ...venue, category })
     await supabase.from('zones').update({ category }).eq('id', venue.id)
+  }
+
+  const reviewPhoto = async (id: string, status: 'approved' | 'rejected') => {
+    setPendingPhotos((prev) => prev.filter((p) => p.id !== id))
+    await setVenuePhotoStatus(id, status)
   }
 
   const topInterests = Object.entries(stats.interests)
@@ -484,6 +494,31 @@ export default function VenueDashboard() {
                 )}
               </View>
             )}
+          </View>
+        )}
+
+        {/* Photo submissions awaiting review */}
+        {venue && pendingPhotos.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Photo Submissions ({pendingPhotos.length})</Text>
+            <Text style={styles.cardHint}>Guests submitted these to your gallery. Approve to show them publicly.</Text>
+            {pendingPhotos.map((p) => (
+              <View key={p.id} style={styles.photoReviewRow}>
+                <Image source={{ uri: p.public_url }} style={styles.photoReviewImg} resizeMode="cover" />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={styles.photoReviewBy}>from {p.submitter?.display_name ?? 'a guest'}</Text>
+                  {p.submitted_note ? <Text style={styles.photoReviewNote} numberOfLines={2}>"{p.submitted_note}"</Text> : null}
+                  <View style={styles.photoReviewActions}>
+                    <TouchableOpacity style={styles.photoRejectBtn} onPress={() => reviewPhoto(p.id, 'rejected')}>
+                      <Text style={styles.photoRejectText}>Reject</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.photoApproveBtn} onPress={() => reviewPhoto(p.id, 'approved')}>
+                      <Text style={styles.photoApproveText}>Approve</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
@@ -970,6 +1005,15 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 13, fontWeight: '800', color: '#8EADC7', textTransform: 'uppercase', letterSpacing: 0.5 },
   cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
+  photoReviewRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  photoReviewImg: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#07101F' },
+  photoReviewBy: { fontSize: 13, fontWeight: '700', color: '#f0f8ff' },
+  photoReviewNote: { fontSize: 12, color: '#7A93AC', fontStyle: 'italic' },
+  photoReviewActions: { flexDirection: 'row', gap: 8 },
+  photoRejectBtn: { flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center', borderWidth: 1, borderColor: '#3A3A3A' },
+  photoRejectText: { color: '#7A93AC', fontWeight: '700', fontSize: 12 },
+  photoApproveBtn: { flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center', backgroundColor: '#22c55e' },
+  photoApproveText: { color: '#050A15', fontWeight: '800', fontSize: 12 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   waitChip: {
     paddingHorizontal: 13, paddingVertical: 8, borderRadius: 20,
