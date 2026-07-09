@@ -120,6 +120,27 @@ export default function SignupScreen() {
 
     setErrorMsg('')
     setLoading(true)
+
+    // Pre-check phone + username BEFORE creating the auth user. signUp creates the
+    // account first; if the profile insert then fails on a duplicate phone/username,
+    // the auth user is orphaned and (email confirmation is off) the email can never
+    // be reused. Catch the collision up front. Degrades gracefully: if the RPC is
+    // unreachable, we fall through and the unique indexes still protect the data.
+    const precheckUsername = isVenue ? '' : username.toLowerCase().replace(/[^a-z0-9_]/g, '')
+    const { data: availability } = await supabase.rpc('signup_availability', {
+      p_phone:    e164,
+      p_username: precheckUsername || null,
+    })
+    if (availability === 'phone_taken' || availability === 'username_taken') {
+      setLoading(false)
+      setErrorMsg(
+        availability === 'phone_taken'
+          ? 'That phone number is already registered. One account per number.'
+          : 'That username is taken — try another.'
+      )
+      return
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
