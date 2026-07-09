@@ -211,6 +211,17 @@ export async function checkOut(sessionId: string): Promise<void> {
   logEvent('check_out', { zoneId: session.zone_id, durationMins, weMets: wemetCount ?? 0 })
 }
 
+// Presence heartbeat — keeps a checked-in user counted as "here". If the app
+// stops touching a session (user leaves + closes the app), it goes stale and
+// drops out of the live count within the staleness window. Fire-and-forget.
+export async function touchSession(sessionId: string): Promise<void> {
+  await supabase
+    .from('sessions')
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq('id', sessionId)
+    .eq('is_active', true)
+}
+
 export async function getActiveSession(): Promise<Session | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
