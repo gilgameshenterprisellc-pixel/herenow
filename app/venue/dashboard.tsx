@@ -123,11 +123,16 @@ export default function VenueDashboard() {
       }
 
       if (z) {
+        // "Checked in right now" = an active session seen in the last 30 min.
+        // Without the last_seen_at gate, people who left without checking out
+        // (app closed) linger forever and the dashboard shows ghosts.
+        const presenceCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
         const { data: sessions } = await supabase
           .from('sessions')
           .select('social_mode, profiles(age_range, interest_tags)')
           .eq('zone_id', z.id)
-          .is('checked_out_at', null)
+          .eq('is_active', true)
+          .gt('last_seen_at', presenceCutoff)
 
         const ageRanges: Record<string, number> = {}
         const interests: Record<string, number> = {}
