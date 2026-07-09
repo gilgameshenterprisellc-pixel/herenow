@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, FlatList, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
-  ActionSheetIOS, Animated,
+  ActionSheetIOS, Animated, Modal,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useToast } from '@/contexts/ToastContext'
@@ -117,6 +117,7 @@ export default function ZoneScreen() {
 
   // Gallery submission
   const [submittingPhoto, setSubmittingPhoto] = useState(false)
+  const [lightboxUrl, setLightboxUrl]         = useState<string | null>(null)
 
   // We Met celebration
   const [wemetCelebName, setWemetCelebName] = useState<string | null>(null)
@@ -610,6 +611,67 @@ export default function ZoneScreen() {
     )
   }
 
+  // Secondary venue info (badges / highlights / gallery / submit-photo). Rendered
+  // as the Pulse feed's scrollable header so it scrolls away with the feed instead
+  // of permanently squeezing the tab windows (Jacob #8/#10). Not shown on
+  // People/Chat/Events, which now get the full height.
+  const venueInfo = (
+    <View>
+      {venueBadges.length > 0 && (
+        <View style={styles.badgeStrip}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeStripList}>
+            {venueBadges.map((b) => (
+              <View key={b.slug} style={styles.badgeChip}>
+                <Text style={styles.badgeChipIcon}>{b.icon ?? '🏅'}</Text>
+                <Text style={styles.badgeChipName}>{b.name}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {highlights.length > 0 && (
+        <View style={styles.highlightsWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsList}>
+            {highlights.map((h) => (
+              <View key={h.id} style={styles.highlightCard}>
+                <Text style={styles.highlightEmoji}>{h.emoji ?? '⭐'}</Text>
+                <Text style={styles.highlightTitle} numberOfLines={1}>{h.title}</Text>
+                {h.body ? <Text style={styles.highlightBody} numberOfLines={2}>{h.body}</Text> : null}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {photos.length > 0 && (
+        <View style={styles.galleryWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryList}>
+            {photos.map((p) => (
+              <TouchableOpacity key={p.id} style={styles.galleryThumb} onPress={() => setLightboxUrl(p.public_url)} activeOpacity={0.85}>
+                <Image source={{ uri: p.public_url }} style={styles.galleryImg} resizeMode="cover" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {isCheckedIn && (
+        <View style={styles.photoSubmitWrap}>
+          <TouchableOpacity
+            style={[styles.photoSubmitBtn, submittingPhoto && { opacity: 0.5 }]}
+            onPress={handleSubmitPhoto}
+            disabled={submittingPhoto}
+          >
+            {submittingPhoto
+              ? <ActivityIndicator color="#29B6F6" size="small" />
+              : <Text style={styles.photoSubmitText}>Submit a photo to this venue</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  )
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -804,79 +866,8 @@ export default function ZoneScreen() {
         </View>
       )}
 
-      {/* Venue Badges */}
-      {venueBadges.length > 0 && (
-        <View style={styles.badgeStrip}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.badgeStripList}
-          >
-            {venueBadges.map((b) => (
-              <View key={b.slug} style={styles.badgeChip}>
-                <Text style={styles.badgeChipIcon}>{b.icon ?? '🏅'}</Text>
-                <Text style={styles.badgeChipName}>{b.name}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Venue Highlights — visible to all */}
-      {highlights.length > 0 && (
-        <View style={styles.highlightsWrap}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.highlightsList}
-          >
-            {highlights.map((h) => (
-              <View key={h.id} style={styles.highlightCard}>
-                <Text style={styles.highlightEmoji}>{h.emoji ?? '⭐'}</Text>
-                <Text style={styles.highlightTitle} numberOfLines={1}>{h.title}</Text>
-                {h.body ? <Text style={styles.highlightBody} numberOfLines={2}>{h.body}</Text> : null}
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Gallery photo strip — visible to all */}
-      {photos.length > 0 && (
-        <View style={styles.galleryWrap}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.galleryList}
-          >
-            {photos.map((p) => (
-              <View key={p.id} style={styles.galleryThumb}>
-                <Image
-                  source={{ uri: p.public_url }}
-                  style={styles.galleryImg}
-                  resizeMode="cover"
-                />
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Submit photo — checked-in users only */}
-      {isCheckedIn && (
-        <View style={styles.photoSubmitWrap}>
-          <TouchableOpacity
-            style={[styles.photoSubmitBtn, submittingPhoto && { opacity: 0.5 }]}
-            onPress={handleSubmitPhoto}
-            disabled={submittingPhoto}
-          >
-            {submittingPhoto
-              ? <ActivityIndicator color="#29B6F6" size="small" />
-              : <Text style={styles.photoSubmitText}>Submit a photo to this venue</Text>
-            }
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* (Badges / highlights / gallery / submit-photo moved into the Pulse feed
+          header — see `venueInfo` — so they scroll instead of squeezing the tabs.) */}
 
       {/* Inner tabs — pill toggle */}
       <View style={styles.tabBar}>
@@ -916,8 +907,9 @@ export default function ZoneScreen() {
 
       {/* Pulse blurred preview — ghost posts visible, CTA overlay prompts check-in */}
       {tab === 'pulse' && !isCheckedIn && (
-        <View style={styles.flex}>
-          <View style={{ flex: 1, position: 'relative' }}>
+        <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1 }}>
+          {venueInfo}
+          <View style={{ flex: 1, position: 'relative', minHeight: 240 }}>
             <FlatList
               data={pulsePosts.slice(0, 3)}
               keyExtractor={(p) => p.id}
@@ -946,7 +938,7 @@ export default function ZoneScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </ScrollView>
       )}
 
       {tab === 'people' && isCheckedIn && (
@@ -991,6 +983,7 @@ export default function ZoneScreen() {
             data={pulsePosts}
             keyExtractor={(p) => p.id}
             contentContainerStyle={styles.list}
+            ListHeaderComponent={venueInfo}
             renderItem={({ item }) => (
               <PulsePostCard
                 post={item}
@@ -1169,6 +1162,14 @@ export default function ZoneScreen() {
           </Animated.View>
         </Animated.View>
       )}
+
+      {/* Gallery photo lightbox (Jacob #11) */}
+      <Modal visible={!!lightboxUrl} transparent animationType="fade" onRequestClose={() => setLightboxUrl(null)}>
+        <TouchableOpacity style={styles.lightboxBg} activeOpacity={1} onPress={() => setLightboxUrl(null)}>
+          {lightboxUrl && <Image source={{ uri: lightboxUrl }} style={styles.lightboxImg} resizeMode="contain" />}
+          <View style={styles.lightboxClose}><Text style={styles.lightboxCloseText}>✕</Text></View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -1455,6 +1456,10 @@ const styles = StyleSheet.create({
   galleryList:  { paddingHorizontal: 14, gap: 8, flexDirection: 'row' },
   galleryThumb: { borderRadius: 10, overflow: 'hidden' },
   galleryImg:   { width: 90, height: 90, borderRadius: 10 },
+  lightboxBg:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' },
+  lightboxImg:  { width: '100%', height: '80%' },
+  lightboxClose: { position: 'absolute', top: 50, right: 24, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  lightboxCloseText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   photoSubmitWrap: {
     paddingHorizontal: 16,
     paddingVertical: 8,
