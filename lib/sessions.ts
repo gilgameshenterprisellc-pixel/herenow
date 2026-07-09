@@ -39,7 +39,12 @@ export interface ActivePerson {
 
 export type CheckInResult =
   | { ok: true; session: Session }
-  | { ok: false; reason: 'not_in_zone' | 'location_unavailable' | 'failed' }
+  | { ok: false; reason: 'not_in_zone' | 'location_unavailable' | 'low_accuracy' | 'failed' }
+
+// A GPS fix fuzzier than this can't be trusted to place someone inside a venue —
+// a poor fix on the street can land inside the building footprint by chance.
+// Reject it and ask the user to try again rather than allow a false check-in.
+const MAX_CHECKIN_ACCURACY_M = 60
 
 export async function checkIn(params: {
   zoneId: string
@@ -54,6 +59,13 @@ export async function checkIn(params: {
   // which breaks the whole "only visible to people actually here" promise.
   const coords = await getCurrentCoords()
   if (!coords) return { ok: false, reason: 'location_unavailable' }
+
+  // Don't trust a fuzzy fix to prove presence — a poor reading on the street can
+  // fall inside the building footprint. Better to ask for a retry than to let
+  // someone check in from outside the venue.
+  if (coords.accuracy != null && coords.accuracy > MAX_CHECKIN_ACCURACY_M) {
+    return { ok: false, reason: 'low_accuracy' }
+  }
 
   const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude)
   if (!inZone) return { ok: false, reason: 'not_in_zone' }
