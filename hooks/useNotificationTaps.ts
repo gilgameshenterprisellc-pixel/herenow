@@ -21,6 +21,8 @@ export function useNotificationTaps() {
         // We Met request/confirm open the confirmation screen.
         if (data.type === 'message' && data.we_met_id) {
           router.push(`/messages/${data.we_met_id}` as any)
+        } else if (data.route === 'circle') {
+          router.push('/circle' as any)
         } else if (data.we_met_id) {
           router.push('/we-met' as any)
         } else if (data.zone_id) {

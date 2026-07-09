@@ -7,6 +7,7 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import BackButton from '@/components/BackButton'
+import { getCircleStatus, sendCircleRequest, respondCircleRequest, type CircleStatus } from '@/lib/circle'
 
 interface UserProfile {
   id: string
@@ -27,6 +28,9 @@ export default function UserProfileScreen() {
   const [loading, setLoading]   = useState(true)
   const [wemetId, setWemetId]   = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [circleStatus, setCircleStatus] = useState<CircleStatus>('none')
+  const [circleReqId, setCircleReqId]   = useState<string | null>(null)
+  const [circleBusy, setCircleBusy]     = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -50,11 +54,39 @@ export default function UserProfileScreen() {
           .or(`and(initiator_id.eq.${user.id},recipient_id.eq.${id}),and(initiator_id.eq.${id},recipient_id.eq.${user.id})`)
           .maybeSingle()
         setWemetId(wm?.id ?? null)
+
+        // Circle standing (only meaningful once you've met in person)
+        if (wm?.id) {
+          const cs = await getCircleStatus(id!)
+          setCircleStatus(cs.status)
+          setCircleReqId(cs.requestId)
+        }
       }
       setLoading(false)
     }
     load()
   }, [id])
+
+  const handleCircle = async () => {
+    if (!id || circleBusy) return
+    setCircleBusy(true)
+    if (circleStatus === 'none') {
+      const ok = await sendCircleRequest(id)
+      if (ok) setCircleStatus('pending_out')
+    } else if (circleStatus === 'pending_in' && circleReqId) {
+      const ok = await respondCircleRequest(circleReqId, true)
+      if (ok) setCircleStatus('in_circle')
+    }
+    setCircleBusy(false)
+  }
+
+  const circleLabel = {
+    none:        '🔵 Add to My Circle',
+    pending_out: '🔵 Circle request sent',
+    pending_in:  '🔵 Add back to your Circle',
+    in_circle:   '🔵 In your Circle',
+  }[circleStatus]
+  const circleDisabled = circleBusy || circleStatus === 'pending_out' || circleStatus === 'in_circle'
 
   if (loading) {
     return (
@@ -133,6 +165,19 @@ export default function UserProfileScreen() {
             <Text style={styles.msgBtnText}>Message</Text>
           </TouchableOpacity>
         )}
+
+        {/* My Circle — deliberate, mutual, only after you've met */}
+        {wemetId && (
+          <TouchableOpacity
+            style={[styles.circleBtn, circleStatus === 'in_circle' && styles.circleBtnActive, circleDisabled && { opacity: 0.7 }]}
+            onPress={handleCircle}
+            disabled={circleDisabled}
+          >
+            {circleBusy
+              ? <ActivityIndicator color="#29B6F6" size="small" />
+              : <Text style={styles.circleBtnText}>{circleLabel}</Text>}
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   )
@@ -175,4 +220,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#29B6F6', borderRadius: 14, padding: 15, alignItems: 'center', marginTop: 4,
   },
   msgBtnText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
+  circleBtn: {
+    borderRadius: 14, padding: 15, alignItems: 'center',
+    borderWidth: 1, borderColor: '#29B6F6', backgroundColor: '#29B6F612',
+  },
+  circleBtnActive: { borderColor: '#22c55e55', backgroundColor: '#22c55e14' },
+  circleBtnText: { color: '#29B6F6', fontWeight: '800', fontSize: 15 },
 })
