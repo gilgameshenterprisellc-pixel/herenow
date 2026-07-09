@@ -69,7 +69,7 @@ export default function ProfileScreen() {
   const [checkinCount, setCheckinCount]     = useState(0)
   const [connectionCount, setConnectionCount] = useState(0)
   const [venueCount, setVenueCount]         = useState(0)
-  const [wemetHistory, setWemetHistory]     = useState<{ id: string; name: string; avatar: string | null; zone: string | null; when: string | null }[]>([])
+  const [wemetHistory, setWemetHistory]     = useState<{ id: string; userId: string | null; name: string; avatar: string | null; zone: string | null; when: string | null }[]>([])
   const { activeSession }                   = useSessionContext()
 
   const load = async () => {
@@ -107,6 +107,7 @@ export default function ProfileScreen() {
         const other = wm.initiator_id === user.id ? wm.recipient_profile : wm.initiator_profile
         return {
           id:     wm.id,
+          userId: other?.id ?? (wm.initiator_id === user.id ? wm.recipient_id : wm.initiator_id),
           name:   other?.display_name ?? 'Someone',
           avatar: other?.avatar_url ?? null,
           zone:   null,
@@ -376,7 +377,12 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.wemetGrid}>
             {wemetHistory.slice(0, 12).map((w) => (
-              <View key={w.id} style={styles.wemetItem}>
+              <TouchableOpacity
+                key={w.id}
+                style={styles.wemetItem}
+                onPress={() => w.userId && router.push(`/u/${w.userId}` as any)}
+                activeOpacity={0.7}
+              >
                 {w.avatar ? (
                   <Image source={{ uri: w.avatar }} style={styles.wemetAvatar} />
                 ) : (
@@ -385,7 +391,7 @@ export default function ProfileScreen() {
                   </View>
                 )}
                 <Text style={styles.wemetName} numberOfLines={1}>{w.name}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
           {wemetHistory.length > 12 && (
