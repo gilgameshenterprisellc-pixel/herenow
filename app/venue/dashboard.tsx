@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscriberCount, fetchFollowerCount } from '@/lib/venueSubscriptions'
+import { createVenuePulsePost } from '@/lib/pulse'
 import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } from '@/lib/venuePhotos'
 import { platformConfirm } from '@/lib/confirm'
 
@@ -83,6 +84,10 @@ export default function VenueDashboard() {
   const [isClosed, setIsClosed]           = useState(false)
   const [closureMessage, setClosureMessage] = useState('')
   const [closureEditing, setClosureEditing] = useState(false)
+  const [pulseText, setPulseText]         = useState('')
+  const [pulsePin, setPulsePin]           = useState(false)
+  const [pulsePosting, setPulsePosting]   = useState(false)
+  const [pulsePosted, setPulsePosted]     = useState(false)
   const [customWait, setCustomWait]       = useState('')
   const pulseAnim = useRef(new Animated.Value(1)).current
 
@@ -299,6 +304,19 @@ export default function VenueDashboard() {
     await supabase.from('zones').update({ category }).eq('id', venue.id)
   }
 
+  const postToPulse = async () => {
+    if (!venue || !pulseText.trim() || pulsePosting) return
+    setPulsePosting(true)
+    const ok = await createVenuePulsePost({ zoneId: venue.id, content: pulseText, pinned: pulsePin })
+    setPulsePosting(false)
+    if (ok) {
+      setPulseText('')
+      setPulsePin(false)
+      setPulsePosted(true)
+      setTimeout(() => setPulsePosted(false), 2500)
+    }
+  }
+
   const reviewPhoto = async (id: string, status: 'approved' | 'rejected') => {
     setPendingPhotos((prev) => prev.filter((p) => p.id !== id))
     await setVenuePhotoStatus(id, status)
@@ -495,6 +513,40 @@ export default function VenueDashboard() {
                 )}
               </View>
             )}
+          </View>
+        )}
+
+        {/* Post to Pulse — venue's own message on the live feed */}
+        {venue && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Post to Pulse</Text>
+            <Text style={styles.cardHint}>Drop a message on your live feed. Everyone checked in sees it.</Text>
+            <TextInput
+              style={styles.pulseInput}
+              value={pulseText}
+              onChangeText={setPulseText}
+              placeholder="Welcome to launch night! Tag your moments 📸"
+              placeholderTextColor="#4A6580"
+              multiline
+              maxLength={280}
+            />
+            <View style={styles.pulseRow}>
+              <TouchableOpacity style={styles.pinToggle} onPress={() => setPulsePin(!pulsePin)}>
+                <View style={[styles.pinBox, pulsePin && styles.pinBoxOn]}>
+                  {pulsePin && <Text style={styles.pinCheck}>✓</Text>}
+                </View>
+                <Text style={styles.pinLabel}>Pin to top</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pulsePostBtn, (!pulseText.trim() || pulsePosting) && { opacity: 0.5 }]}
+                onPress={postToPulse}
+                disabled={!pulseText.trim() || pulsePosting}
+              >
+                {pulsePosting
+                  ? <ActivityIndicator color="#050A15" size="small" />
+                  : <Text style={styles.pulsePostText}>{pulsePosted ? 'Posted ✓' : 'Post'}</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -1026,6 +1078,21 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 13, fontWeight: '800', color: '#8EADC7', textTransform: 'uppercase', letterSpacing: 0.5 },
   cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
+  pulseInput: {
+    backgroundColor: '#07101F', borderRadius: 12, padding: 12, minHeight: 70,
+    color: '#f8fafc', fontSize: 15, borderWidth: 1, borderColor: '#1A2E4A', textAlignVertical: 'top',
+  },
+  pulseRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pinToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pinBox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: '#1A2E4A',
+    backgroundColor: '#07101F', alignItems: 'center', justifyContent: 'center',
+  },
+  pinBoxOn: { borderColor: '#29B6F6', backgroundColor: '#29B6F622' },
+  pinCheck: { color: '#29B6F6', fontSize: 13, fontWeight: '800' },
+  pinLabel: { color: '#8EADC7', fontSize: 13, fontWeight: '600' },
+  pulsePostBtn: { backgroundColor: '#29B6F6', borderRadius: 20, paddingHorizontal: 22, paddingVertical: 10 },
+  pulsePostText: { color: '#050A15', fontWeight: '800', fontSize: 14 },
   photoReviewRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   photoReviewImg: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#07101F' },
   photoReviewBy: { fontSize: 13, fontWeight: '700', color: '#f0f8ff' },
