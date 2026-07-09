@@ -8,11 +8,15 @@ function timeStr(iso: string): string {
 interface Props {
   message: ChatMsg
   currentUserId: string
+  // Stable anonymous label for the sender (e.g. "Guest 3"). Venue chat is
+  // anonymous — real names are never shown. Falls back to "Guest" if missing.
+  senderLabel?: string
 }
 
-export default function ChatMessage({ message, currentUserId }: Props) {
+export default function ChatMessage({ message, currentUserId, senderLabel }: Props) {
   const isMe = message.user_id === currentUserId
-  const initial = message.profiles?.display_name?.[0]?.toUpperCase() ?? '?'
+  const label = senderLabel ?? 'Guest'
+  const avatarText = label.match(/\d+/)?.[0] ?? '·'
 
   if (isMe) {
     return (
@@ -28,10 +32,10 @@ export default function ChatMessage({ message, currentUserId }: Props) {
   return (
     <View style={styles.rowLeft}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initial}</Text>
+        <Text style={styles.avatarText}>{avatarText}</Text>
       </View>
       <View style={styles.bubbleLeft}>
-        <Text style={styles.sender}>{message.profiles?.display_name ?? 'Someone'}</Text>
+        <Text style={styles.sender}>{label}</Text>
         <Text style={styles.contentLeft}>{message.content}</Text>
         <Text style={styles.timeLeft}>{timeStr(message.created_at)}</Text>
       </View>
