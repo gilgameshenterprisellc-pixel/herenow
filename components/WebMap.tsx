@@ -61,6 +61,14 @@ export default function WebMap({
 }: Props) {
   const mapRef = useRef<MapView>(null)
 
+  // react-native-maps hard-crashes (native) on a NaN/null marker coordinate.
+  // A single zone with missing coords would take the whole app down, so only
+  // ever hand the map zones with valid, finite lat/lng.
+  const validZones = useMemo(
+    () => zones.filter(z => Number.isFinite(z.center_lat) && Number.isFinite(z.center_lng)),
+    [zones]
+  )
+
   const initialRegion: Region = useMemo(() => ({
     latitude:       location?.latitude  ?? USA_CENTER.latitude,
     longitude:      location?.longitude ?? USA_CENTER.longitude,
@@ -85,7 +93,7 @@ export default function WebMap({
   useEffect(() => {
     if (!selectedId || !mapRef.current) return
     const zone = zones.find(z => z.id === selectedId)
-    if (!zone) return
+    if (!zone || !Number.isFinite(zone.center_lat) || !Number.isFinite(zone.center_lng)) return
     mapRef.current.animateToRegion({
       latitude: zone.center_lat,
       longitude: zone.center_lng,
@@ -117,7 +125,7 @@ export default function WebMap({
         userInterfaceStyle="dark"
         onRegionChangeComplete={(r) => onMapMove?.(r.latitude, r.longitude)}
       >
-        {zones.map(zone => {
+        {validZones.map(zone => {
           const tier = getTier(zone, subscribedIds)
           const { color, heatOpacity } = TIER_STYLE[tier]
           const isSelected = zone.id === selectedId
