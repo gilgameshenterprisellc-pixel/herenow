@@ -97,3 +97,33 @@ export async function togglePinPulse(postId: string, pinned: boolean): Promise<b
 export async function deletePulsePost(postId: string): Promise<void> {
   await supabase.from('pulse_posts').delete().eq('id', postId)
 }
+
+// Venue owner posting to their own Pulse from the dashboard — no check-in needed.
+// Requires the venue-post RLS policy (supabase/jacob_venue_pulse_post.sql).
+export async function createVenuePulsePost(params: {
+  zoneId: string
+  content?: string
+  mediaUrl?: string | null
+  pinned?: boolean
+}): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { error } = await supabase.from('pulse_posts').insert({
+    zone_id:       params.zoneId,
+    user_id:       user.id,
+    session_id:    null,
+    content:       params.content?.trim() || null,
+    media_url:     params.mediaUrl ?? null,
+    is_venue_post: true,
+    is_pinned:     params.pinned ?? false,
+    // Venue posts live a bit longer than the 12h guest default.
+    expires_at:    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  })
+  if (error) {
+    console.error('[pulse] createVenuePulsePost error:', error.message)
+    return false
+  }
+  logEvent('venue_pulse_posted', { zoneId: params.zoneId })
+  return true
+}
