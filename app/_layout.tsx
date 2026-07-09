@@ -83,6 +83,7 @@ export default function RootLayout() {
           <Stack.Screen name="messages/[wemetId]" />
           <Stack.Screen name="badges" />
           <Stack.Screen name="profile/edit" />
+          <Stack.Screen name="u/[id]" />
           <Stack.Screen name="venue/dashboard" />
           <Stack.Screen name="venue/edit" />
           <Stack.Screen name="venue/highlights" />

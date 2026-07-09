@@ -22,6 +22,7 @@ export default function DmConversationScreen() {
   const [sending, setSending] = useState(false)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [otherName, setOtherName] = useState('')
+  const [otherId, setOtherId]     = useState<string | null>(null)
   const [notFound, setNotFound]   = useState(false)
   const listRef = useRef<FlatList>(null)
 
@@ -44,11 +45,12 @@ export default function DmConversationScreen() {
       }
 
       setExpiresAt(wm.expires_at)
-      const otherId = wm.initiator_id === user?.id ? wm.recipient_id : wm.initiator_id
+      const otherUserId = wm.initiator_id === user?.id ? wm.recipient_id : wm.initiator_id
+      setOtherId(otherUserId)
       const { data: profile } = await supabase
         .from('profiles')
         .select('display_name')
-        .eq('id', otherId)
+        .eq('id', otherUserId)
         .maybeSingle()
       setOtherName(profile?.display_name ?? 'Unknown')
 
@@ -112,7 +114,9 @@ export default function DmConversationScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/messages' as any)} />
         <View style={styles.headerInfo}>
-          <Text style={styles.name}>{otherName}</Text>
+          <TouchableOpacity onPress={() => otherId && router.push(`/u/${otherId}` as any)} disabled={!otherId}>
+            <Text style={styles.name}>{otherName} ›</Text>
+          </TouchableOpacity>
           {expiresAt && !isExpired && (
             <ExpiryLabel
               expiresAt={expiresAt}
