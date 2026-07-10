@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform, Animated, TextInput, Switch,
-  Linking, Image,
+  Image,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -722,20 +722,20 @@ export default function VenueDashboard() {
           </View>
         )}
 
-        {/* Network Map — lets venue owners see all participating venues */}
+        {/* Tonight's Scene — in-app view of every venue and how their night looks */}
         <TouchableOpacity
           style={styles.mapCard}
-          onPress={() => Linking.openURL('https://herenow-pi.vercel.app')}
+          onPress={() => router.push('/venue/network' as any)}
           activeOpacity={0.85}
         >
           <View style={styles.mapCardLeft}>
             <Ionicons name="map" size={22} color="#29B6F6" />
             <View style={{ gap: 2 }}>
-              <Text style={styles.mapCardTitle}>Network Map</Text>
-              <Text style={styles.mapCardSub}>See all participating venues</Text>
+              <Text style={styles.mapCardTitle}>Tonight's Scene</Text>
+              <Text style={styles.mapCardSub}>See every venue and how busy their night is</Text>
             </View>
           </View>
-          <Ionicons name="open-outline" size={18} color="#4A6580" />
+          <Ionicons name="chevron-forward" size={18} color="#4A6580" />
         </TouchableOpacity>
 
         {/* No venue set up yet */}
