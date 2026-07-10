@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   ScrollView,
+  Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -168,6 +169,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(5,10,21,0.92)',
     justifyContent: 'flex-end',
+    // On desktop web the bottom sheet stretched edge-to-edge and read cheap.
+    // Center it as a contained card instead. Native keeps the bottom-sheet feel.
+    ...Platform.select({
+      web: { justifyContent: 'center', alignItems: 'center', padding: 24 } as any,
+      default: {},
+    }),
   },
   sheet: {
     backgroundColor: '#0A1628',
@@ -176,6 +183,18 @@ const styles = StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.82,
     borderTopWidth: 1,
     borderColor: '#1A2E4A',
+    ...Platform.select({
+      web: {
+        maxWidth: 440,
+        width: '100%' as any,
+        alignSelf: 'center' as const,
+        borderRadius: 28,
+        borderWidth: 1,
+        maxHeight: 660,
+        boxShadow: '0 0 0 1px rgba(41,182,246,0.15), 0 24px 80px rgba(0,0,0,0.6)',
+      } as any,
+      default: {},
+    }),
   },
   dots: {
     flexDirection: 'row',
