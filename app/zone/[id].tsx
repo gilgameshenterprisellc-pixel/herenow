@@ -1154,16 +1154,6 @@ export default function ZoneScreen() {
           contentContainerStyle={styles.list}
           onRefresh={loadEvents}
           refreshing={eventsLoading}
-          ListHeaderComponent={
-            isCheckedIn ? (
-              <TouchableOpacity
-                style={styles.createEventBtn}
-                onPress={() => router.push(`/zone/event/create?zoneId=${id}`)}
-              >
-                <Text style={styles.createEventText}>+ Create Event</Text>
-              </TouchableOpacity>
-            ) : null
-          }
           renderItem={({ item }) => (
             <EventCard
               event={item}
@@ -1175,9 +1165,7 @@ export default function ZoneScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No events yet</Text>
-              <Text style={styles.emptySub}>
-                {isCheckedIn ? 'Create an event for this venue.' : 'Check in to create events.'}
-              </Text>
+              <Text style={styles.emptySub}>Events are posted by the venue.</Text>
             </View>
           }
         />
