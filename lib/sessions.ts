@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { getCurrentCoords } from './location'
 import { checkUserInZone } from './zones'
 import { logEvent } from './analytics'
+import { publicName } from './format'
 
 export type SocialMode = 'dating' | 'friends' | 'networking' | 'just_vibes'
 export type MoodMode   = 'open' | 'selective' | 'not_today'
@@ -276,7 +277,8 @@ export async function getActivePeople(zoneId: string): Promise<ActivePerson[]> {
     return []
   }
 
-  return data ?? []
+  // Others see you as first name + last initial (privacy).
+  return ((data ?? []) as ActivePerson[]).map((p) => ({ ...p, display_name: publicName(p.display_name) }))
 }
 
 export async function getAfterglowHistory(): Promise<any[]> {

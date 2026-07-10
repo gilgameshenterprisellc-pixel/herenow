@@ -1,6 +1,22 @@
 import { supabase } from './supabase'
 import { sendNotification, scheduleDmExpiryAlert } from './notifications'
 import { logEvent } from './analytics'
+import { publicName } from './format'
+
+// Mask both parties' names to first name + last initial. Components only ever
+// display the OTHER person from these records, so masking both is safe and keeps
+// last names private everywhere We Met data is shown (Jacob feedback 6).
+function maskWeMetNames(records: WeMet[]): WeMet[] {
+  return records.map((r) => ({
+    ...r,
+    initiator_profile: r.initiator_profile
+      ? { ...r.initiator_profile, display_name: publicName(r.initiator_profile.display_name) }
+      : r.initiator_profile,
+    recipient_profile: r.recipient_profile
+      ? { ...r.recipient_profile, display_name: publicName(r.recipient_profile.display_name) }
+      : r.recipient_profile,
+  }))
+}
 
 export interface WeMet {
   id: string
@@ -181,7 +197,7 @@ export async function fetchMyWeMets(): Promise<WeMet[]> {
     return []
   }
 
-  return (data as WeMet[]) ?? []
+  return maskWeMetNames((data as WeMet[]) ?? [])
 }
 
 export async function fetchPendingWeMets(): Promise<WeMet[]> {
@@ -203,7 +219,7 @@ export async function fetchPendingWeMets(): Promise<WeMet[]> {
     return []
   }
 
-  return (data as WeMet[]) ?? []
+  return maskWeMetNames((data as WeMet[]) ?? [])
 }
 
 export async function fetchConfirmedWeMets(): Promise<WeMet[]> {
@@ -226,7 +242,7 @@ export async function fetchConfirmedWeMets(): Promise<WeMet[]> {
     return []
   }
 
-  return (data as WeMet[]) ?? []
+  return maskWeMetNames((data as WeMet[]) ?? [])
 }
 
 export async function existingWeMet(params: {
