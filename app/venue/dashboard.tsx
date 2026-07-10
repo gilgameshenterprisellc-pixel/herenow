@@ -505,6 +505,18 @@ export default function VenueDashboard() {
           </Text>
         </View>
 
+        {/* Nightly recap / afterglow */}
+        {venue && (
+          <TouchableOpacity style={styles.recapLink} onPress={() => router.push('/venue/recap' as any)}>
+            <Text style={styles.recapLinkEmoji}>🌙</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recapLinkTitle}>Nightly Recap</Text>
+              <Text style={styles.recapLinkSub}>Last night's numbers + where your crowd came from and went</Text>
+            </View>
+            <Text style={styles.recapLinkArrow}>›</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Temporarily closed toggle */}
         {venue && (
           <View style={[styles.closedCard, isClosed && styles.closedCardActive]}>
@@ -1147,6 +1159,15 @@ const styles = StyleSheet.create({
   cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
   featureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   featureLabel: { fontSize: 15, fontWeight: '700', color: '#f0f8ff' },
+  recapLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#0D1B2E', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#29B6F630',
+  },
+  recapLinkEmoji: { fontSize: 24 },
+  recapLinkTitle: { fontSize: 15, fontWeight: '800', color: '#f0f8ff' },
+  recapLinkSub: { fontSize: 12, color: '#7A93AC', marginTop: 2 },
+  recapLinkArrow: { fontSize: 22, color: '#4A6580' },
   pulsePhotoBtn: {
     alignSelf: 'flex-start', backgroundColor: '#29B6F612', borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: '#29B6F640',
