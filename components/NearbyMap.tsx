@@ -252,7 +252,9 @@ const styles = StyleSheet.create({
   clearBtnText: { color: '#4A6580', fontSize: 13, fontWeight: '600' },
 
   // Chip filter
-  chipStrip: { gap: 7, flexDirection: 'row', paddingBottom: 2 },
+  // paddingRight gives the last chip breathing room so "Karaoke" and the tail
+  // of the list don't look hard-clipped against the edge on web.
+  chipStrip: { gap: 7, flexDirection: 'row', paddingBottom: 2, paddingRight: 20 },
   chipPill: {
     backgroundColor: '#0D1B2E',
     borderRadius: 20,

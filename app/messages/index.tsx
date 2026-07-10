@@ -41,7 +41,7 @@ export default function MessagesScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} />
-        <Text style={styles.title}>Messages 💌</Text>
+        <Text style={styles.title}>Messages</Text>
       </View>
 
       {loading ? (
