@@ -47,7 +47,7 @@ BEGIN
       EXISTS (
         SELECT 1 FROM sessions p
         WHERE p.zone_id = p_zone_id AND p.user_id = v.user_id AND p.checked_in_at < v_start
-      ) AS returning
+      ) AS is_returning
     FROM visitors v
   ),
   -- Where patrons came from: their last check-in at another venue in the 6h
@@ -78,8 +78,8 @@ BEGIN
     'date',            p_date,
     'total_checkins',  (SELECT count(*) FROM day_sessions),
     'unique_visitors', (SELECT count(*) FROM visitors),
-    'new_visitors',    (SELECT count(*) FROM new_returning WHERE NOT returning),
-    'returning',       (SELECT count(*) FROM new_returning WHERE returning),
+    'new_visitors',    (SELECT count(*) FROM new_returning WHERE NOT is_returning),
+    'returning',       (SELECT count(*) FROM new_returning WHERE is_returning),
     'avg_dwell_mins',  (
       SELECT COALESCE(round(avg(EXTRACT(EPOCH FROM (checked_out_at - checked_in_at)) / 60))::int, 0)
       FROM day_sessions WHERE checked_out_at IS NOT NULL
