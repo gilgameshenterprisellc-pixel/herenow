@@ -26,6 +26,11 @@ const ALL_CHIPS = [
   'Happy Hour', '21+', 'Dog Friendly', 'Reservations',
 ]
 
+const VENUE_CATEGORIES = [
+  'Bar', 'Cocktail Lounge', 'Restaurant', 'Coffee Shop', 'Brewery',
+  'Music Venue', 'Club', 'Cafe', 'Park', 'Gym', 'Coworking', 'Other',
+]
+
 // ── Hours picker helpers ────────────────────────────────────────────────────
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 type Day = typeof DAYS[number]
@@ -135,6 +140,7 @@ export default function VenueEditScreen() {
   const [lng, setLng]               = useState<number | null>(null)
   const [radius, setRadius]         = useState(RADIUS_OPTIONS[0].meters)
   const [chips, setChips]           = useState<string[]>([])
+  const [category, setCategory]     = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl]   = useState<string | null>(null)
   const [bannerUrl, setBannerUrl]   = useState<string | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState<'avatar' | 'banner' | null>(null)
@@ -153,7 +159,7 @@ export default function VenueEditScreen() {
 
       const { data: zones } = await supabase
         .from('zones')
-        .select('id, name, description, center_lat, center_lng, radius_meters, chips, opening_hours, avatar_url, banner_url')
+        .select('id, name, description, center_lat, center_lng, radius_meters, chips, opening_hours, avatar_url, banner_url, category')
         .eq('owner_id', user.id)
         .limit(1)
 
@@ -170,6 +176,7 @@ export default function VenueEditScreen() {
         setLng(z.center_lng)
         setRadius(z.radius_meters)
         setChips((z as any).chips ?? [])
+        setCategory((z as any).category ?? null)
       } else {
         const { data: profile } = await supabase
           .from('profiles')
@@ -341,6 +348,7 @@ export default function VenueEditScreen() {
           center_lng: lng,
           radius_meters: radius,
           chips,
+          category,
         })
         .eq('id', existingZone.id)
 
@@ -358,6 +366,7 @@ export default function VenueEditScreen() {
           center_lng: lng,
           radius_meters: radius,
           chips,
+          category,
           created_by: userId,
           owner_id: userId,
           is_active: true,
@@ -642,6 +651,26 @@ export default function VenueEditScreen() {
           )}
 
           <Text style={styles.sectionHint}>Shown on your venue card so guests know when you're open.</Text>
+        </View>
+
+        {/* Venue Category — single select (moved here from the dashboard) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Category</Text>
+          <Text style={styles.sectionHint}>Your kind of spot — shown on your card and in map filters.</Text>
+          <View style={styles.chipsGrid}>
+            {VENUE_CATEGORIES.map((c) => {
+              const active = category === c
+              return (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.chipPill, active && styles.chipPillActive]}
+                  onPress={() => setCategory(active ? null : c)}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{c}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
         </View>
 
         {/* Venue Chips */}

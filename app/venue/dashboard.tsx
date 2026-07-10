@@ -27,10 +27,6 @@ interface VenueZone {
   wait_time_minutes: number | null
 }
 
-const VENUE_CATEGORIES = [
-  'Bar', 'Cocktail Lounge', 'Restaurant', 'Coffee Shop', 'Brewery',
-  'Music Venue', 'Club', 'Cafe', 'Park', 'Gym', 'Coworking', 'Other',
-]
 
 const WAIT_PRESETS = [0, 5, 15, 30, 45, 60] // minutes; null = not shown
 
@@ -303,11 +299,6 @@ export default function VenueDashboard() {
     }).eq('id', venue.id)
   }
 
-  const setCategory = async (category: string) => {
-    if (!venue) return
-    setVenue({ ...venue, category })
-    await supabase.from('zones').update({ category }).eq('id', venue.id)
-  }
 
   const postToPulse = async () => {
     if (!venue || !pulseText.trim() || pulsePosting) return
@@ -629,24 +620,7 @@ export default function VenueDashboard() {
           </View>
         )}
 
-        {/* Venue category — shows on the card + map, feeds discovery */}
-        {venue && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Category</Text>
-            <Text style={styles.cardHint}>Helps people find your kind of spot.</Text>
-            <View style={styles.chipWrap}>
-              {VENUE_CATEGORIES.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.waitChip, venue.category === c && styles.waitChipOn]}
-                  onPress={() => setCategory(c)}
-                >
-                  <Text style={[styles.waitChipText, venue.category === c && styles.waitChipTextOn]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+        {/* Category is set in Edit Venue Profile (Jacob feedback 6) */}
 
         {/* Network Map — lets venue owners see all participating venues */}
         <TouchableOpacity
