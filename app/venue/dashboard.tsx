@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform, Animated, TextInput, Switch,
-  Linking, Image,
+  Image,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -90,6 +90,7 @@ export default function VenueDashboard() {
   const [pulseMediaUrl, setPulseMediaUrl] = useState<string | null>(null)
   const [pulsePhotoUploading, setPulsePhotoUploading] = useState(false)
   const [customWait, setCustomWait]       = useState('')
+  const [dashTab, setDashTab]             = useState<'overview' | 'feed' | 'analytics'>('overview')
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -486,6 +487,20 @@ export default function VenueDashboard() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
       >
+        {/* Dashboard tabs — Overview / Feed / Analytics (Jacob: stop the pile-up) */}
+        {venue && (
+          <View style={styles.dashTabs}>
+            {(['overview', 'feed', 'analytics'] as const).map((t) => (
+              <TouchableOpacity key={t} style={[styles.dashTab, dashTab === t && styles.dashTabOn]} onPress={() => setDashTab(t)} activeOpacity={0.8}>
+                <Text style={[styles.dashTabText, dashTab === t && styles.dashTabTextOn]}>
+                  {t === 'overview' ? 'Overview' : t === 'feed' ? 'Feed' : 'Analytics'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {dashTab === 'overview' && (<>
         {/* Live counter */}
         <View style={[styles.liveCard, isLive && styles.liveCardActive]}>
           <View style={styles.liveLeft}>
@@ -504,6 +519,18 @@ export default function VenueDashboard() {
             {stats.total === 1 ? 'person checked in' : 'people checked in'}
           </Text>
         </View>
+
+        {/* Nightly recap / afterglow */}
+        {venue && (
+          <TouchableOpacity style={styles.recapLink} onPress={() => router.push('/venue/recap' as any)}>
+            <Text style={styles.recapLinkEmoji}>🌙</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recapLinkTitle}>Nightly Recap</Text>
+              <Text style={styles.recapLinkSub}>Last night's numbers + where your crowd came from and went</Text>
+            </View>
+            <Text style={styles.recapLinkArrow}>›</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Temporarily closed toggle */}
         {venue && (
@@ -560,6 +587,9 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        </>)}
+
+        {dashTab === 'feed' && (<>
         {/* Post to Pulse — venue's own message on the live feed */}
         {venue && (
           <View style={styles.card}>
@@ -633,6 +663,9 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        </>)}
+
+        {dashTab === 'overview' && (<>
         {/* Live wait time — guests see this on the venue card + page */}
         {venue && (
           <View style={styles.card}>
@@ -710,20 +743,20 @@ export default function VenueDashboard() {
           </View>
         )}
 
-        {/* Network Map — lets venue owners see all participating venues */}
+        {/* Tonight's Scene — in-app view of every venue and how their night looks */}
         <TouchableOpacity
           style={styles.mapCard}
-          onPress={() => Linking.openURL('https://herenow-pi.vercel.app')}
+          onPress={() => router.push('/venue/network' as any)}
           activeOpacity={0.85}
         >
           <View style={styles.mapCardLeft}>
             <Ionicons name="map" size={22} color="#29B6F6" />
             <View style={{ gap: 2 }}>
-              <Text style={styles.mapCardTitle}>Network Map</Text>
-              <Text style={styles.mapCardSub}>See all participating venues</Text>
+              <Text style={styles.mapCardTitle}>Tonight's Scene</Text>
+              <Text style={styles.mapCardSub}>See every venue and how busy their night is</Text>
             </View>
           </View>
-          <Ionicons name="open-outline" size={18} color="#4A6580" />
+          <Ionicons name="chevron-forward" size={18} color="#4A6580" />
         </TouchableOpacity>
 
         {/* No venue set up yet */}
@@ -740,6 +773,9 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        </>)}
+
+        {dashTab === 'analytics' && (<>
         {/* Age breakdown */}
         {stats.total > 0 && Object.keys(stats.ageRanges).length > 0 && (
           <View style={styles.card}>
@@ -1002,6 +1038,9 @@ export default function VenueDashboard() {
           </>
         )}
 
+        </>)}
+
+        {dashTab === 'overview' && (<>
         {/* Quick actions */}
         <View style={styles.actionsGrid}>
           <TouchableOpacity
@@ -1046,6 +1085,7 @@ export default function VenueDashboard() {
         <Text style={styles.privacyNote}>
           🔒 Age + interest data is anonymous aggregate — you never see individual profiles.
         </Text>
+        </>)}
       </ScrollView>
     </View>
   )
@@ -1054,6 +1094,16 @@ export default function VenueDashboard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
   center: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
+
+  dashTabs: {
+    flexDirection: 'row', gap: 6, marginBottom: 14,
+    backgroundColor: '#0B1526', borderRadius: 12, padding: 4,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  dashTab: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },
+  dashTabOn: { backgroundColor: '#29B6F6' },
+  dashTabText: { fontSize: 13, fontWeight: '700', color: '#7A93AC' },
+  dashTabTextOn: { color: '#050A15' },
 
   glow: { position: 'absolute', borderRadius: 999, opacity: 0.08 },
   glowTop: { width: 400, height: 400, backgroundColor: '#29B6F6', top: -120, right: -100 },
@@ -1147,6 +1197,15 @@ const styles = StyleSheet.create({
   cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
   featureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   featureLabel: { fontSize: 15, fontWeight: '700', color: '#f0f8ff' },
+  recapLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#0D1B2E', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#29B6F630',
+  },
+  recapLinkEmoji: { fontSize: 24 },
+  recapLinkTitle: { fontSize: 15, fontWeight: '800', color: '#f0f8ff' },
+  recapLinkSub: { fontSize: 12, color: '#7A93AC', marginTop: 2 },
+  recapLinkArrow: { fontSize: 22, color: '#4A6580' },
   pulsePhotoBtn: {
     alignSelf: 'flex-start', backgroundColor: '#29B6F612', borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: '#29B6F640',
