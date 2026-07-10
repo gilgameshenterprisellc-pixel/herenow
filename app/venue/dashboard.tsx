@@ -25,6 +25,8 @@ interface VenueZone {
   banner_url: string | null
   category: string | null
   wait_time_minutes: number | null
+  chat_enabled: boolean | null
+  pulse_enabled: boolean | null
 }
 
 
@@ -297,6 +299,12 @@ export default function VenueDashboard() {
       wait_time_minutes:    minutes,
       wait_time_updated_at: minutes === null ? null : new Date().toISOString(),
     }).eq('id', venue.id)
+  }
+
+  const toggleFeature = async (field: 'chat_enabled' | 'pulse_enabled', value: boolean) => {
+    if (!venue) return
+    setVenue({ ...venue, [field]: value })
+    await supabase.from('zones').update({ [field]: value }).eq('id', venue.id)
   }
 
 
@@ -621,6 +629,32 @@ export default function VenueDashboard() {
         )}
 
         {/* Category is set in Edit Venue Profile (Jacob feedback 6) */}
+
+        {/* Social features — turn Pulse / Chat off for an intimate night */}
+        {venue && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Social Features</Text>
+            <Text style={styles.cardHint}>Turn these off to stay on the map without the live feed, or to calm a busy night.</Text>
+            <View style={styles.featureRow}>
+              <Text style={styles.featureLabel}>Pulse</Text>
+              <Switch
+                value={venue.pulse_enabled !== false}
+                onValueChange={(v) => toggleFeature('pulse_enabled', v)}
+                trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
+                thumbColor="#f8fafc"
+              />
+            </View>
+            <View style={styles.featureRow}>
+              <Text style={styles.featureLabel}>Chat</Text>
+              <Switch
+                value={venue.chat_enabled !== false}
+                onValueChange={(v) => toggleFeature('chat_enabled', v)}
+                trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
+                thumbColor="#f8fafc"
+              />
+            </View>
+          </View>
+        )}
 
         {/* Network Map — lets venue owners see all participating venues */}
         <TouchableOpacity
@@ -1057,6 +1091,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 13, fontWeight: '800', color: '#8EADC7', textTransform: 'uppercase', letterSpacing: 0.5 },
   cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  featureLabel: { fontSize: 15, fontWeight: '700', color: '#f0f8ff' },
   pulseInput: {
     backgroundColor: '#07101F', borderRadius: 12, padding: 12, minHeight: 70,
     color: '#f8fafc', fontSize: 15, borderWidth: 1, borderColor: '#1A2E4A', textAlignVertical: 'top',

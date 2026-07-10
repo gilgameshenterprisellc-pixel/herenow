@@ -126,6 +126,19 @@ export default function ZoneScreen() {
 
   const isCheckedIn = activeSession?.zone_id === id
 
+  // A venue can turn off Chat and/or Pulse (Jacob feedback 6). Hide those tabs.
+  const visibleTabs = TABS.filter((t) =>
+    !(t.id === 'chat'  && zone?.chat_enabled  === false) &&
+    !(t.id === 'pulse' && zone?.pulse_enabled === false)
+  )
+
+  // If the selected tab got disabled by the venue, fall back to the first one.
+  useEffect(() => {
+    if (!zone) return
+    if (!visibleTabs.some((t) => t.id === tab) && visibleTabs[0]) setTab(visibleTabs[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zone?.chat_enabled, zone?.pulse_enabled])
+
   // Anonymous chat: assign each other user a stable "Guest N" in order of first
   // appearance in the chat, so nobody's real name is ever shown (Jacob #6).
   const guestNumbers = useMemo(() => {
@@ -145,7 +158,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at, chat_enabled, pulse_enabled')
         .eq('id', id)
         .maybeSingle()
 
@@ -883,7 +896,7 @@ export default function ZoneScreen() {
 
       {/* Inner tabs — pill toggle */}
       <View style={styles.tabBar}>
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <TouchableOpacity
             key={t.id}
             style={[styles.tabItem, tab === t.id && styles.tabItemActive]}
