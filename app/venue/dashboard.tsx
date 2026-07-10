@@ -90,6 +90,7 @@ export default function VenueDashboard() {
   const [pulseMediaUrl, setPulseMediaUrl] = useState<string | null>(null)
   const [pulsePhotoUploading, setPulsePhotoUploading] = useState(false)
   const [customWait, setCustomWait]       = useState('')
+  const [dashTab, setDashTab]             = useState<'overview' | 'feed' | 'analytics'>('overview')
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -486,6 +487,20 @@ export default function VenueDashboard() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
       >
+        {/* Dashboard tabs — Overview / Feed / Analytics (Jacob: stop the pile-up) */}
+        {venue && (
+          <View style={styles.dashTabs}>
+            {(['overview', 'feed', 'analytics'] as const).map((t) => (
+              <TouchableOpacity key={t} style={[styles.dashTab, dashTab === t && styles.dashTabOn]} onPress={() => setDashTab(t)} activeOpacity={0.8}>
+                <Text style={[styles.dashTabText, dashTab === t && styles.dashTabTextOn]}>
+                  {t === 'overview' ? 'Overview' : t === 'feed' ? 'Feed' : 'Analytics'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {dashTab === 'overview' && (<>
         {/* Live counter */}
         <View style={[styles.liveCard, isLive && styles.liveCardActive]}>
           <View style={styles.liveLeft}>
@@ -572,6 +587,9 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        </>)}
+
+        {dashTab === 'feed' && (<>
         {/* Post to Pulse — venue's own message on the live feed */}
         {venue && (
           <View style={styles.card}>
@@ -645,6 +663,9 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        </>)}
+
+        {dashTab === 'overview' && (<>
         {/* Live wait time — guests see this on the venue card + page */}
         {venue && (
           <View style={styles.card}>
@@ -752,6 +773,9 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        </>)}
+
+        {dashTab === 'analytics' && (<>
         {/* Age breakdown */}
         {stats.total > 0 && Object.keys(stats.ageRanges).length > 0 && (
           <View style={styles.card}>
@@ -1014,6 +1038,9 @@ export default function VenueDashboard() {
           </>
         )}
 
+        </>)}
+
+        {dashTab === 'overview' && (<>
         {/* Quick actions */}
         <View style={styles.actionsGrid}>
           <TouchableOpacity
@@ -1058,6 +1085,7 @@ export default function VenueDashboard() {
         <Text style={styles.privacyNote}>
           🔒 Age + interest data is anonymous aggregate — you never see individual profiles.
         </Text>
+        </>)}
       </ScrollView>
     </View>
   )
@@ -1066,6 +1094,16 @@ export default function VenueDashboard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
   center: { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' },
+
+  dashTabs: {
+    flexDirection: 'row', gap: 6, marginBottom: 14,
+    backgroundColor: '#0B1526', borderRadius: 12, padding: 4,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  dashTab: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },
+  dashTabOn: { backgroundColor: '#29B6F6' },
+  dashTabText: { fontSize: 13, fontWeight: '700', color: '#7A93AC' },
+  dashTabTextOn: { color: '#050A15' },
 
   glow: { position: 'absolute', borderRadius: 999, opacity: 0.08 },
   glowTop: { width: 400, height: 400, backgroundColor: '#29B6F6', top: -120, right: -100 },
