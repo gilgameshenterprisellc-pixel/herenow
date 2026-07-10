@@ -8,14 +8,31 @@ interface Props {
   lng: number
   onPolygon: (wkt: string, points: Point[]) => void
   onClear?: () => void
+  // Current saved polygon (WKT). Drawn as a red reference so the admin can see
+  // exactly where the existing zone sits versus the real building.
+  existingWkt?: string | null
+}
+
+// Parse a POLYGON((lng lat, ...)) WKT ring into Leaflet [lat, lng] pairs.
+function parseWktRing(wkt?: string | null): [number, number][] {
+  if (!wkt) return []
+  const m = wkt.match(/\(\(([^)]+)\)\)/)
+  if (!m) return []
+  const ring = m[1].split(',').map((pair) => {
+    const [lng, lat] = pair.trim().split(/\s+/).map(Number)
+    return [lat, lng] as [number, number]
+  }).filter(([la, lo]) => Number.isFinite(la) && Number.isFinite(lo))
+  return ring.length >= 3 ? ring : []
 }
 
 // Web-only interactive polygon drawing tool.
 // Uses Leaflet from CDN inside a srcdoc iframe — no npm package needed.
+// Satellite imagery (Esri) so you can trace the actual building roofline.
 // Click the map to add points, then hit "Complete Polygon".
 // Communicates back to the parent via postMessage.
-export function PolygonDrawMap({ lat, lng, onPolygon, onClear }: Props) {
+export function PolygonDrawMap({ lat, lng, onPolygon, onClear, existingWkt }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const existingRing = parseWktRing(existingWkt)
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -57,16 +74,25 @@ export function PolygonDrawMap({ lat, lng, onPolygon, onClear }: Props) {
 </head>
 <body>
 <div id="map"></div>
-<div id="info">Click to place points · 3+ points to complete</div>
-<div id="zoom-hint">Scroll to zoom in for precision</div>
+<div id="info">Trace the building roof · 3+ points to complete</div>
+<div id="zoom-hint">Red dashed = current saved zone · scroll to zoom</div>
 <div id="toolbar">
   <button id="btn-undo" disabled onclick="undoLast()">↩ Undo</button>
   <button id="btn-clear" onclick="clearAll()">Clear</button>
   <button id="btn-complete" disabled onclick="complete()">Complete Polygon ✓</button>
 </div>
 <script>
-var map=L.map('map',{zoomControl:true,maxZoom:22}).setView([${lat},${lng}],19)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:22}).addTo(map)
+var map=L.map('map',{zoomControl:true,maxZoom:22}).setView([${lat},${lng}],20)
+// Satellite base so the building roofline is actually visible to trace.
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Imagery © Esri'}).addTo(map)
+// Street + place labels on top for orientation.
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,opacity:0.85}).addTo(map)
+// Draw the currently-saved zone in red so you can see if it is off the building.
+var existing=${JSON.stringify(existingRing)}
+if(existing.length>=3){
+  var ref=L.polygon(existing,{color:'#ef4444',fillColor:'#ef4444',fillOpacity:0.12,weight:2,dashArray:'4 4'}).addTo(map)
+  try{map.fitBounds(ref.getBounds(),{padding:[40,40],maxZoom:20})}catch(e){}
+}
 var pts=[],markers=[],polyline=null,poly=null
 
 function redraw(){
