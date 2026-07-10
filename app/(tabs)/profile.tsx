@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { fetchUserBadges } from '@/lib/badges'
 import { fetchConfirmedWeMets, type WeMet } from '@/lib/weMet'
+import { checkOutActiveOnSignOut } from '@/lib/sessions'
 import AvatarImage from '@/components/AvatarImage'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { useTabBarScroll } from '@/contexts/TabBarScrollContext'
@@ -135,6 +136,8 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Leaving the app must end any active check-in first (safety).
+              await checkOutActiveOnSignOut()
               await supabase.auth.signOut()
               router.replace('/(auth)/login')
             } catch {
@@ -145,6 +148,8 @@ export default function ProfileScreen() {
       ])
     } else {
       try {
+        // Leaving the app must end any active check-in first (safety).
+        await checkOutActiveOnSignOut()
         // Full page reload clears the JS auth cache completely.
         // router.replace('/') leaves stale session in memory → lands on tabs, not landing page.
         await supabase.auth.signOut()
