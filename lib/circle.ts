@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { sendNotification } from './notifications'
+import { publicName } from './format'
 
 // My Circle — a deliberate, mutual, private list of people you've chosen to keep.
 // A confirmed We Met is required to send a request (enforced in RLS too).
@@ -117,7 +118,7 @@ export async function fetchMyCircle(): Promise<CircleMember[]> {
     return {
       request_id:   r.id,
       user_id:      other?.id ?? '',
-      display_name: other?.display_name ?? 'Someone',
+      display_name: publicName(other?.display_name),
       avatar_url:   other?.avatar_url ?? null,
     }
   })
@@ -137,7 +138,7 @@ export async function fetchIncomingCircleRequests(): Promise<IncomingCircleReque
   return ((data ?? []) as any[]).map((r) => ({
     request_id:   r.id,
     requester_id: r.requester_id,
-    display_name: r.requester?.display_name ?? 'Someone',
+    display_name: publicName(r.requester?.display_name),
     avatar_url:   r.requester?.avatar_url ?? null,
     created_at:   r.created_at,
   }))

@@ -10,6 +10,7 @@ import { useDmThread } from '@/hooks/useMessages'
 import { sendMessage, markMessagesRead, isPermanentDm } from '@/lib/messages'
 import { unmeet } from '@/lib/weMet'
 import { platformConfirm } from '@/lib/confirm'
+import { publicName } from '@/lib/format'
 import DmBubble from '@/components/DmBubble'
 import ExpiryLabel from '@/components/ExpiryLabel'
 import BackButton from '@/components/BackButton'
@@ -52,7 +53,7 @@ export default function DmConversationScreen() {
         .select('display_name')
         .eq('id', otherUserId)
         .maybeSingle()
-      setOtherName(profile?.display_name ?? 'Unknown')
+      setOtherName(publicName(profile?.display_name))
 
       if (user) await markMessagesRead(wemetId, user.id)
     }

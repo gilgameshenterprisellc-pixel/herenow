@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import { useDmThreads } from '@/hooks/useMessages'
 import { supabase } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
+import { publicName } from '@/lib/format'
 
 export default function MessagesScreen() {
   const insets = useSafeAreaInsets()
@@ -72,7 +73,7 @@ export default function MessagesScreen() {
                 <View style={styles.info}>
                   <View style={styles.row}>
                     <Text style={[styles.name, expiry.expired && styles.nameFaded]}>
-                      {item.other_display_name ?? 'Unknown'}
+                      {publicName(item.other_display_name)}
                     </Text>
                     <Text style={styles.time}>
                       {item.last_message_at ? formatTime(item.last_message_at) : ''}

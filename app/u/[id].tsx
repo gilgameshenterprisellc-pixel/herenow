@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import BackButton from '@/components/BackButton'
 import { getCircleStatus, sendCircleRequest, respondCircleRequest, type CircleStatus } from '@/lib/circle'
+import { publicName } from '@/lib/format'
 
 interface UserProfile {
   id: string
@@ -129,7 +130,7 @@ export default function UserProfileScreen() {
       >
         <View style={styles.hero}>
           <AvatarImage uri={profile.avatar_url} name={profile.display_name} size={96} />
-          <Text style={styles.displayName}>{profile.display_name}</Text>
+          <Text style={styles.displayName}>{publicName(profile.display_name)}</Text>
           {profile.username ? <Text style={styles.username}>@{profile.username}</Text> : null}
           {!!joined && <Text style={styles.joined}>{joined}</Text>}
           {wemetId && (
