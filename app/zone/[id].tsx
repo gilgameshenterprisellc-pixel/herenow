@@ -1224,6 +1224,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#0D1B2E',
+    ...Platform.select({ web: { maxWidth: 560, alignSelf: 'center' as const, width: '100%' as any }, default: {} }),
   },
   heroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: -24 },
   heroAvatar: {
@@ -1295,6 +1296,7 @@ const styles = StyleSheet.create({
     padding: 3,
     borderWidth: 1,
     borderColor: '#1A2E4A',
+    ...Platform.select({ web: { maxWidth: 560, alignSelf: 'center' as const, width: '100%' as any }, default: {} }),
   },
   tabItem: {
     flex: 1,
@@ -1307,7 +1309,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: { fontSize: 12, color: '#4A6580', fontWeight: '600', letterSpacing: 0.1 },
   tabLabelActive: { color: '#29B6F6', fontWeight: '700' },
-  list: { padding: 14, gap: 10 },
+  list: { padding: 14, gap: 10, ...Platform.select({ web: { maxWidth: 560, alignSelf: 'center' as const, width: '100%' as any }, default: {} }) },
   gateWall: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 32, gap: 12,
