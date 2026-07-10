@@ -23,7 +23,7 @@ const SessionContext = createContext<SessionContextValue>({
   checkOut: async () => {},
 })
 
-const AUTO_CHECKOUT_MS = 10 * 60 * 1000 // 10 minutes
+const AUTO_CHECKOUT_MS = 3 * 60 * 1000  // 3 minutes — prompt leave detection
 const HEARTBEAT_MS     = 2 * 60 * 1000  // 2 minutes — keeps presence fresh
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -57,6 +57,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return result
   }, [])
 
+  // Verify the user is still physically in their checked-in zone; if not, check
+  // them out. Runs on a timer AND immediately whenever the app returns to the
+  // foreground, so leaving the venue drops you promptly (Jacob safety).
+  const verifyPresenceOrCheckout = useCallback(async () => {
+    if (!activeSession || Platform.OS === 'web') return
+    try {
+      const coords = await getCurrentCoords()
+      if (!coords) return
+      const stillInZone = await checkUserInZone(activeSession.zone_id, coords.latitude, coords.longitude)
+      if (!stillInZone) {
+        await doCheckOut(activeSession.id)
+        setActiveSession(null)
+      }
+    } catch {
+      // Location unavailable — skip, try again next tick
+    }
+  }, [activeSession?.id, activeSession?.zone_id])
+
   // Presence heartbeat: keep the active session "fresh" so the venue sees you as
   // here. Refreshes every 2 min while the app is open, and immediately whenever
   // the app returns to the foreground. When the app is closed and you've left,
@@ -68,7 +86,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     const beat = setInterval(() => { touchSession(activeSession.id).catch(() => {}) }, HEARTBEAT_MS)
     const appSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') touchSession(activeSession.id).catch(() => {})
+      if (state === 'active') {
+        touchSession(activeSession.id).catch(() => {})
+        // Coming back to the app is the moment to catch a missed geofence exit.
+        verifyPresenceOrCheckout()
+      }
     })
 
     return () => { clearInterval(beat); appSub.remove() }
@@ -86,19 +108,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!activeSession || Platform.OS === 'web') return
 
-    autoCheckoutTimer.current = setInterval(async () => {
-      try {
-        const coords = await getCurrentCoords()
-        if (!coords) return
-        const stillInZone = await checkUserInZone(activeSession.zone_id, coords.latitude, coords.longitude)
-        if (!stillInZone) {
-          await doCheckOut(activeSession.id)
-          setActiveSession(null)
-        }
-      } catch {
-        // Location unavailable — skip this tick, try again next interval
-      }
-    }, AUTO_CHECKOUT_MS)
+    autoCheckoutTimer.current = setInterval(() => { verifyPresenceOrCheckout() }, AUTO_CHECKOUT_MS)
 
     return () => {
       if (autoCheckoutTimer.current) {

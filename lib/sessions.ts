@@ -234,6 +234,17 @@ export async function touchSession(sessionId: string): Promise<void> {
     .eq('is_active', true)
 }
 
+// Deactivate any active session before signing out, so a user is never left
+// "checked in" after they leave (Jacob safety feedback). Non-fatal.
+export async function checkOutActiveOnSignOut(): Promise<void> {
+  try {
+    const session = await getActiveSession()
+    if (session) await checkOut(session.id)
+  } catch (e) {
+    console.error('[sessions] checkOutActiveOnSignOut error:', e)
+  }
+}
+
 export async function getActiveSession(): Promise<Session | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
