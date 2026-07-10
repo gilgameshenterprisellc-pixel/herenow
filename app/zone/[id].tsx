@@ -125,6 +125,11 @@ export default function ZoneScreen() {
   const wmOpacity = useRef(new Animated.Value(0)).current
 
   const isCheckedIn = activeSession?.zone_id === id
+  // The venue owner can view (monitor) their own Pulse + Chat without checking in,
+  // since owners never check in as a person (Jacob feedback 6). View-only — the
+  // person composers stay gated to checked-in users; venues post Pulse from the dashboard.
+  const isOwner = !!userId && zone?.owner_id === userId
+  const canViewFeed = isCheckedIn || isOwner
 
   // A venue can turn off Chat and/or Pulse (Jacob feedback 6). Hide those tabs.
   const visibleTabs = TABS.filter((t) =>
@@ -913,7 +918,7 @@ export default function ZoneScreen() {
       {/* Tab content */}
 
       {/* Gate: People / Chat require physical check-in (hard wall) */}
-      {(tab === 'people' || tab === 'chat') && !isCheckedIn && (
+      {((tab === 'people' && !isCheckedIn) || (tab === 'chat' && !canViewFeed)) && (
         <View style={styles.gateWall}>
           <Text style={styles.gateTitle}>Check in to join</Text>
           <Text style={styles.gateSub}>
@@ -931,7 +936,7 @@ export default function ZoneScreen() {
       )}
 
       {/* Pulse blurred preview — ghost posts visible, CTA overlay prompts check-in */}
-      {tab === 'pulse' && !isCheckedIn && (
+      {tab === 'pulse' && !canViewFeed && (
         <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1 }}>
           {venueInfo}
           <View style={{ flex: 1, position: 'relative', minHeight: 240 }}>
@@ -1002,7 +1007,7 @@ export default function ZoneScreen() {
         />
       )}
 
-      {tab === 'pulse' && isCheckedIn && (
+      {tab === 'pulse' && canViewFeed && (
         <View style={styles.flex}>
           <FlatList
             data={pulsePosts}
@@ -1094,7 +1099,7 @@ export default function ZoneScreen() {
         </View>
       )}
 
-      {tab === 'chat' && isCheckedIn && (
+      {tab === 'chat' && canViewFeed && (
         <View style={styles.flex}>
           <FlatList
             ref={chatListRef}
