@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscriberCount, fetchFollowerCount } from '@/lib/venueSubscriptions'
+import * as ImagePicker from 'expo-image-picker'
 import { createVenuePulsePost } from '@/lib/pulse'
 import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } from '@/lib/venuePhotos'
 import { platformConfirm } from '@/lib/confirm'
@@ -25,12 +26,10 @@ interface VenueZone {
   banner_url: string | null
   category: string | null
   wait_time_minutes: number | null
+  chat_enabled: boolean | null
+  pulse_enabled: boolean | null
 }
 
-const VENUE_CATEGORIES = [
-  'Bar', 'Cocktail Lounge', 'Restaurant', 'Coffee Shop', 'Brewery',
-  'Music Venue', 'Club', 'Cafe', 'Park', 'Gym', 'Coworking', 'Other',
-]
 
 const WAIT_PRESETS = [0, 5, 15, 30, 45, 60] // minutes; null = not shown
 
@@ -88,6 +87,8 @@ export default function VenueDashboard() {
   const [pulsePin, setPulsePin]           = useState(false)
   const [pulsePosting, setPulsePosting]   = useState(false)
   const [pulsePosted, setPulsePosted]     = useState(false)
+  const [pulseMediaUrl, setPulseMediaUrl] = useState<string | null>(null)
+  const [pulsePhotoUploading, setPulsePhotoUploading] = useState(false)
   const [customWait, setCustomWait]       = useState('')
   const pulseAnim = useRef(new Animated.Value(1)).current
 
@@ -303,20 +304,58 @@ export default function VenueDashboard() {
     }).eq('id', venue.id)
   }
 
-  const setCategory = async (category: string) => {
+  const toggleFeature = async (field: 'chat_enabled' | 'pulse_enabled', value: boolean) => {
     if (!venue) return
-    setVenue({ ...venue, category })
-    await supabase.from('zones').update({ category }).eq('id', venue.id)
+    setVenue({ ...venue, [field]: value })
+    await supabase.from('zones').update({ [field]: value }).eq('id', venue.id)
+  }
+
+
+  const attachPulsePhoto = async () => {
+    if (!venue || pulsePhotoUploading) return
+    setPulsePhotoUploading(true)
+    try {
+      const path = `pulse/${venue.id}/${Date.now()}.jpg`
+      let uploadBody: Blob | ArrayBuffer | null = null
+      let contentType = 'image/jpeg'
+      if (Platform.OS === 'web') {
+        const file = await new Promise<File | null>((resolve) => {
+          const input = document.createElement('input')
+          input.type = 'file'; input.accept = 'image/*'
+          input.onchange = () => resolve(input.files?.[0] ?? null)
+          input.click()
+        })
+        if (!file) { setPulsePhotoUploading(false); return }
+        uploadBody = file; contentType = file.type || 'image/jpeg'
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (status !== 'granted') { setPulsePhotoUploading(false); return }
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 })
+        if (result.canceled || !result.assets[0]) { setPulsePhotoUploading(false); return }
+        const asset = result.assets[0]
+        uploadBody = await (await fetch(asset.uri)).arrayBuffer()
+        contentType = asset.mimeType || 'image/jpeg'
+      }
+      const { error } = await supabase.storage.from('avatars').upload(path, uploadBody as any, { contentType, upsert: true })
+      if (error) { console.error('[pulse photo] upload:', error.message); setPulsePhotoUploading(false); return }
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+      setPulseMediaUrl(`${data.publicUrl}?v=${Date.now()}`)
+    } catch (e) {
+      console.error('[pulse photo] error:', e)
+    } finally {
+      setPulsePhotoUploading(false)
+    }
   }
 
   const postToPulse = async () => {
-    if (!venue || !pulseText.trim() || pulsePosting) return
+    if (!venue || (!pulseText.trim() && !pulseMediaUrl) || pulsePosting) return
     setPulsePosting(true)
-    const ok = await createVenuePulsePost({ zoneId: venue.id, content: pulseText, pinned: pulsePin })
+    const ok = await createVenuePulsePost({ zoneId: venue.id, content: pulseText, mediaUrl: pulseMediaUrl, pinned: pulsePin })
     setPulsePosting(false)
     if (ok) {
       setPulseText('')
       setPulsePin(false)
+      setPulseMediaUrl(null)
       setPulsePosted(true)
       setTimeout(() => setPulsePosted(false), 2500)
     }
@@ -535,6 +574,20 @@ export default function VenueDashboard() {
               multiline
               maxLength={280}
             />
+            {pulseMediaUrl ? (
+              <View style={styles.pulsePhotoPreviewWrap}>
+                <Image source={{ uri: pulseMediaUrl }} style={styles.pulsePhotoPreview} resizeMode="cover" />
+                <TouchableOpacity style={styles.pulsePhotoRemove} onPress={() => setPulseMediaUrl(null)}>
+                  <Text style={styles.pulsePhotoRemoveText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.pulsePhotoBtn} onPress={attachPulsePhoto} disabled={pulsePhotoUploading}>
+                {pulsePhotoUploading
+                  ? <ActivityIndicator color="#29B6F6" size="small" />
+                  : <Text style={styles.pulsePhotoBtnText}>📷 Add a photo</Text>}
+              </TouchableOpacity>
+            )}
             <View style={styles.pulseRow}>
               <TouchableOpacity style={styles.pinToggle} onPress={() => setPulsePin(!pulsePin)}>
                 <View style={[styles.pinBox, pulsePin && styles.pinBoxOn]}>
@@ -543,9 +596,9 @@ export default function VenueDashboard() {
                 <Text style={styles.pinLabel}>Pin to top</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.pulsePostBtn, (!pulseText.trim() || pulsePosting) && { opacity: 0.5 }]}
+                style={[styles.pulsePostBtn, ((!pulseText.trim() && !pulseMediaUrl) || pulsePosting) && { opacity: 0.5 }]}
                 onPress={postToPulse}
-                disabled={!pulseText.trim() || pulsePosting}
+                disabled={(!pulseText.trim() && !pulseMediaUrl) || pulsePosting}
               >
                 {pulsePosting
                   ? <ActivityIndicator color="#050A15" size="small" />
@@ -629,21 +682,30 @@ export default function VenueDashboard() {
           </View>
         )}
 
-        {/* Venue category — shows on the card + map, feeds discovery */}
+        {/* Category is set in Edit Venue Profile (Jacob feedback 6) */}
+
+        {/* Social features — turn Pulse / Chat off for an intimate night */}
         {venue && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Category</Text>
-            <Text style={styles.cardHint}>Helps people find your kind of spot.</Text>
-            <View style={styles.chipWrap}>
-              {VENUE_CATEGORIES.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.waitChip, venue.category === c && styles.waitChipOn]}
-                  onPress={() => setCategory(c)}
-                >
-                  <Text style={[styles.waitChipText, venue.category === c && styles.waitChipTextOn]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
+            <Text style={styles.cardTitle}>Social Features</Text>
+            <Text style={styles.cardHint}>Turn these off to stay on the map without the live feed, or to calm a busy night.</Text>
+            <View style={styles.featureRow}>
+              <Text style={styles.featureLabel}>Pulse</Text>
+              <Switch
+                value={venue.pulse_enabled !== false}
+                onValueChange={(v) => toggleFeature('pulse_enabled', v)}
+                trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
+                thumbColor="#f8fafc"
+              />
+            </View>
+            <View style={styles.featureRow}>
+              <Text style={styles.featureLabel}>Chat</Text>
+              <Switch
+                value={venue.chat_enabled !== false}
+                onValueChange={(v) => toggleFeature('chat_enabled', v)}
+                trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
+                thumbColor="#f8fafc"
+              />
             </View>
           </View>
         )}
@@ -1083,6 +1145,21 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 13, fontWeight: '800', color: '#8EADC7', textTransform: 'uppercase', letterSpacing: 0.5 },
   cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  featureLabel: { fontSize: 15, fontWeight: '700', color: '#f0f8ff' },
+  pulsePhotoBtn: {
+    alignSelf: 'flex-start', backgroundColor: '#29B6F612', borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: '#29B6F640',
+  },
+  pulsePhotoBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 13 },
+  pulsePhotoPreviewWrap: { position: 'relative', alignSelf: 'flex-start' },
+  pulsePhotoPreview: { width: 120, height: 120, borderRadius: 12, borderWidth: 1, borderColor: '#1A2E4A' },
+  pulsePhotoRemove: {
+    position: 'absolute', top: -8, right: -8, width: 24, height: 24, borderRadius: 12,
+    backgroundColor: '#050A15', borderWidth: 1, borderColor: '#1A2E4A',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pulsePhotoRemoveText: { color: '#f8fafc', fontSize: 12, fontWeight: '800' },
   pulseInput: {
     backgroundColor: '#07101F', borderRadius: 12, padding: 12, minHeight: 70,
     color: '#f8fafc', fontSize: 15, borderWidth: 1, borderColor: '#1A2E4A', textAlignVertical: 'top',

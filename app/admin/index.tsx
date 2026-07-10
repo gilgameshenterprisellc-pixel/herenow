@@ -11,6 +11,7 @@ interface Stats {
   totalUsers: number
   totalVenues: number
   pendingVenues: number
+  pendingSubmissions: number
   openReports: number
   openUserReports: number
   mutedUsers: number
@@ -27,6 +28,7 @@ export default function AdminOverview() {
       { count: totalUsers },
       { count: totalVenues },
       { count: pendingVenues },
+      { count: pendingSubmissions },
       { count: openReports },
       { count: openUserReports },
       { count: mutedUsers },
@@ -34,6 +36,7 @@ export default function AdminOverview() {
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       supabase.from('zones').select('id', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('venue_status', 'pending'),
+      supabase.from('venue_submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('content_reports').select('id', { count: 'exact', head: true }).eq('status', 'open'),
       supabase.from('safety_reports').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_muted', true),
@@ -43,6 +46,7 @@ export default function AdminOverview() {
       totalUsers:      totalUsers ?? 0,
       totalVenues:     totalVenues ?? 0,
       pendingVenues:   pendingVenues ?? 0,
+      pendingSubmissions: pendingSubmissions ?? 0,
       openReports:     (openReports ?? 0) + (openUserReports ?? 0),
       openUserReports: openUserReports ?? 0,
       mutedUsers:      mutedUsers ?? 0,
@@ -116,6 +120,11 @@ export default function AdminOverview() {
                   <Text style={styles.actionSub}>User-nominated venues to review and go live</Text>
                 </View>
               </View>
+              {(stats?.pendingSubmissions ?? 0) > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{stats!.pendingSubmissions}</Text>
+                </View>
+              )}
               <Text style={styles.arrow}>›</Text>
             </TouchableOpacity>
 

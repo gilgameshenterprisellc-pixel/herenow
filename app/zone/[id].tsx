@@ -125,6 +125,24 @@ export default function ZoneScreen() {
   const wmOpacity = useRef(new Animated.Value(0)).current
 
   const isCheckedIn = activeSession?.zone_id === id
+  // The venue owner can view (monitor) their own Pulse + Chat without checking in,
+  // since owners never check in as a person (Jacob feedback 6). View-only — the
+  // person composers stay gated to checked-in users; venues post Pulse from the dashboard.
+  const isOwner = !!userId && zone?.owner_id === userId
+  const canViewFeed = isCheckedIn || isOwner
+
+  // A venue can turn off Chat and/or Pulse (Jacob feedback 6). Hide those tabs.
+  const visibleTabs = TABS.filter((t) =>
+    !(t.id === 'chat'  && zone?.chat_enabled  === false) &&
+    !(t.id === 'pulse' && zone?.pulse_enabled === false)
+  )
+
+  // If the selected tab got disabled by the venue, fall back to the first one.
+  useEffect(() => {
+    if (!zone) return
+    if (!visibleTabs.some((t) => t.id === tab) && visibleTabs[0]) setTab(visibleTabs[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zone?.chat_enabled, zone?.pulse_enabled])
 
   // Anonymous chat: assign each other user a stable "Guest N" in order of first
   // appearance in the chat, so nobody's real name is ever shown (Jacob #6).
@@ -145,7 +163,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at, chat_enabled, pulse_enabled')
         .eq('id', id)
         .maybeSingle()
 
@@ -883,7 +901,7 @@ export default function ZoneScreen() {
 
       {/* Inner tabs — pill toggle */}
       <View style={styles.tabBar}>
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <TouchableOpacity
             key={t.id}
             style={[styles.tabItem, tab === t.id && styles.tabItemActive]}
@@ -900,7 +918,7 @@ export default function ZoneScreen() {
       {/* Tab content */}
 
       {/* Gate: People / Chat require physical check-in (hard wall) */}
-      {(tab === 'people' || tab === 'chat') && !isCheckedIn && (
+      {((tab === 'people' && !isCheckedIn) || (tab === 'chat' && !canViewFeed)) && (
         <View style={styles.gateWall}>
           <Text style={styles.gateTitle}>Check in to join</Text>
           <Text style={styles.gateSub}>
@@ -918,7 +936,7 @@ export default function ZoneScreen() {
       )}
 
       {/* Pulse blurred preview — ghost posts visible, CTA overlay prompts check-in */}
-      {tab === 'pulse' && !isCheckedIn && (
+      {tab === 'pulse' && !canViewFeed && (
         <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1 }}>
           {venueInfo}
           <View style={{ flex: 1, position: 'relative', minHeight: 240 }}>
@@ -989,7 +1007,7 @@ export default function ZoneScreen() {
         />
       )}
 
-      {tab === 'pulse' && isCheckedIn && (
+      {tab === 'pulse' && canViewFeed && (
         <View style={styles.flex}>
           <FlatList
             data={pulsePosts}
@@ -1081,7 +1099,7 @@ export default function ZoneScreen() {
         </View>
       )}
 
-      {tab === 'chat' && isCheckedIn && (
+      {tab === 'chat' && canViewFeed && (
         <View style={styles.flex}>
           <FlatList
             ref={chatListRef}
@@ -1141,16 +1159,6 @@ export default function ZoneScreen() {
           contentContainerStyle={styles.list}
           onRefresh={loadEvents}
           refreshing={eventsLoading}
-          ListHeaderComponent={
-            isCheckedIn ? (
-              <TouchableOpacity
-                style={styles.createEventBtn}
-                onPress={() => router.push(`/zone/event/create?zoneId=${id}`)}
-              >
-                <Text style={styles.createEventText}>+ Create Event</Text>
-              </TouchableOpacity>
-            ) : null
-          }
           renderItem={({ item }) => (
             <EventCard
               event={item}
@@ -1162,9 +1170,7 @@ export default function ZoneScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No events yet</Text>
-              <Text style={styles.emptySub}>
-                {isCheckedIn ? 'Create an event for this venue.' : 'Check in to create events.'}
-              </Text>
+              <Text style={styles.emptySub}>Events are posted by the venue.</Text>
             </View>
           }
         />

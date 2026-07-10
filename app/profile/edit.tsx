@@ -39,6 +39,7 @@ export default function EditProfileScreen() {
   const [userId, setUserId]           = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl]     = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
+  const [username, setUsername]       = useState('')
   const [bio, setBio]                 = useState('')
   const [ageRange, setAgeRange]       = useState('')
   const [interests, setInterests]     = useState<string[]>([])
@@ -55,11 +56,12 @@ export default function EditProfileScreen() {
       setUserId(user.id)
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, bio, age_range, interest_tags, interest_text, gender, kickoffs, avatar_url, checkin_visibility')
+        .select('display_name, username, bio, age_range, interest_tags, interest_text, gender, kickoffs, avatar_url, checkin_visibility')
         .eq('id', user.id)
         .maybeSingle()
       if (data) {
         setDisplayName(data.display_name ?? '')
+        setUsername(data.username ?? '')
         setBio(data.bio ?? '')
         setAgeRange(data.age_range ?? '')
         setInterests(data.interest_tags ?? [])
@@ -131,14 +133,33 @@ export default function EditProfileScreen() {
       showToast('Enter a display name so people can recognize you.', 'error')
       return
     }
+    const cleanUsername = username.trim().toLowerCase()
+    if (!cleanUsername) {
+      showToast('Pick a username (your @handle).', 'error')
+      return
+    }
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
-    await supabase
+    // Username must be unique — reject if someone else already has it.
+    const { data: taken } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', cleanUsername)
+      .neq('id', user.id)
+      .maybeSingle()
+    if (taken) {
+      setSaving(false)
+      showToast('That username is taken — try another.', 'error')
+      return
+    }
+
+    const { error: saveError } = await supabase
       .from('profiles')
       .update({
         display_name:  displayName.trim(),
+        username:      cleanUsername,
         bio:           bio.trim() || null,
         age_range:     ageRange || null,
         interest_tags:      interests,
@@ -148,6 +169,18 @@ export default function EditProfileScreen() {
         checkin_visibility: checkinPrivacy,
       })
       .eq('id', user.id)
+
+    if (saveError) {
+      setSaving(false)
+      // Backstop for a race against the unique username index.
+      showToast(
+        /username|unique|duplicate/i.test(saveError.message)
+          ? 'That username is taken — try another.'
+          : (saveError.message ?? 'Save failed. Try again.'),
+        'error'
+      )
+      return
+    }
 
     setSaving(false)
     // Replace so new users from signup land on the app, not back on (auth)
@@ -221,6 +254,21 @@ export default function EditProfileScreen() {
             maxLength={32}
           />
           <Text style={styles.hint}>Shown to others at venues. First name or alias — up to you.</Text>
+        </View>
+
+        {/* Username / @handle */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Username</Text>
+          <TextInput
+            style={styles.input}
+            value={username}
+            onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+            placeholder="your_handle"
+            placeholderTextColor="#4A6580"
+            autoCapitalize="none"
+            maxLength={24}
+          />
+          <Text style={styles.hint}>Your unique @handle — letters, numbers, and underscores.</Text>
         </View>
 
         {/* Bio */}
