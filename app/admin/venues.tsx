@@ -68,6 +68,7 @@ interface LiveVenue {
     center_lng:    number | null
     radius_meters: number | null
     is_active:     boolean
+    polygon_wkt:   string | null
   } | null
 }
 
@@ -178,7 +179,7 @@ export default function AdminVenues() {
     const { data: zones } = allOwnerIds.length > 0
       ? await supabase
           .from('zones')
-          .select('id, name, type, center_lat, center_lng, radius_meters, is_active, owner_id')
+          .select('id, name, type, center_lat, center_lng, radius_meters, is_active, owner_id, polygon_wkt')
           .in('owner_id', allOwnerIds)
       : { data: [] as any[] }
 
@@ -942,6 +943,7 @@ export default function AdminVenues() {
                                   <PolygonDrawMap
                                     lat={venue.zone.center_lat!}
                                     lng={venue.zone.center_lng!}
+                                    existingWkt={venue.zone.polygon_wkt}
                                     onPolygon={(wkt) => handlePolygonDrawn(venue, wkt)}
                                     onClear={() => {}}
                                   />
