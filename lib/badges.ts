@@ -103,15 +103,16 @@ export async function checkAndAwardBadges(
 
     const total = checkinCount ?? 0
     const rows  = sessions ?? []
+    const distinctVenues = new Set(rows.map((s: any) => s.zone_id)).size
 
     if (total >= 1  && !earned.has('first_checkin'))  await awardBadge('first_checkin')
-    if (total >= 5  && !earned.has('venue_explorer')) await awardBadge('venue_explorer')
-    if (total >= 15 && !earned.has('explorer_ii'))    await awardBadge('explorer_ii')
-    if (total >= 50 && !earned.has('explorer_iii'))   await awardBadge('explorer_iii')
 
-    // Adventurer: visited 3+ distinct venues
-    const distinctVenues = new Set(rows.map((s: any) => s.zone_id)).size
-    if (distinctVenues >= 3 && !earned.has('adventurer')) await awardBadge('adventurer')
+    // "Explorer" badges count DISTINCT venues visited, not raw check-ins.
+    // 5 check-ins at one bar is not "5 different venues" (Jacob feedback 6).
+    if (distinctVenues >= 3  && !earned.has('adventurer'))     await awardBadge('adventurer')
+    if (distinctVenues >= 5  && !earned.has('venue_explorer')) await awardBadge('venue_explorer')
+    if (distinctVenues >= 15 && !earned.has('explorer_ii'))    await awardBadge('explorer_ii')
+    if (distinctVenues >= 50 && !earned.has('explorer_iii'))   await awardBadge('explorer_iii')
 
     // Venue Regular: 5+ check-ins at the same venue — stores zone name in meta
     if (opts?.zoneId && !earned.has('venue_regular')) {
