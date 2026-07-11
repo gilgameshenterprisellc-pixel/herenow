@@ -7,12 +7,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
+import WebMap from '@/components/WebMap'
 import { fetchNearbyZones, type Zone } from '@/lib/zones'
+
+const EMPTY_SET = new Set<string>()
 
 export default function VenueNetworkScreen() {
   const insets = useSafeAreaInsets()
   const [zones, setZones]     = useState<Zone[]>([])
   const [ownZoneId, setOwnZoneId] = useState<string | null>(null)
+  const [ownLoc, setOwnLoc]   = useState<{ latitude: number; longitude: number } | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -28,6 +33,9 @@ export default function VenueNetworkScreen() {
       .maybeSingle()
 
     setOwnZoneId(own?.id ?? null)
+    if (Number.isFinite(own?.center_lat) && Number.isFinite(own?.center_lng)) {
+      setOwnLoc({ latitude: own!.center_lat as number, longitude: own!.center_lng as number })
+    }
 
     // Center the scan on the owner's venue; wide radius so the whole city shows.
     const lat = own?.center_lat ?? 36.1627
@@ -62,6 +70,18 @@ export default function VenueNetworkScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor="#29B6F6" />}
         showsVerticalScrollIndicator={false}
       >
+        {!loading && zones.length > 0 && (
+          <View style={styles.mapWrap}>
+            <WebMap
+              zones={zones}
+              location={ownLoc}
+              selectedId={selectedId}
+              onPinPress={(z) => setSelectedId(z.id)}
+              subscribedIds={EMPTY_SET}
+            />
+          </View>
+        )}
+
         {loading ? (
           <ActivityIndicator color="#29B6F6" style={{ marginTop: 50 }} />
         ) : zones.length === 0 ? (
@@ -75,8 +95,14 @@ export default function VenueNetworkScreen() {
             const count = z.member_count ?? 0
             const isMine = z.id === ownZoneId
             const isLive = count > 0
+            const isSel = z.id === selectedId
             return (
-              <View key={z.id} style={[styles.row, isMine && styles.rowMine]}>
+              <TouchableOpacity
+                key={z.id}
+                style={[styles.row, isMine && styles.rowMine, isSel && styles.rowSel]}
+                activeOpacity={0.8}
+                onPress={() => setSelectedId(isSel ? null : z.id)}
+              >
                 <Text style={styles.rank}>{i + 1}</Text>
                 <View style={{ flex: 1 }}>
                   <View style={styles.nameRow}>
@@ -92,7 +118,7 @@ export default function VenueNetworkScreen() {
                   <View style={[styles.dot, { backgroundColor: isLive ? '#22c55e' : '#4A6580' }]} />
                   <Text style={[styles.count, isLive && styles.countLive]}>{count}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             )
           })
         )}
@@ -123,6 +149,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#1A2E4A',
   },
   rowMine: { borderColor: '#29B6F6', backgroundColor: '#29B6F60D' },
+  rowSel: { borderColor: '#29B6F6', backgroundColor: '#29B6F61A' },
+  mapWrap: { height: 300, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#1A2E4A', marginBottom: 4 },
   rank: { width: 22, textAlign: 'center', fontSize: 15, fontWeight: '800', color: '#4A6580' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { fontSize: 15, fontWeight: '700', color: '#f0f8ff', flexShrink: 1 },
