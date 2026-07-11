@@ -120,6 +120,24 @@ export async function fetchSubscriberCount(zoneId: string): Promise<number> {
   return count ?? 0
 }
 
+export interface VenueSubscriber {
+  user_id: string
+  display_name: string
+  avatar_url: string | null
+  subscribed_at: string
+}
+
+// Owner-only: the list of who subscribed to this venue (name + avatar + date).
+// Owner-gated server-side; names masked to first + initial in the UI.
+export async function fetchVenueSubscribers(zoneId: string): Promise<VenueSubscriber[]> {
+  const { data, error } = await supabase.rpc('venue_subscribers', { p_zone_id: zoneId })
+  if (error) {
+    console.error('[venueSubscriptions] fetchVenueSubscribers error:', error.message)
+    return []
+  }
+  return (data ?? []) as VenueSubscriber[]
+}
+
 // ── Back-compat aliases (existing callers treat these as "follow") ─────────
 export const subscribeToVenue     = followVenue
 export const unsubscribeFromVenue = unfollowVenue
