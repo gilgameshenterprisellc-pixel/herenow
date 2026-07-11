@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform, Animated, TextInput, Switch,
@@ -11,9 +11,12 @@ import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscriberCount, fetchFollowerCount } from '@/lib/venueSubscriptions'
 import * as ImagePicker from 'expo-image-picker'
-import { createVenuePulsePost } from '@/lib/pulse'
+import { createVenuePulsePost, fetchPulse, type PulsePost } from '@/lib/pulse'
 import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } from '@/lib/venuePhotos'
 import { platformConfirm } from '@/lib/confirm'
+import { useVenueChat } from '@/hooks/useVenueChat'
+import PulsePostCard from '@/components/PulsePostCard'
+import ChatMessage from '@/components/ChatMessage'
 
 interface VenueZone {
   id: string
@@ -91,6 +94,25 @@ export default function VenueDashboard() {
   const [pulsePhotoUploading, setPulsePhotoUploading] = useState(false)
   const [customWait, setCustomWait]       = useState('')
   const [dashTab, setDashTab]             = useState<'overview' | 'feed' | 'analytics'>('overview')
+  const [monitorPulse, setMonitorPulse]   = useState<PulsePost[]>([])
+
+  // Venue owner monitors their own Pulse + Chat (needs owner-read RLS).
+  const { messages: monitorChat } = useVenueChat(venue?.id ?? '')
+
+  useEffect(() => {
+    if (!venue?.id) return
+    fetchPulse(venue.id).then(setMonitorPulse).catch(() => {})
+  }, [venue?.id, dashTab])
+
+  // Anonymous Guest N labels, same as the zone chat (no real names to the venue).
+  const monitorGuests = useMemo(() => {
+    const map = new Map<string, number>()
+    let n = 0
+    for (const m of monitorChat) {
+      if (!map.has(m.user_id)) map.set(m.user_id, ++n)
+    }
+    return map
+  }, [monitorChat])
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -635,6 +657,45 @@ export default function VenueDashboard() {
                   : <Text style={styles.pulsePostText}>{pulsePosted ? 'Posted ✓' : 'Post'}</Text>}
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {/* Live Pulse — read-only monitor of the feed */}
+        {venue && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Live Pulse</Text>
+            <Text style={styles.cardHint}>What guests are posting right now. Read-only.</Text>
+            {monitorPulse.length === 0 ? (
+              <Text style={styles.monitorEmpty}>No Pulse posts yet tonight.</Text>
+            ) : (
+              <View style={{ gap: 10, marginTop: 8 }}>
+                {monitorPulse.map((p) => (
+                  <PulsePostCard key={p.id} post={p} currentUserId="" canPin={false} />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Live Chat — read-only monitor for moderation */}
+        {venue && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Live Chat</Text>
+            <Text style={styles.cardHint}>Monitor the room. Names stay hidden as Guest 1, 2, 3.</Text>
+            {monitorChat.length === 0 ? (
+              <Text style={styles.monitorEmpty}>No chat activity yet tonight.</Text>
+            ) : (
+              <View style={{ gap: 4, marginTop: 8 }}>
+                {monitorChat.map((m) => (
+                  <ChatMessage
+                    key={m.id}
+                    message={m}
+                    currentUserId=""
+                    senderLabel={`Guest ${monitorGuests.get(m.user_id) ?? '?'}`}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         )}
 
@@ -1195,6 +1256,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 13, fontWeight: '800', color: '#8EADC7', textTransform: 'uppercase', letterSpacing: 0.5 },
   cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
+  monitorEmpty: { fontSize: 13, color: '#4A6580', fontStyle: 'italic', paddingVertical: 8 },
   featureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   featureLabel: { fontSize: 15, fontWeight: '700', color: '#f0f8ff' },
   recapLink: {
