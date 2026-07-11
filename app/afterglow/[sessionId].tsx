@@ -4,7 +4,9 @@ import {
   ScrollView, ActivityIndicator,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
+import BackButton from '@/components/BackButton'
 
 interface Afterglow {
   id: string
@@ -26,6 +28,7 @@ function formatDuration(mins: number): string {
 
 export default function AfterglowScreen() {
   const { sessionId }  = useLocalSearchParams<{ sessionId: string }>()
+  const insets = useSafeAreaInsets()
   const [glow, setGlow] = useState<Afterglow | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -66,6 +69,9 @@ export default function AfterglowScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} />
+      </View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Glow header */}
         <View style={styles.glowHeader}>
@@ -157,6 +163,7 @@ export default function AfterglowScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050A15' },
+  topBar: { paddingHorizontal: 12, paddingBottom: 4 },
   center:    { flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center', gap: 16 },
   content: { padding: 24, alignItems: 'center', gap: 20, paddingBottom: 60 },
   glowHeader: { alignItems: 'center', gap: 8, paddingTop: 40 },
