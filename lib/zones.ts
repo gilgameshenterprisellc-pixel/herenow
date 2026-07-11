@@ -92,19 +92,15 @@ export async function createZone(params: {
 }
 
 export async function searchZonesByName(query: string): Promise<Zone[]> {
-  const { data, error } = await supabase
-    .from('zones')
-    .select('id, name, description, radius_meters, center_lat, center_lng, member_count, post_count, chips, opening_hours, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, category, wait_time_minutes, wait_time_updated_at')
-    .eq('is_active', true)
-    .ilike('name', `%${query}%`)
-    .limit(20)
+  // Matches venue name OR any Vibe chip (e.g. "Espresso Martini"), via search_venues RPC.
+  const { data, error } = await supabase.rpc('search_venues', { q: query })
 
   if (error) {
     console.error('[zones] searchZonesByName error:', error.message)
     return []
   }
 
-  return (data ?? []).map(z => ({
+  return ((data ?? []) as any[]).map((z: any) => ({
     ...z,
     distance_meters:           null,
     chips:                     z.chips ?? [],
