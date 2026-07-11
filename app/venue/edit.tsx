@@ -140,6 +140,7 @@ export default function VenueEditScreen() {
   const [lng, setLng]               = useState<number | null>(null)
   const [radius, setRadius]         = useState(RADIUS_OPTIONS[0].meters)
   const [chips, setChips]           = useState<string[]>([])
+  const [customChip, setCustomChip] = useState('')
   const [category, setCategory]     = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl]   = useState<string | null>(null)
   const [bannerUrl, setBannerUrl]   = useState<string | null>(null)
@@ -694,6 +695,45 @@ export default function VenueEditScreen() {
                 </TouchableOpacity>
               )
             })}
+            {/* Custom chips the venue added (tap to remove) */}
+            {chips.filter((c) => !ALL_CHIPS.includes(c)).map((chip) => (
+              <TouchableOpacity
+                key={chip}
+                style={[styles.chipPill, styles.chipPillActive]}
+                onPress={() => setChips((prev) => prev.filter((c) => c !== chip))}
+              >
+                <Text style={[styles.chipText, styles.chipTextActive]}>{chip}  ✕</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {/* Add your own — e.g. a signature drink like "Espresso Martini" (searchable) */}
+          <View style={styles.customChipRow}>
+            <TextInput
+              style={styles.customChipInput}
+              value={customChip}
+              onChangeText={setCustomChip}
+              placeholder='Add your own, e.g. "Espresso Martini"'
+              placeholderTextColor="#4A6580"
+              maxLength={28}
+              autoCapitalize="words"
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                const c = customChip.trim()
+                if (c && !chips.includes(c)) setChips((prev) => [...prev, c])
+                setCustomChip('')
+              }}
+            />
+            <TouchableOpacity
+              style={[styles.customChipAdd, !customChip.trim() && { opacity: 0.4 }]}
+              disabled={!customChip.trim()}
+              onPress={() => {
+                const c = customChip.trim()
+                if (c && !chips.includes(c)) setChips((prev) => [...prev, c])
+                setCustomChip('')
+              }}
+            >
+              <Text style={styles.customChipAddText}>Add</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -810,6 +850,16 @@ const styles = StyleSheet.create({
 
   section: { gap: 10 },
   chipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  customChipRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  customChipInput: {
+    flex: 1, backgroundColor: '#0B1526', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    color: '#f8fafc', fontSize: 14, borderWidth: 1, borderColor: 'rgba(41,182,246,0.15)',
+  },
+  customChipAdd: {
+    paddingHorizontal: 16, justifyContent: 'center', borderRadius: 10,
+    backgroundColor: 'rgba(41,182,246,0.12)', borderWidth: 1, borderColor: '#29B6F6',
+  },
+  customChipAddText: { color: '#29B6F6', fontWeight: '700', fontSize: 13 },
   chipPill: {
     backgroundColor: '#0D1B2E', borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 7,
