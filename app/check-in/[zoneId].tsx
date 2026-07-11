@@ -194,7 +194,8 @@ export default function CheckInScreen() {
     // "someone sent you a We Met" pushes only matter once you're actually out.
     registerPushToken(true).catch(() => {})
     await runCheckInAnim()
-    await checkAndAwardBadges('checkin', { zoneId })
+    // Non-critical post-check-in extras — never let one crash the check-in.
+    try { await checkAndAwardBadges('checkin', { zoneId }) } catch (e) { console.warn('[check-in] badge award failed:', e) }
 
     // First-visit detection: count all sessions at this zone for this user.
     // The current session is already created, so count === 1 means first visit.
@@ -206,21 +207,26 @@ export default function CheckInScreen() {
       .eq('user_id', result.session.user_id)
 
     if (!countError && sessionCount === 1) {
-      // First visit — load zone details + highlights for the welcome modal
-      const [{ data: zoneData }, highlights, { data: photoRow }] = await Promise.all([
-        supabase.from('zones').select('name, description, opening_hours').eq('id', zoneId).maybeSingle(),
-        fetchHighlights(zoneId),
-        supabase.from('venue_photos').select('public_url').eq('zone_id', zoneId).eq('status', 'approved').order('created_at').limit(1).maybeSingle(),
-      ])
-      setWelcomeData({
-        name:          zoneData?.name         ?? zoneName,
-        description:   zoneData?.description  ?? null,
-        opening_hours: zoneData?.opening_hours ?? null,
-        firstPhoto:    photoRow?.public_url    ?? null,
-        highlights,
-      })
-      setShowWelcome(true)
-      return
+      try {
+        // First visit — load zone details + highlights for the welcome modal
+        const [{ data: zoneData }, highlights, { data: photoRow }] = await Promise.all([
+          supabase.from('zones').select('name, description, opening_hours').eq('id', zoneId).maybeSingle(),
+          fetchHighlights(zoneId),
+          supabase.from('venue_photos').select('public_url').eq('zone_id', zoneId).eq('status', 'approved').order('created_at').limit(1).maybeSingle(),
+        ])
+        setWelcomeData({
+          name:          zoneData?.name         ?? zoneName,
+          description:   zoneData?.description  ?? null,
+          opening_hours: zoneData?.opening_hours ?? null,
+          firstPhoto:    photoRow?.public_url    ?? null,
+          highlights,
+        })
+        setShowWelcome(true)
+        return
+      } catch (e) {
+        // Don't block or crash check-in if the welcome data fails — just skip it.
+        console.warn('[check-in] welcome modal load failed:', e)
+      }
     }
 
     const canShow = await shouldShowBetaFeedback()
