@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Platform, View } from 'react-native'
 import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { useGeofenceTask } from '@/hooks/useGeofenceTask'
 import { useNotificationTaps } from '@/hooks/useNotificationTaps'
 import { SessionProvider } from '@/contexts/SessionContext'
@@ -70,6 +71,7 @@ export default function RootLayout() {
       <SessionProvider>
         <StatusBar style="light" />
         <AnalyticsProvider />
+        {Platform.OS === 'web' && <SpeedInsights />}
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
