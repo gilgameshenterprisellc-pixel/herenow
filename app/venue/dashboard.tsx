@@ -14,10 +14,10 @@ import { fetchVenueThreads } from '@/lib/venueMessages'
 import AvatarImage from '@/components/AvatarImage'
 import { publicName } from '@/lib/format'
 import * as ImagePicker from 'expo-image-picker'
-import { createVenuePulsePost, fetchPulse, type PulsePost } from '@/lib/pulse'
+import { createVenuePulsePost, fetchPulse, nextVenueNightExpiry, type PulsePost } from '@/lib/pulse'
 import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } from '@/lib/venuePhotos'
 import { platformConfirm } from '@/lib/confirm'
-import { hideVenueContent } from '@/lib/venueModeration'
+import { hideVenueContent, muteVenueUser } from '@/lib/venueModeration'
 import { sendVenueChatMessage } from '@/lib/chat'
 import { screenText, blockedMessage } from '@/lib/textModeration'
 import { screenImage } from '@/lib/moderation'
@@ -449,6 +449,20 @@ export default function VenueDashboard() {
     if (ok) refreshChat()
   }
 
+  // Timeout a guest: they can't post chat or Pulse for the rest of the night.
+  const muteGuest = (userId: string) => {
+    if (!venue) return
+    platformConfirm(
+      'Mute this guest?',
+      "They won't be able to post in your Chat or Pulse for the rest of tonight.",
+      async () => {
+        const ok = await muteVenueUser(venue.id, userId, nextVenueNightExpiry())
+        showToast(ok ? 'Guest muted for tonight.' : 'Could not mute. Try again.', ok ? 'success' : 'error')
+      },
+      { confirmText: 'Mute', destructive: true },
+    )
+  }
+
   const topInterests = Object.entries(stats.interests)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
@@ -757,7 +771,7 @@ export default function VenueDashboard() {
         {venue && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Live Chat</Text>
-            <Text style={styles.cardHint}>Monitor the room. Tap ✕ to remove anything out of line.</Text>
+            <Text style={styles.cardHint}>Monitor the room. ✕ removes a message; 🔇 mutes a guest for the night.</Text>
             {monitorChat.length === 0 ? (
               <Text style={styles.monitorEmpty}>No chat activity yet tonight.</Text>
             ) : (
@@ -776,6 +790,15 @@ export default function VenueDashboard() {
                         senderLabel={firstName(m.profiles?.display_name) || `Guest ${monitorGuests.get(m.user_id) ?? '?'}`}
                       />
                     </View>
+                    {!m.is_venue_msg && (
+                      <TouchableOpacity
+                        onPress={() => muteGuest(m.user_id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={styles.modMute}
+                      >
+                        <Text style={styles.modMuteText}>🔇</Text>
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity
                       onPress={() => moderateChat(m.id)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -1341,6 +1364,8 @@ const styles = StyleSheet.create({
   modRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   modDelete: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef444418', borderWidth: 1, borderColor: '#ef444430' },
   modDeleteText: { color: '#ef4444', fontSize: 13, fontWeight: '800' },
+  modMute: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F59E0B18', borderWidth: 1, borderColor: '#F59E0B30' },
+  modMuteText: { fontSize: 13 },
   venueChatRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   venueChatInput: { flex: 1, backgroundColor: '#0D1B2E', borderWidth: 1, borderColor: '#1A2E4A', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, color: '#D0E8F5', fontSize: 14 },
   venueChatSend: { backgroundColor: '#F59E0B', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9, alignItems: 'center', justifyContent: 'center' },
