@@ -20,6 +20,7 @@ import { usePulse } from '@/hooks/usePulse'
 import { useVenueChat } from '@/hooks/useVenueChat'
 import { createPulsePost, VIBE_TAGS } from '@/lib/pulse'
 import { screenImage } from '@/lib/moderation'
+import { screenText, blockedMessage } from '@/lib/textModeration'
 import { sendChatMessage } from '@/lib/chat'
 import { sendWeMet, existingWeMet } from '@/lib/weMet'
 import { fetchEvents, toggleRsvp } from '@/lib/events'
@@ -437,6 +438,8 @@ export default function ZoneScreen() {
 
   const handlePostPulse = async () => {
     if (!activeSession || (!newPulse.trim() && !vibeTag && !pulsePhotoUrl)) return
+    const pulseScreen = screenText(newPulse)
+    if (!pulseScreen.ok) { showToast(blockedMessage(pulseScreen.category), 'error'); return }
     setPostingPulse(true)
     try {
       await createPulsePost({
@@ -463,6 +466,8 @@ export default function ZoneScreen() {
 
   const handleSendChat = async () => {
     if (!chatInput.trim() || sendingChat) return
+    const chatScreen = screenText(chatInput)
+    if (!chatScreen.ok) { showToast(blockedMessage(chatScreen.category), 'error'); return }
     setSendingChat(true)
     try {
       await sendChatMessage({

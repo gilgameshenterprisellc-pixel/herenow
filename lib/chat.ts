@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { screenText } from './textModeration'
 
 export interface ChatMessage {
   id: string
@@ -40,6 +41,12 @@ export async function sendChatMessage(params: {
 }): Promise<ChatMessage | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  // Content filter: never let profanity/hate land (enforced regardless of caller).
+  if (!screenText(params.content).ok) {
+    console.warn('[chat] message blocked by content filter')
+    return null
+  }
 
   const { data, error } = await supabase
     .from('venue_chat')
