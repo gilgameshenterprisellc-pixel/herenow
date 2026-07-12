@@ -1,6 +1,34 @@
 import { supabase } from './supabase'
 import { logEvent } from './analytics'
 
+// Milliseconds to add to a UTC instant to get wall-clock time in `tz`.
+function tzOffsetMs(date: Date, tz: string): number {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  })
+  const p = Object.fromEntries(dtf.formatToParts(date).map((x) => [x.type, x.value])) as Record<string, string>
+  const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+  return asUTC - date.getTime()
+}
+
+// A venue's Pulse post should clear "after they close" — we use the next 6am
+// in Nashville (America/Chicago), the same night boundary the recap uses. A
+// post made in the evening dies at 6am; one made at 1am dies at 6am the same
+// morning. DST flips at 2am so 6am is always a stable target.
+export function nextVenueNightExpiry(now: Date = new Date()): string {
+  const tz = 'America/Chicago'
+  const offset = tzOffsetMs(now, tz)
+  const wall = new Date(now.getTime() + offset) // wall-clock time as a UTC-based Date
+  const targetWall = new Date(Date.UTC(
+    wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate(), 6, 0, 0,
+  ))
+  if (wall.getUTCHours() >= 6) targetWall.setUTCDate(targetWall.getUTCDate() + 1)
+  // Convert the target wall time back to a real UTC instant.
+  return new Date(targetWall.getTime() - offset).toISOString()
+}
+
 export interface PulsePost {
   id: string
   zone_id: string
@@ -117,8 +145,9 @@ export async function createVenuePulsePost(params: {
     media_url:     params.mediaUrl ?? null,
     is_venue_post: true,
     is_pinned:     params.pinned ?? false,
-    // Venue posts live a bit longer than the 12h guest default.
-    expires_at:    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    // Clear the venue's post after the night (next 6am Nashville), not a rolling
+    // 24h — Jacob: a post from last night shouldn't still be up this morning.
+    expires_at:    nextVenueNightExpiry(),
   })
   if (error) {
     console.error('[pulse] createVenuePulsePost error:', error.message)
