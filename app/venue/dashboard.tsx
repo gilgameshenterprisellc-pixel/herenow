@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { fetchSubscriberCount, fetchFollowerCount, fetchVenueSubscribers, type VenueSubscriber } from '@/lib/venueSubscriptions'
+import { fetchVenueThreads } from '@/lib/venueMessages'
 import AvatarImage from '@/components/AvatarImage'
 import { publicName } from '@/lib/format'
 import * as ImagePicker from 'expo-image-picker'
@@ -105,6 +106,7 @@ export default function VenueDashboard() {
   const [monitorPulse, setMonitorPulse]   = useState<PulsePost[]>([])
   const [venueChatText, setVenueChatText] = useState('')
   const [sendingVenueChat, setSendingVenueChat] = useState(false)
+  const [venueMsgUnread, setVenueMsgUnread] = useState(0)
   const { showToast } = useToast()
 
   // Venue owner monitors their own Pulse + Chat (needs owner-read RLS).
@@ -113,6 +115,14 @@ export default function VenueDashboard() {
   useEffect(() => {
     if (!venue?.id) return
     fetchPulse(venue.id).then(setMonitorPulse).catch(() => {})
+  }, [venue?.id, dashTab])
+
+  // Unread patron messages, so the venue sees its inbox from the dashboard.
+  useEffect(() => {
+    if (!venue?.id) return
+    fetchVenueThreads()
+      .then((ts) => setVenueMsgUnread(ts.filter((t) => t.viewer_is_owner).reduce((n, t) => n + (t.unread_count ?? 0), 0)))
+      .catch(() => {})
   }, [venue?.id, dashTab])
 
   // Anonymous Guest N labels, same as the zone chat (no real names to the venue).
@@ -1234,6 +1244,15 @@ export default function VenueDashboard() {
             {stats.total > 0 && (
               <View style={styles.actionLiveBadge}>
                 <Text style={styles.actionLiveBadgeText}>{stats.total}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/messages' as any)}>
+            <Text style={styles.actionEmoji}>💬</Text>
+            <Text style={styles.actionLabel}>Messages</Text>
+            {venueMsgUnread > 0 && (
+              <View style={styles.actionLiveBadge}>
+                <Text style={styles.actionLiveBadgeText}>{venueMsgUnread}</Text>
               </View>
             )}
           </TouchableOpacity>

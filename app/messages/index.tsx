@@ -16,9 +16,16 @@ export default function MessagesScreen() {
   const [userId, setUserId] = useState<string | null>(null)
   const { threads, loading, refresh } = useDmThreads(userId ?? '')
   const [venueThreads, setVenueThreads] = useState<VenueThread[]>([])
+  const [isVenueOwner, setIsVenueOwner] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null))
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id ?? null)
+      if (user) {
+        supabase.from('profiles').select('is_venue_owner').eq('id', user.id).maybeSingle()
+          .then(({ data }) => setIsVenueOwner(data?.is_venue_owner ?? false))
+      }
+    })
     fetchVenueThreads().then(setVenueThreads)
   }, [])
 
@@ -158,16 +165,25 @@ export default function MessagesScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>💌</Text>
               <Text style={styles.emptyTitle}>No messages yet</Text>
-              <Text style={styles.emptySub}>
-                Confirm a "We Met" with someone you actually met in person to unlock DMs.
-                Messages expire after 72 hours (Premium: 14 days).
-              </Text>
-              <TouchableOpacity
-                style={styles.wemetLink}
-                onPress={() => router.push('/we-met')}
-              >
-                <Text style={styles.wemetLinkText}>Check We Met requests →</Text>
-              </TouchableOpacity>
+              {isVenueOwner ? (
+                <Text style={styles.emptySub}>
+                  When a follower or subscriber messages your venue, it shows up here.
+                  No "We Met" needed — patrons can reach you with questions anytime.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.emptySub}>
+                    Confirm a "We Met" with someone you actually met in person to unlock DMs.
+                    Messages expire after 72 hours (Premium: 14 days).
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.wemetLink}
+                    onPress={() => router.push('/we-met')}
+                  >
+                    <Text style={styles.wemetLinkText}>Check We Met requests →</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           }
         />
