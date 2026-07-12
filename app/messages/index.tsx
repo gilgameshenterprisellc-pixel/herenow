@@ -9,15 +9,21 @@ import { useDmThreads } from '@/hooks/useMessages'
 import { supabase } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
 import { publicName } from '@/lib/format'
+import { fetchVenueThreads, type VenueThread } from '@/lib/venueMessages'
 
 export default function MessagesScreen() {
   const insets = useSafeAreaInsets()
   const [userId, setUserId] = useState<string | null>(null)
   const { threads, loading, refresh } = useDmThreads(userId ?? '')
+  const [venueThreads, setVenueThreads] = useState<VenueThread[]>([])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null))
+    fetchVenueThreads().then(setVenueThreads)
   }, [])
+
+  const openVenueThread = (t: VenueThread) =>
+    router.push(`/messages/venue/${t.zone_id}${t.viewer_is_owner ? `?u=${t.other_user_id}` : ''}` as any)
 
   const formatTime = (iso: string) => {
     const d = new Date(iso)
@@ -54,8 +60,41 @@ export default function MessagesScreen() {
           data={threads}
           keyExtractor={(t) => t.we_met_id}
           contentContainerStyle={styles.list}
-          onRefresh={refresh}
+          onRefresh={() => { refresh(); fetchVenueThreads().then(setVenueThreads) }}
           refreshing={loading}
+          ListHeaderComponent={
+            venueThreads.length > 0 ? (
+              <View style={styles.venueSection}>
+                <Text style={styles.sectionLabel}>VENUES</Text>
+                {venueThreads.map((t) => {
+                  const isMe = t.last_sender_id === userId
+                  return (
+                    <TouchableOpacity key={`${t.zone_id}:${t.other_user_id}`} style={styles.thread} onPress={() => openVenueThread(t)} activeOpacity={0.8}>
+                      <View style={[styles.avatar, styles.venueAvatar]}>
+                        <Text style={styles.avatarText}>{(t.other_display_name ?? '?')[0].toUpperCase()}</Text>
+                      </View>
+                      <View style={styles.info}>
+                        <View style={styles.row}>
+                          <Text style={styles.name}>{t.viewer_is_owner ? publicName(t.other_display_name) : t.other_display_name}</Text>
+                          <Text style={styles.time}>{t.last_message_at ? formatTime(t.last_message_at) : ''}</Text>
+                        </View>
+                        <View style={styles.row}>
+                          <Text style={[styles.preview, !t.last_content && styles.previewEmpty]} numberOfLines={1}>
+                            {t.last_content ? (isMe ? `You: ${t.last_content}` : t.last_content) : 'No messages yet'}
+                          </Text>
+                        </View>
+                        <Text style={styles.expiryNote}>{t.viewer_is_owner ? 'Patron message' : `Message to ${t.zone_name}`}</Text>
+                      </View>
+                      {t.unread_count > 0 && (
+                        <View style={styles.unread}><Text style={styles.unreadText}>{t.unread_count}</Text></View>
+                      )}
+                    </TouchableOpacity>
+                  )
+                })}
+                {threads.length > 0 && <Text style={styles.sectionLabel}>PEOPLE</Text>}
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => {
             const expiry = getExpiryStatus(item.expires_at)
             const isMe = item.last_sender_id === userId
@@ -115,6 +154,7 @@ export default function MessagesScreen() {
             )
           }}
           ListEmptyComponent={
+            venueThreads.length > 0 ? null :
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>💌</Text>
               <Text style={styles.emptyTitle}>No messages yet</Text>
@@ -203,4 +243,7 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 },
   wemetLink: { marginTop: 8 },
   wemetLinkText: { color: '#29B6F6', fontWeight: '700', fontSize: 14 },
+  venueSection: { gap: 2 },
+  sectionLabel: { fontSize: 11, fontWeight: '800', color: '#4A6580', letterSpacing: 1, marginTop: 10, marginBottom: 4, paddingHorizontal: 4 },
+  venueAvatar: { backgroundColor: '#29B6F61A', borderColor: '#29B6F640' },
 })
