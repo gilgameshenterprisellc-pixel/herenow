@@ -743,8 +743,8 @@ export default function VenueEditScreen() {
         {/* Info card */}
         <View style={styles.infoCard}>
           <Text style={styles.infoText}>
-            🔒 Users only see that a venue exists and how many people are checked in.
-            Their individual profiles are only visible to other checked-in guests — never to you as the venue owner.
+            🔒 On the map and in analytics, guests stay anonymous — you only see counts, never full profiles or contact info.
+            In your live Chat you'll see first names so you can moderate the room.
           </Text>
         </View>
       </ScrollView>
