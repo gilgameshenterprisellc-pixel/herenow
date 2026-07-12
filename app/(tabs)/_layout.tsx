@@ -82,9 +82,10 @@ interface FloatingTabBarProps {
   unread: number
   dmUnread: number
   avatarUrl: string | null
+  isVenue: boolean
 }
 
-function FloatingTabBar({ unread, dmUnread, avatarUrl }: FloatingTabBarProps) {
+function FloatingTabBar({ unread, dmUnread, avatarUrl, isVenue }: FloatingTabBarProps) {
   const ctx = useContext(TabBarScrollContext)
   const translateY = ctx?.translateY ?? new Animated.Value(0)
   const pathname = usePathname()
@@ -98,7 +99,11 @@ function FloatingTabBar({ unread, dmUnread, avatarUrl }: FloatingTabBarProps) {
     isProfile?: boolean
   }[] = [
     { route: '/',              push: '/(tabs)',               icon: 'map-outline',           iconFocused: 'map'           },
-    { route: '/feed',          push: '/(tabs)/feed',          icon: 'megaphone-outline',     iconFocused: 'megaphone',    badge: unread },
+    // Updates (personal followed-venue feed) is meaningless to a venue account —
+    // Jacob: "Venues don't need updates in their nav bar." Hidden for venues.
+    ...(isVenue ? [] : [
+      { route: '/feed',        push: '/(tabs)/feed' as Parameters<typeof router.push>[0], icon: 'megaphone-outline' as IoniconsName, iconFocused: 'megaphone' as IoniconsName, badge: unread },
+    ]),
     { route: '/notifications', push: '/(tabs)/notifications', icon: 'mail-outline',          iconFocused: 'mail',         badge: dmUnread },
     { route: '/profile',       push: '/(tabs)/profile',       icon: 'person-circle-outline', iconFocused: 'person-circle', isProfile: true },
   ]
@@ -178,6 +183,7 @@ export default function TabsLayout() {
   const [unread, setUnread]       = useState(0)
   const [dmUnread, setDmUnread]   = useState(0)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [isVenue, setIsVenue]     = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -199,8 +205,9 @@ export default function TabsLayout() {
 
       if (uid) {
         const { data: profile } = await supabase
-          .from('profiles').select('avatar_url').eq('id', uid).maybeSingle()
+          .from('profiles').select('avatar_url, is_venue_owner').eq('id', uid).maybeSingle()
         if (mounted && profile?.avatar_url) setAvatarUrl(profile.avatar_url)
+        if (mounted) setIsVenue(!!profile?.is_venue_owner)
       }
 
       notifSub = supabase.channel('badge-notif')
@@ -240,7 +247,7 @@ export default function TabsLayout() {
           <Tabs.Screen name="notifications" />
           <Tabs.Screen name="profile" />
         </Tabs>
-        <FloatingTabBar unread={unread} dmUnread={dmUnread} avatarUrl={avatarUrl} />
+        <FloatingTabBar unread={unread} dmUnread={dmUnread} avatarUrl={avatarUrl} isVenue={isVenue} />
       </View>
     </TabBarScrollProvider>
   )
