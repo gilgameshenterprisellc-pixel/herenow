@@ -673,11 +673,16 @@ export default function VenueDashboard() {
             {monitorPulse.length === 0 ? (
               <Text style={styles.monitorEmpty}>No Pulse posts yet tonight.</Text>
             ) : (
-              <View style={{ gap: 10, marginTop: 8 }}>
+              <ScrollView
+                style={styles.feedPane}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                contentContainerStyle={{ gap: 10, paddingTop: 8 }}
+              >
                 {monitorPulse.map((p) => (
                   <PulsePostCard key={p.id} post={p} currentUserId="" canPin={false} />
                 ))}
-              </View>
+              </ScrollView>
             )}
           </View>
         )}
@@ -690,7 +695,12 @@ export default function VenueDashboard() {
             {monitorChat.length === 0 ? (
               <Text style={styles.monitorEmpty}>No chat activity yet tonight.</Text>
             ) : (
-              <View style={{ gap: 4, marginTop: 8 }}>
+              <ScrollView
+                style={styles.feedPane}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                contentContainerStyle={{ gap: 4, paddingTop: 8 }}
+              >
                 {monitorChat.map((m) => (
                   <ChatMessage
                     key={m.id}
@@ -699,7 +709,7 @@ export default function VenueDashboard() {
                     senderLabel={`Guest ${monitorGuests.get(m.user_id) ?? '?'}`}
                   />
                 ))}
-              </View>
+              </ScrollView>
             )}
           </View>
         )}
@@ -1218,7 +1228,10 @@ const styles = StyleSheet.create({
   signOutText: { fontSize: 18, color: '#4A6580' },
 
   scroll: { flex: 1 },
-  content: { padding: 16, gap: 14, paddingBottom: 40 },
+  content: { padding: 16, gap: 14, paddingBottom: 40, width: '100%', maxWidth: 720, alignSelf: 'center' },
+  // Each live feed (Pulse / Chat) scrolls inside its own pane so a busy night
+  // doesn't force the venue to scroll the whole page to reach the other one.
+  feedPane: { maxHeight: 360 },
 
   mapCard: {
     backgroundColor: '#07101F',
