@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { logEvent } from './analytics'
+import { screenText } from './textModeration'
 
 // Milliseconds to add to a UTC instant to get wall-clock time in `tz`.
 function tzOffsetMs(date: Date, tz: string): number {
@@ -90,6 +91,11 @@ export async function createPulsePost(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  if (params.content && !screenText(params.content).ok) {
+    console.warn('[pulse] post blocked by content filter')
+    return null
+  }
+
   const { data, error } = await supabase
     .from('pulse_posts')
     .insert({
@@ -136,6 +142,11 @@ export async function createVenuePulsePost(params: {
 }): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return false
+
+  if (params.content && !screenText(params.content).ok) {
+    console.warn('[pulse] venue post blocked by content filter')
+    return false
+  }
 
   const { error } = await supabase.from('pulse_posts').insert({
     zone_id:       params.zoneId,
