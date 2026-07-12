@@ -18,6 +18,21 @@ export default function ChatMessage({ message, currentUserId, senderLabel }: Pro
   const label = senderLabel ?? 'Guest'
   const avatarText = label.match(/\d+/)?.[0] ?? '·'
 
+  // A message from the venue itself — official, so it reads distinctly.
+  if (message.is_venue_msg) {
+    return (
+      <View style={styles.rowVenue}>
+        <View style={styles.bubbleVenue}>
+          <View style={styles.venueBadge}>
+            <Text style={styles.venueBadgeText}>VENUE</Text>
+          </View>
+          <Text style={styles.contentVenue}>{message.content}</Text>
+          <Text style={styles.timeVenue}>{timeStr(message.created_at)}</Text>
+        </View>
+      </View>
+    )
+  }
+
   if (isMe) {
     return (
       <View style={styles.rowRight}>
@@ -79,4 +94,17 @@ const styles = StyleSheet.create({
   sender: { fontSize: 11, color: '#7A93AC', fontWeight: '600', marginBottom: 2 },
   timeRight: { fontSize: 10, color: '#050A1599', alignSelf: 'flex-end' },
   timeLeft:  { fontSize: 10, color: '#7A93AC',   alignSelf: 'flex-end' },
+  rowVenue: { marginVertical: 4, alignItems: 'stretch' },
+  bubbleVenue: {
+    backgroundColor: '#F59E0B18',
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#F59E0B55',
+    gap: 3,
+  },
+  venueBadge: { alignSelf: 'flex-start', backgroundColor: '#F59E0B', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
+  venueBadgeText: { fontSize: 9, fontWeight: '900', color: '#050A15', letterSpacing: 0.5 },
+  contentVenue: { fontSize: 14, color: '#FCE4B6', lineHeight: 18, fontWeight: '500' },
+  timeVenue: { fontSize: 10, color: '#F59E0B99', alignSelf: 'flex-end' },
 })

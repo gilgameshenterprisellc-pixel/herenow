@@ -9,6 +9,7 @@ export interface ChatMessage {
   content: string
   created_at: string
   expires_at: string
+  is_venue_msg?: boolean
   profiles: {
     id: string
     display_name: string
@@ -61,6 +62,41 @@ export async function sendChatMessage(params: {
 
   if (error) {
     console.error('[chat] sendChatMessage error:', error.message)
+    return null
+  }
+
+  return data as ChatMessage
+}
+
+// Venue owner posting to their own room's chat (warnings, replies). Marked as a
+// venue message so it renders distinctly. Requires the owner-insert policy
+// (supabase/jacob_venue_chat_post.sql). Content still runs the text filter.
+export async function sendVenueChatMessage(params: {
+  zoneId: string
+  content: string
+}): Promise<ChatMessage | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  if (!screenText(params.content).ok) {
+    console.warn('[chat] venue message blocked by content filter')
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('venue_chat')
+    .insert({
+      zone_id: params.zoneId,
+      user_id: user.id,
+      content: params.content.trim(),
+      session_id: null,
+      is_venue_msg: true,
+    })
+    .select('*, profiles(id, display_name, avatar_url)')
+    .single()
+
+  if (error) {
+    console.error('[chat] sendVenueChatMessage error:', error.message)
     return null
   }
 

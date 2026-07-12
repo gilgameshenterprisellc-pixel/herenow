@@ -17,6 +17,10 @@ import { createVenuePulsePost, fetchPulse, type PulsePost } from '@/lib/pulse'
 import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } from '@/lib/venuePhotos'
 import { platformConfirm } from '@/lib/confirm'
 import { hideVenueContent } from '@/lib/venueModeration'
+import { sendVenueChatMessage } from '@/lib/chat'
+import { screenText, blockedMessage } from '@/lib/textModeration'
+import { screenImage } from '@/lib/moderation'
+import { useToast } from '@/contexts/ToastContext'
 import { useVenueChat } from '@/hooks/useVenueChat'
 import PulsePostCard from '@/components/PulsePostCard'
 import ChatMessage from '@/components/ChatMessage'
@@ -99,6 +103,9 @@ export default function VenueDashboard() {
   const [customWait, setCustomWait]       = useState('')
   const [dashTab, setDashTab]             = useState<'overview' | 'feed' | 'analytics'>('overview')
   const [monitorPulse, setMonitorPulse]   = useState<PulsePost[]>([])
+  const [venueChatText, setVenueChatText] = useState('')
+  const [sendingVenueChat, setSendingVenueChat] = useState(false)
+  const { showToast } = useToast()
 
   // Venue owner monitors their own Pulse + Chat (needs owner-read RLS).
   const { messages: monitorChat, refresh: refreshChat } = useVenueChat(venue?.id ?? '')
@@ -371,7 +378,14 @@ export default function VenueDashboard() {
       const { error } = await supabase.storage.from('venue-media').upload(path, uploadBody as any, { contentType, upsert: true })
       if (error) { console.error('[pulse photo] upload:', error.message); setPulsePhotoUploading(false); return }
       const { data } = supabase.storage.from('venue-media').getPublicUrl(path)
-      setPulseMediaUrl(`${data.publicUrl}?v=${Date.now()}`)
+      const url = `${data.publicUrl}?v=${Date.now()}`
+      const shot = await screenImage(url)
+      if (!shot.ok) {
+        showToast('That photo was blocked — it looked explicit.', 'error')
+        setPulsePhotoUploading(false)
+        return
+      }
+      setPulseMediaUrl(url)
     } catch (e) {
       console.error('[pulse photo] error:', e)
     } finally {
@@ -381,6 +395,8 @@ export default function VenueDashboard() {
 
   const postToPulse = async () => {
     if (!venue || (!pulseText.trim() && !pulseMediaUrl) || pulsePosting) return
+    const screen = screenText(pulseText)
+    if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     setPulsePosting(true)
     const ok = await createVenuePulsePost({ zoneId: venue.id, content: pulseText, mediaUrl: pulseMediaUrl, pinned: pulsePin })
     setPulsePosting(false)
@@ -406,6 +422,18 @@ export default function VenueDashboard() {
     setMonitorPulse((prev) => prev.filter((p) => p.id !== id))
     await hideVenueContent('pulse', id)
   }
+  const sendVenueChat = async () => {
+    const text = venueChatText.trim()
+    if (!text || !venue || sendingVenueChat) return
+    const screen = screenText(text)
+    if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
+    setSendingVenueChat(true)
+    const msg = await sendVenueChatMessage({ zoneId: venue.id, content: text })
+    setSendingVenueChat(false)
+    if (msg) { setVenueChatText(''); refreshChat() }
+    else showToast('Could not send. Try again.', 'error')
+  }
+
   const moderateChat = async (id: string) => {
     const ok = await hideVenueContent('chat', id)
     if (ok) refreshChat()
@@ -749,6 +777,27 @@ export default function VenueDashboard() {
                 ))}
               </ScrollView>
             )}
+            <View style={styles.venueChatRow}>
+              <TextInput
+                style={styles.venueChatInput}
+                value={venueChatText}
+                onChangeText={setVenueChatText}
+                placeholder="Message the room as the venue…"
+                placeholderTextColor="#4A6580"
+                maxLength={280}
+                onSubmitEditing={sendVenueChat}
+                returnKeyType="send"
+              />
+              <TouchableOpacity
+                style={[styles.venueChatSend, (!venueChatText.trim() || sendingVenueChat) && { opacity: 0.5 }]}
+                onPress={sendVenueChat}
+                disabled={!venueChatText.trim() || sendingVenueChat}
+              >
+                {sendingVenueChat
+                  ? <ActivityIndicator color="#050A15" size="small" />
+                  : <Text style={styles.venueChatSendText}>Send</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -1273,6 +1322,10 @@ const styles = StyleSheet.create({
   modRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   modDelete: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef444418', borderWidth: 1, borderColor: '#ef444430' },
   modDeleteText: { color: '#ef4444', fontSize: 13, fontWeight: '800' },
+  venueChatRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  venueChatInput: { flex: 1, backgroundColor: '#0D1B2E', borderWidth: 1, borderColor: '#1A2E4A', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, color: '#D0E8F5', fontSize: 14 },
+  venueChatSend: { backgroundColor: '#F59E0B', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9, alignItems: 'center', justifyContent: 'center' },
+  venueChatSendText: { color: '#050A15', fontSize: 13, fontWeight: '800' },
 
   mapCard: {
     backgroundColor: '#07101F',
