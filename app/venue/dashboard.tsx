@@ -343,7 +343,10 @@ export default function VenueDashboard() {
     if (!venue || pulsePhotoUploading) return
     setPulsePhotoUploading(true)
     try {
-      const path = `pulse/${venue.id}/${Date.now()}.jpg`
+      // Use the venue-media bucket (same as Gallery) with the zone id as the
+      // first path segment — the avatars bucket's RLS rejected pulse/<venueId>/…
+      // so venue pulse photos silently failed to upload (Jacob).
+      const path = `${venue.id}/pulse-${Date.now()}.jpg`
       let uploadBody: Blob | ArrayBuffer | null = null
       let contentType = 'image/jpeg'
       if (Platform.OS === 'web') {
@@ -364,9 +367,9 @@ export default function VenueDashboard() {
         uploadBody = await (await fetch(asset.uri)).arrayBuffer()
         contentType = asset.mimeType || 'image/jpeg'
       }
-      const { error } = await supabase.storage.from('avatars').upload(path, uploadBody as any, { contentType, upsert: true })
+      const { error } = await supabase.storage.from('venue-media').upload(path, uploadBody as any, { contentType, upsert: true })
       if (error) { console.error('[pulse photo] upload:', error.message); setPulsePhotoUploading(false); return }
-      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+      const { data } = supabase.storage.from('venue-media').getPublicUrl(path)
       setPulseMediaUrl(`${data.publicUrl}?v=${Date.now()}`)
     } catch (e) {
       console.error('[pulse photo] error:', e)
