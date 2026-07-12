@@ -772,6 +772,16 @@ export default function ZoneScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Message the venue — followers/subscribers only, no We Met, no expiry */}
+            {!isOwner && isSubscribed && (
+              <TouchableOpacity
+                style={styles.msgVenueBtn}
+                onPress={() => router.push(`/messages/venue/${id}` as any)}
+              >
+                <Text style={styles.msgVenueBtnText}>💬 Message</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Subscribe — earned, checked-in patrons only */}
             {isPatron ? (
               <View style={styles.patronBadge}>
@@ -1267,6 +1277,11 @@ const styles = StyleSheet.create({
   subBtnActive: { backgroundColor: '#29B6F618' },
   subBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 12 },
   subBtnTextActive: { color: '#29B6F6' },
+  msgVenueBtn: {
+    borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#0D1B2E',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  msgVenueBtnText: { color: '#8EADC7', fontWeight: '700', fontSize: 12 },
   patronBtn: {
     borderWidth: 1, borderColor: '#f59e0b', borderRadius: 20,
     paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#f59e0b12',
