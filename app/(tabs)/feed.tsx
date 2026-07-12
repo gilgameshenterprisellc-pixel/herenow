@@ -26,11 +26,12 @@ interface VenueFeedItem {
   id: string
   zone_id: string
   zone_name: string
-  type: 'promotion' | 'announcement'
+  type: 'promotion' | 'announcement' | 'event'
   title?: string
   description?: string
   message?: string
   discount_label?: string
+  starts_at?: string
   created_at: string
 }
 
@@ -84,7 +85,7 @@ export default function UpdatesScreen() {
       const audienceOk = (row: { zone_id: string; audience?: string | null }) =>
         row.audience !== 'subscribers' || subscribedZones.has(row.zone_id)
 
-      const [{ data: promosRaw }, { data: annosRaw }] = await Promise.all([
+      const [{ data: promosRaw }, { data: annosRaw }, { data: eventsRaw }, { data: dismissedRaw }] = await Promise.all([
         supabase
           .from('venue_promotions')
           .select('id, zone_id, title, description, discount_label, audience, created_at, zones(name)')
@@ -99,10 +100,22 @@ export default function UpdatesScreen() {
           .in('zone_id', zoneIds)
           .order('created_at', { ascending: false })
           .limit(20),
+        // Upcoming events from venues you follow/subscribe to (Jacob: events
+        // created on the dashboard should reach followers + subscribers).
+        supabase
+          .from('venue_events')
+          .select('id, zone_id, title, description, starts_at, ends_at, created_at, zones(name)')
+          .in('zone_id', zoneIds)
+          .or(`ends_at.is.null,ends_at.gte.${now}`)
+          .order('starts_at', { ascending: true })
+          .limit(20),
+        supabase.from('feed_dismissals').select('item_key').eq('user_id', user.id),
       ])
 
+      const dismissed = new Set((dismissedRaw ?? []).map((d: any) => d.item_key))
       const promos = (promosRaw ?? []).filter(audienceOk)
       const annos  = (annosRaw ?? []).filter(audienceOk)
+      const events = (eventsRaw ?? [])
 
       // Log promo views (fire-and-forget)
       if ((promos ?? []).length > 0) {
@@ -134,8 +147,20 @@ export default function UpdatesScreen() {
         created_at: a.created_at,
       }))
 
+      const eventItems: VenueFeedItem[] = (events ?? []).map((e: any) => ({
+        id:          `event-${e.id}`,
+        zone_id:     e.zone_id,
+        zone_name:   e.zones?.name ?? 'Venue',
+        type:        'event' as const,
+        title:       e.title,
+        description: e.description,
+        starts_at:   e.starts_at,
+        created_at:  e.created_at,
+      }))
+
       setVenueFeed(
-        [...promoItems, ...annoItems]
+        [...promoItems, ...annoItems, ...eventItems]
+          .filter((it) => !dismissed.has(it.id))
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .slice(0, 30)
       )
@@ -144,6 +169,17 @@ export default function UpdatesScreen() {
     }
 
     setVenueLoaded(true)
+  }
+
+  // Dismiss a promo/announcement/event card so it stops showing (Jacob: let
+  // users clear old items from their Updates).
+  const dismissFeedItem = async (item: VenueFeedItem) => {
+    setVenueFeed((prev) => prev.filter((it) => it.id !== item.id))
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase
+      .from('feed_dismissals')
+      .upsert({ user_id: user.id, item_key: item.id }, { onConflict: 'user_id,item_key', ignoreDuplicates: true })
   }
 
   const onRefresh = async () => {
@@ -246,20 +282,34 @@ export default function UpdatesScreen() {
               >
                 <View style={styles.venueFeedHeader}>
                   <Text style={styles.venueFeedEmoji}>
-                    {item.type === 'announcement' ? '📣' : '🏷️'}
+                    {item.type === 'announcement' ? '📣' : item.type === 'event' ? '📅' : '🏷️'}
                   </Text>
                   <View style={styles.venueFeedMeta}>
                     <Text style={styles.venueFeedZone}>{item.zone_name}</Text>
                     <Text style={styles.venueFeedTime}>{timeAgo(item.created_at)}</Text>
                   </View>
-                  <View style={[styles.venueFeedBadge, item.type === 'announcement' ? styles.badgeAnnouncement : styles.badgePromo]}>
-                    <Text style={[styles.venueFeedBadgeText, item.type === 'announcement' ? styles.badgeAnnoText : styles.badgePromoText]}>
-                      {item.type === 'announcement' ? 'Announcement' : 'Promo'}
+                  <View style={[styles.venueFeedBadge, item.type === 'announcement' ? styles.badgeAnnouncement : item.type === 'event' ? styles.badgeEvent : styles.badgePromo]}>
+                    <Text style={[styles.venueFeedBadgeText, item.type === 'announcement' ? styles.badgeAnnoText : item.type === 'event' ? styles.badgeEventText : styles.badgePromoText]}>
+                      {item.type === 'announcement' ? 'Announcement' : item.type === 'event' ? 'Event' : 'Promo'}
                     </Text>
                   </View>
+                  <TouchableOpacity
+                    onPress={() => dismissFeedItem(item)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.feedDismiss}
+                  >
+                    <Ionicons name="close" size={16} color="#7A93AC" />
+                  </TouchableOpacity>
                 </View>
-                {item.type === 'promotion' && item.title && (
+                {(item.type === 'promotion' || item.type === 'event') && item.title && (
                   <Text style={styles.venueFeedTitle}>{item.title}</Text>
+                )}
+                {item.type === 'event' && item.starts_at && (
+                  <Text style={styles.venueFeedEventDate}>
+                    {new Date(item.starts_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                    {'  ·  '}
+                    {new Date(item.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                  </Text>
                 )}
                 {item.discount_label && (
                   <View style={styles.discountPill}>
@@ -360,9 +410,13 @@ const styles = StyleSheet.create({
   venueFeedBadge:  { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
   badgePromo:         { backgroundColor: '#29B6F610', borderColor: '#29B6F630' },
   badgeAnnouncement:  { backgroundColor: '#f59e0b10', borderColor: '#f59e0b30' },
+  badgeEvent:         { backgroundColor: '#a855f710', borderColor: '#a855f730' },
   venueFeedBadgeText: { fontSize: 10, fontWeight: '700' },
   badgePromoText:     { color: '#29B6F6' },
   badgeAnnoText:      { color: '#f59e0b' },
+  badgeEventText:     { color: '#a855f7' },
+  feedDismiss:        { padding: 4, marginLeft: 2 },
+  venueFeedEventDate: { fontSize: 12, fontWeight: '700', color: '#a855f7', marginTop: 2 },
   venueFeedTitle:  { fontSize: 15, fontWeight: '800', color: '#f8fafc' },
   venueFeedDesc:   { fontSize: 13, color: '#8EADC7', lineHeight: 18 },
   venueFeedCta:    { fontSize: 12, color: '#29B6F6', fontWeight: '600' },
