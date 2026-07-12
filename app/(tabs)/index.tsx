@@ -217,7 +217,11 @@ export default function NearbyScreen() {
 
   const handleCardPress = (zone: Zone) => {
     setSelectedId(zone.id)
-    if (Platform.OS !== 'web') {
+    // react-native-maps throws a native (uncaught) exception on a NaN/null
+    // coordinate, which aborts the whole app. Guard with Number.isFinite the
+    // same way WebMap does before every animateToRegion call.
+    if (Platform.OS !== 'web' &&
+        Number.isFinite(zone.center_lat) && Number.isFinite(zone.center_lng)) {
       mapRef.current?.animateToRegion({
         latitude: zone.center_lat,
         longitude: zone.center_lng,
