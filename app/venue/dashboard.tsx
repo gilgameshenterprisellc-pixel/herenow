@@ -9,7 +9,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { fetchSubscriberCount, fetchFollowerCount } from '@/lib/venueSubscriptions'
+import { fetchSubscriberCount, fetchFollowerCount, fetchVenueSubscribers, type VenueSubscriber } from '@/lib/venueSubscriptions'
+import AvatarImage from '@/components/AvatarImage'
+import { publicName } from '@/lib/format'
 import * as ImagePicker from 'expo-image-picker'
 import { createVenuePulsePost, fetchPulse, type PulsePost } from '@/lib/pulse'
 import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } from '@/lib/venuePhotos'
@@ -79,6 +81,7 @@ export default function VenueDashboard() {
   const [venueStatus, setVenueStatus]     = useState<string | null>(null)
   const [denialReason, setDenialReason]   = useState<string | null>(null)
   const [subscriberCount, setSubscriberCount] = useState(0)
+  const [subscribers, setSubscribers]         = useState<VenueSubscriber[]>([])
   const [followerCount, setFollowerCount]     = useState(0)
   const [wemetsToday, setWemetsToday] = useState(0)
   const [pendingPhotos, setPendingPhotos] = useState<PendingVenuePhoto[]>([])
@@ -175,12 +178,14 @@ export default function VenueDashboard() {
         }
 
         setStats({ total, ageRanges, interests, socialModes })
-        const [subCount, folCount] = await Promise.all([
+        const [subCount, folCount, subList] = await Promise.all([
           fetchSubscriberCount(z.id),
           fetchFollowerCount(z.id),
+          fetchVenueSubscribers(z.id),
         ])
         setSubscriberCount(subCount)
         setFollowerCount(folCount)
+        setSubscribers(subList)
 
         // We Mets confirmed here in the last 24h (aggregate count, no individual data)
         const { data: wemetsToday } = await supabase.rpc('venue_wemets_today', { zone_uuid: z.id })
@@ -933,6 +938,25 @@ export default function VenueDashboard() {
           </View>
         )}
 
+        {/* Who your subscribers are — build real relationships */}
+        {venue && subscribers.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Your Subscribers ({subscribers.length})</Text>
+            <Text style={styles.cardHint}>Patrons who subscribed while checked in. Say hi, build the relationship.</Text>
+            <View style={{ gap: 8, marginTop: 10 }}>
+              {subscribers.map((s) => (
+                <View key={s.user_id} style={styles.subscriberRow}>
+                  <AvatarImage uri={s.avatar_url} name={s.display_name} size={38} />
+                  <Text style={styles.subscriberName} numberOfLines={1}>{publicName(s.display_name)}</Text>
+                  <Text style={styles.subscriberDate}>
+                    {new Date(s.subscribed_at).toLocaleDateString('default', { month: 'short', day: 'numeric' })}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Analytics */}
         {analytics && (
           <>
@@ -1256,6 +1280,9 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 13, fontWeight: '800', color: '#8EADC7', textTransform: 'uppercase', letterSpacing: 0.5 },
   cardHint: { fontSize: 12, color: '#7A93AC', marginTop: -8 },
+  subscriberRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  subscriberName: { flex: 1, fontSize: 14, fontWeight: '600', color: '#f0f8ff' },
+  subscriberDate: { fontSize: 11, color: '#7A93AC' },
   monitorEmpty: { fontSize: 13, color: '#4A6580', fontStyle: 'italic', paddingVertical: 8 },
   featureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   featureLabel: { fontSize: 15, fontWeight: '700', color: '#f0f8ff' },
