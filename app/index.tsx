@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   View, Text, Image, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Easing, Platform, ActivityIndicator, Dimensions,
@@ -7,6 +7,24 @@ import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Redirect, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/lib/supabase'
+
+// Resolve where a logged-in user should land: venue owners go straight to the
+// venue dashboard, everyone else to the map. Returns null while resolving.
+// (Jacob: opening the app as a venue dropped you on the map first.)
+function useLoggedInDestination(userId: string | undefined): '/(tabs)' | '/venue/dashboard' | null {
+  const [dest, setDest] = useState<'/(tabs)' | '/venue/dashboard' | null>(null)
+  useEffect(() => {
+    if (!userId) { setDest(null); return }
+    let cancelled = false
+    supabase.from('profiles').select('is_venue_owner').eq('id', userId).maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setDest(data?.is_venue_owner ? '/venue/dashboard' : '/(tabs)')
+      })
+    return () => { cancelled = true }
+  }, [userId])
+  return dest
+}
 
 const WIN_H = Dimensions.get('window').height
 
@@ -109,8 +127,9 @@ function ScrollCaret() {
 // ─── Native path: handle auth redirect only ───────────────────────────────────
 function NativeIndex() {
   const { session, loading } = useAuth()
+  const dest = useLoggedInDestination(session?.user?.id)
 
-  if (loading) {
+  if (loading || (session && !dest)) {
     return (
       <View style={{ flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
         <Image
@@ -128,14 +147,15 @@ function NativeIndex() {
     )
   }
 
-  return <Redirect href={session ? '/(tabs)' : '/(auth)/login'} />
+  return <Redirect href={session ? (dest ?? '/(tabs)') : '/(auth)/login'} />
 }
 
 // ─── Web landing page ─────────────────────────────────────────────────────────
 function WebLanding() {
   const { session, loading } = useAuth()
+  const dest = useLoggedInDestination(session?.user?.id)
 
-  if (loading) {
+  if (loading || (session && !dest)) {
     return (
       <View style={{ flex: 1, backgroundColor: '#050A15', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color="#29B6F6" />
@@ -143,7 +163,7 @@ function WebLanding() {
     )
   }
 
-  if (session) return <Redirect href="/(tabs)" />
+  if (session) return <Redirect href={dest ?? '/(tabs)'} />
 
   const features = [
     {
