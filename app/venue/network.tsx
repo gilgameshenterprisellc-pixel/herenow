@@ -70,18 +70,6 @@ export default function VenueNetworkScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor="#29B6F6" />}
         showsVerticalScrollIndicator={false}
       >
-        {!loading && zones.length > 0 && (
-          <View style={styles.mapWrap}>
-            <WebMap
-              zones={zones}
-              location={ownLoc}
-              selectedId={selectedId}
-              onPinPress={(z) => setSelectedId(z.id)}
-              subscribedIds={EMPTY_SET}
-            />
-          </View>
-        )}
-
         {loading ? (
           <ActivityIndicator color="#29B6F6" style={{ marginTop: 50 }} />
         ) : zones.length === 0 ? (
@@ -122,6 +110,18 @@ export default function VenueNetworkScreen() {
             )
           })
         )}
+        {!loading && zones.length > 0 && (
+          <View style={styles.mapWrap}>
+            <WebMap
+              zones={zones}
+              location={ownLoc}
+              selectedId={selectedId}
+              onPinPress={(z) => setSelectedId(z.id)}
+              subscribedIds={EMPTY_SET}
+            />
+          </View>
+        )}
+
         {!loading && zones.length > 0 && (
           <Text style={styles.footNote}>
             Live counts across the network. If a nearby spot is packed and you're quiet, that's your cue to run a promo.
