@@ -123,6 +123,11 @@ export default function WebMap({
         showsUserLocation
         showsMyLocationButton={false}
         userInterfaceStyle="dark"
+        // Keep the map app-specific: only participating venues should be
+        // identifiable, not real-world businesses (Jacob — no Shell station).
+        mapType="mutedStandard"
+        showsPointsOfInterest={false}
+        showsBuildings={false}
         onRegionChangeComplete={(r) => onMapMove?.(r.latitude, r.longitude)}
       >
         {validZones.map(zone => {
