@@ -63,6 +63,9 @@ export default function VenueRecapScreen() {
   const date = isoDate(daysAgo)
   const modes = recap?.social_modes ?? {}
   const modeTotal = Object.values(modes).reduce((a, b) => a + b, 0)
+  const ages = recap?.age_ranges ?? {}
+  const ageTotal = Object.values(ages).reduce((a, b) => a + b, 0)
+  const interests = Object.entries(recap?.interests ?? {}).sort((a, b) => b[1] - a[1])
 
   const stat = (label: string, value: string | number) => (
     <View style={styles.stat}>
@@ -146,6 +149,40 @@ export default function VenueRecapScreen() {
               </View>
             )}
 
+            {/* Age ranges */}
+            {ageTotal > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardLabel}>Age Ranges</Text>
+                {Object.entries(ages).sort((a, b) => b[1] - a[1]).map(([range, n]) => {
+                  const pct = Math.round((n / ageTotal) * 100)
+                  return (
+                    <View key={range} style={styles.barRow}>
+                      <Text style={styles.barLabel}>{range}</Text>
+                      <View style={styles.barTrack}>
+                        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: '#29B6F6' }]} />
+                      </View>
+                      <Text style={styles.barPct}>{pct}%</Text>
+                    </View>
+                  )
+                })}
+              </View>
+            )}
+
+            {/* Top interests */}
+            {interests.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardLabel}>Top Interests</Text>
+                <View style={styles.interestCloud}>
+                  {interests.map(([tag, n]) => (
+                    <View key={tag} style={styles.interestPill}>
+                      <Text style={styles.interestTag}>{tag}</Text>
+                      <View style={styles.interestBadge}><Text style={styles.interestCount}>{n}</Text></View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Came from */}
             <View style={styles.card}>
               <Text style={styles.cardLabel}>Where they came from</Text>
@@ -157,7 +194,7 @@ export default function VenueRecapScreen() {
                   </View>
                 ))
               ) : (
-                <Text style={styles.flowEmpty}>Not enough movement to show yet (kept anonymous — 3+ guests needed).</Text>
+                <Text style={styles.flowEmpty}>No venue-to-venue movement tracked that night.</Text>
               )}
             </View>
 
@@ -172,12 +209,12 @@ export default function VenueRecapScreen() {
                   </View>
                 ))
               ) : (
-                <Text style={styles.flowEmpty}>Not enough movement to show yet (kept anonymous — 3+ guests needed).</Text>
+                <Text style={styles.flowEmpty}>No venue-to-venue movement tracked that night.</Text>
               )}
             </View>
 
             <Text style={styles.footNote}>
-              Everything here is aggregate and anonymous. Movement between venues only shows when 3 or more guests share it.
+              Everything here is aggregate and anonymous. Cross-venue movement shows venue names and counts only, never who moved.
             </Text>
           </>
         )}
@@ -235,4 +272,15 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 48 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#f8fafc' },
   emptySub: { fontSize: 13, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 28, lineHeight: 19 },
+  interestCloud: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  interestPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#0A1628', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  interestTag: { fontSize: 13, color: '#8EADC7', fontWeight: '600' },
+  interestBadge: {
+    backgroundColor: '#29B6F620', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  interestCount: { fontSize: 11, color: '#29B6F6', fontWeight: '800' },
 })

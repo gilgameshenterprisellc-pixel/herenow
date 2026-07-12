@@ -9,12 +9,14 @@ export interface VenueRecap {
   avg_dwell_mins: number
   peak_hour: number | null
   social_modes: Record<string, number>
+  age_ranges: Record<string, number>
+  interests: Record<string, number>
   came_from: { venue: string; count: number }[]
   went_to: { venue: string; count: number }[]
 }
 
 // Aggregate-only nightly recap for a venue. All cross-venue flow is anonymized
-// server-side (3+ patron threshold). date is 'YYYY-MM-DD'.
+// server-side (venue names + counts only, never identity). date is 'YYYY-MM-DD'.
 export async function fetchVenueRecap(zoneId: string, date: string): Promise<VenueRecap | null> {
   const { data, error } = await supabase.rpc('venue_daily_recap', { p_zone_id: zoneId, p_date: date })
   if (error) {
