@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { createVenuePulsePost, fetchPulse, type PulsePost } from '@/lib/pulse'
 import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } from '@/lib/venuePhotos'
 import { platformConfirm } from '@/lib/confirm'
+import { hideVenueContent } from '@/lib/venueModeration'
 import { useVenueChat } from '@/hooks/useVenueChat'
 import PulsePostCard from '@/components/PulsePostCard'
 import ChatMessage from '@/components/ChatMessage'
@@ -100,7 +101,7 @@ export default function VenueDashboard() {
   const [monitorPulse, setMonitorPulse]   = useState<PulsePost[]>([])
 
   // Venue owner monitors their own Pulse + Chat (needs owner-read RLS).
-  const { messages: monitorChat } = useVenueChat(venue?.id ?? '')
+  const { messages: monitorChat, refresh: refreshChat } = useVenueChat(venue?.id ?? '')
 
   useEffect(() => {
     if (!venue?.id) return
@@ -397,6 +398,19 @@ export default function VenueDashboard() {
     await setVenuePhotoStatus(id, status)
   }
 
+  // First name only for the chat monitor (Joshua: first name, no last initial).
+  const firstName = (name?: string | null) => (name ?? '').trim().split(/\s+/)[0] || ''
+
+  // Venue moderation: hide a guest's Pulse post or Chat message.
+  const moderatePulse = async (id: string) => {
+    setMonitorPulse((prev) => prev.filter((p) => p.id !== id))
+    await hideVenueContent('pulse', id)
+  }
+  const moderateChat = async (id: string) => {
+    const ok = await hideVenueContent('chat', id)
+    if (ok) refreshChat()
+  }
+
   const topInterests = Object.entries(stats.interests)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
@@ -683,7 +697,18 @@ export default function VenueDashboard() {
                 contentContainerStyle={{ gap: 10, paddingTop: 8 }}
               >
                 {monitorPulse.map((p) => (
-                  <PulsePostCard key={p.id} post={p} currentUserId="" canPin={false} />
+                  <View key={p.id} style={styles.modRow}>
+                    <View style={{ flex: 1 }}>
+                      <PulsePostCard post={p} currentUserId="" canPin={false} />
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => moderatePulse(p.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.modDelete}
+                    >
+                      <Text style={styles.modDeleteText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
                 ))}
               </ScrollView>
             )}
@@ -694,7 +719,7 @@ export default function VenueDashboard() {
         {venue && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Live Chat</Text>
-            <Text style={styles.cardHint}>Monitor the room. Names stay hidden as Guest 1, 2, 3.</Text>
+            <Text style={styles.cardHint}>Monitor the room. Tap ✕ to remove anything out of line.</Text>
             {monitorChat.length === 0 ? (
               <Text style={styles.monitorEmpty}>No chat activity yet tonight.</Text>
             ) : (
@@ -705,12 +730,22 @@ export default function VenueDashboard() {
                 contentContainerStyle={{ gap: 4, paddingTop: 8 }}
               >
                 {monitorChat.map((m) => (
-                  <ChatMessage
-                    key={m.id}
-                    message={m}
-                    currentUserId=""
-                    senderLabel={`Guest ${monitorGuests.get(m.user_id) ?? '?'}`}
-                  />
+                  <View key={m.id} style={styles.modRow}>
+                    <View style={{ flex: 1 }}>
+                      <ChatMessage
+                        message={m}
+                        currentUserId=""
+                        senderLabel={firstName(m.profiles?.display_name) || `Guest ${monitorGuests.get(m.user_id) ?? '?'}`}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => moderateChat(m.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.modDelete}
+                    >
+                      <Text style={styles.modDeleteText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
                 ))}
               </ScrollView>
             )}
@@ -1235,6 +1270,9 @@ const styles = StyleSheet.create({
   // Each live feed (Pulse / Chat) scrolls inside its own pane so a busy night
   // doesn't force the venue to scroll the whole page to reach the other one.
   feedPane: { maxHeight: 360 },
+  modRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  modDelete: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef444418', borderWidth: 1, borderColor: '#ef444430' },
+  modDeleteText: { color: '#ef4444', fontSize: 13, fontWeight: '800' },
 
   mapCard: {
     backgroundColor: '#07101F',
