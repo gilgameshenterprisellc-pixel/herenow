@@ -202,6 +202,8 @@ export default function ProfileScreen() {
     ...baseNav,
     ...(venueNav ? [venueNav] : []),
     ...(adminNav ? [adminNav] : []),
+    // Anonymous feedback survey — sits directly above Sign Out (Jacob).
+    { label: 'Take the Survey', route: '/survey', icon: 'clipboard-outline' },
   ]
 
   return (
