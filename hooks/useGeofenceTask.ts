@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Platform } from 'react-native'
 import { supabase } from '@/lib/supabase'
-import { checkOut } from '@/lib/sessions'
+import { checkOut, verifyZonePresence } from '@/lib/sessions'
 
 export const GEOFENCE_TASK = 'HERENOW_GEOFENCE_TASK'
 
@@ -30,7 +30,17 @@ if (Platform.OS !== 'web') {
         .eq('zone_id', zoneId)
         .eq('user_id', user.id)
     } else {
-      // User left the venue — auto-checkout active session
+      // OS says the user left the ~150m region. These background Exit events are
+      // noisy indoors (wifi/cell fallback, multipath) and were ending sessions
+      // while people were still at the venue. Re-verify against the real
+      // polygon/radius with a fresh, accuracy-gated fix before checking out.
+      // Anything other than a confirmed "outside" (still inside, or no fix we
+      // trust) leaves the session alone — the foreground verifier and the 30-min
+      // server staleness net will catch a genuine departure.
+      const presence = await verifyZonePresence(zoneId).catch(() => 'unknown' as const)
+      if (presence !== 'outside') return
+
+      // Confirmed out of the venue — auto-checkout active session
       const { data: session } = await supabase
         .from('sessions')
         .select('id')

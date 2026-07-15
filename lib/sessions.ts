@@ -107,6 +107,27 @@ export async function checkIn(params: {
   return { ok: true, session: data }
 }
 
+// Presence verdict for an active session. 'unknown' means we couldn't get a fix
+// we trust — treat it as "stay checked in", never as grounds to evict.
+export type PresenceCheck = 'inside' | 'outside' | 'unknown'
+
+// Re-verify that a user is physically in a zone, using the SAME accuracy bar as
+// check-in. This is the guard that was missing on the eviction paths: a fuzzy
+// indoor fix jitters the point outside the polygon and reads as "outside" even
+// when the person hasn't moved. If we wouldn't trust a fix to let someone IN, we
+// won't trust it to kick them OUT — a fix fuzzier than MAX_CHECKIN_ACCURACY_M (or
+// no fix at all) returns 'unknown' so the caller keeps the session alive and
+// tries again next tick. Only a trustworthy, confirmed-outside fix returns
+// 'outside'.
+export async function verifyZonePresence(zoneId: string): Promise<PresenceCheck> {
+  const coords = await getCurrentCoords()
+  if (!coords) return 'unknown'
+  if (coords.accuracy == null || coords.accuracy > MAX_CHECKIN_ACCURACY_M) return 'unknown'
+
+  const inZone = await checkUserInZone(zoneId, coords.latitude, coords.longitude)
+  return inZone ? 'inside' : 'outside'
+}
+
 export async function updateSessionModes(
   sessionId: string,
   socialMode: SocialMode,
