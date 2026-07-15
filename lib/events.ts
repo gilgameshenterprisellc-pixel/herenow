@@ -42,6 +42,34 @@ export async function fetchEvents(zoneId: string): Promise<VenueEvent[]> {
   return data.map((e: any) => ({ ...e, user_rsvpd: rsvpSet.has(e.id) }))
 }
 
+// Every event for a zone, past and upcoming, newest first. Used by the venue's
+// Manage Events screen so owners can see and delete anything they've created —
+// including stale past events that fetchEvents() (upcoming-only) hides.
+export async function fetchAllVenueEvents(zoneId: string): Promise<VenueEvent[]> {
+  const { data, error } = await supabase
+    .from('venue_events')
+    .select('*')
+    .eq('zone_id', zoneId)
+    .order('starts_at', { ascending: false })
+
+  if (error) {
+    console.error('[events] fetchAllVenueEvents error:', error.message)
+    return []
+  }
+  return (data as VenueEvent[]) ?? []
+}
+
+// Delete an event. RLS ("Creators delete their events") only lets the creator —
+// i.e. the venue owner who made it — remove it. Returns false on failure.
+export async function deleteEvent(eventId: string): Promise<boolean> {
+  const { error } = await supabase.from('venue_events').delete().eq('id', eventId)
+  if (error) {
+    console.error('[events] deleteEvent error:', error.message)
+    return false
+  }
+  return true
+}
+
 export async function createEvent(params: {
   zoneId: string
   title: string
