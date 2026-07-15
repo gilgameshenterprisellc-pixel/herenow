@@ -10,8 +10,23 @@ import { ToastProvider } from '@/contexts/ToastContext'
 import { supabase } from '@/lib/supabase'
 import { registerPushToken } from '@/lib/push'
 import { AnalyticsProvider } from '@/components/AnalyticsProvider'
+import * as Sentry from '@sentry/react-native'
 
-export default function RootLayout() {
+// Crash + error reporting. Native only — the live web build (Vercel) is left
+// untouched. This is the reporter that captures the NSException reason the
+// TestFlight .ips crash files leave out, so the native TurboModule/Hermes
+// teardown crash finally names its own cause. The DSN is a public client
+// identifier and is safe to ship inside the app.
+if (Platform.OS !== 'web') {
+  Sentry.init({
+    dsn: 'https://70cf53eae4f5acb10d8969e27a23a674@o4511736909791232.ingest.us.sentry.io/4511736923226112',
+    enabled: !__DEV__,          // report from real builds only, not local dev
+    tracesSampleRate: 0,        // crashes/errors only, no perf tracing (free tier)
+    enableNativeCrashHandling: true,
+  })
+}
+
+function RootLayout() {
   useGeofenceTask()
   useNotificationTaps()
 
@@ -101,3 +116,7 @@ export default function RootLayout() {
     </ToastProvider>
   )
 }
+
+// Wrap so Sentry captures render errors and attaches navigation/context to
+// reports. Web passes through untouched (Sentry isn't initialized there).
+export default Platform.OS === 'web' ? RootLayout : Sentry.wrap(RootLayout)
