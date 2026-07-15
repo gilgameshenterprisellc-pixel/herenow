@@ -15,6 +15,7 @@ interface Stats {
   openReports: number
   openUserReports: number
   mutedUsers: number
+  surveyResponses: number
 }
 
 export default function AdminOverview() {
@@ -32,6 +33,7 @@ export default function AdminOverview() {
       { count: openReports },
       { count: openUserReports },
       { count: mutedUsers },
+      { count: surveyResponses },
     ] = await Promise.all([
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       supabase.from('zones').select('id', { count: 'exact', head: true }).eq('is_active', true),
@@ -40,6 +42,7 @@ export default function AdminOverview() {
       supabase.from('content_reports').select('id', { count: 'exact', head: true }).eq('status', 'open'),
       supabase.from('safety_reports').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_muted', true),
+      supabase.from('survey_submissions').select('id', { count: 'exact', head: true }),
     ])
 
     setStats({
@@ -50,6 +53,7 @@ export default function AdminOverview() {
       openReports:     (openReports ?? 0) + (openUserReports ?? 0),
       openUserReports: openUserReports ?? 0,
       mutedUsers:      mutedUsers ?? 0,
+      surveyResponses: surveyResponses ?? 0,
     })
     setLoading(false)
     setRefreshing(false)
@@ -152,6 +156,22 @@ export default function AdminOverview() {
                   <Text style={styles.actionSub}>Search users, view profiles, mute or ban</Text>
                 </View>
               </View>
+              <Text style={styles.arrow}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/surveys' as any)}>
+              <View style={styles.actionLeft}>
+                <Text style={styles.actionEmoji}>📝</Text>
+                <View>
+                  <Text style={styles.actionTitle}>Surveys & Feedback</Text>
+                  <Text style={styles.actionSub}>Anonymous responses from the in-app survey</Text>
+                </View>
+              </View>
+              {(stats?.surveyResponses ?? 0) > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{stats!.surveyResponses}</Text>
+                </View>
+              )}
               <Text style={styles.arrow}>›</Text>
             </TouchableOpacity>
 
