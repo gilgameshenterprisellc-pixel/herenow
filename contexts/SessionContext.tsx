@@ -2,10 +2,8 @@ import { createContext, useContext, useEffect, useRef, useState, useCallback, Re
 import { Platform, AppState } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import type { Session, CheckInResult } from '@/lib/sessions'
-import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut, touchSession } from '@/lib/sessions'
+import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut, touchSession, verifyZonePresence } from '@/lib/sessions'
 import type { SocialMode, MoodMode } from '@/lib/sessions'
-import { getCurrentCoords } from '@/lib/location'
-import { checkUserInZone } from '@/lib/zones'
 
 interface SessionContextValue {
   activeSession: Session | null
@@ -26,10 +24,19 @@ const SessionContext = createContext<SessionContextValue>({
 const AUTO_CHECKOUT_MS = 3 * 60 * 1000  // 3 minutes — prompt leave detection
 const HEARTBEAT_MS     = 2 * 60 * 1000  // 2 minutes — keeps presence fresh
 
+// Require this many CONSECUTIVE trustworthy "outside" reads before evicting.
+// A single fix is not enough: indoor GPS glitches produce one-off outside reads
+// even when the person hasn't moved, which was booting people mid-visit. Any
+// confirmed inside read (or an untrusted fix) resets the count. At the 3-min
+// cadence, 2 strikes means ~6 minutes of continuous confirmed absence — long
+// enough to mean "actually left", short enough to drop a real departure.
+const EVICT_STRIKES = 2
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const autoCheckoutTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const outsideStrikes = useRef(0)
 
   const refresh = useCallback(async () => {
     const session = await getActiveSession()
@@ -53,20 +60,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     moodMode: MoodMode
   ): Promise<CheckInResult> => {
     const result = await doCheckIn({ zoneId, socialMode, moodMode })
-    if (result.ok) setActiveSession(result.session)
+    if (result.ok) {
+      outsideStrikes.current = 0
+      setActiveSession(result.session)
+    }
     return result
   }, [])
 
   // Verify the user is still physically in their checked-in zone; if not, check
   // them out. Runs on a timer AND immediately whenever the app returns to the
   // foreground, so leaving the venue drops you promptly (Jacob safety).
+  //
+  // Only evicts on repeated, trustworthy "outside" reads. verifyZonePresence
+  // applies the same accuracy bar as check-in: a fuzzy fix returns 'unknown', so
+  // one bad indoor reading can never boot someone. A confirmed inside read (or an
+  // untrusted fix) resets the strike count; eviction needs EVICT_STRIKES in a row.
   const verifyPresenceOrCheckout = useCallback(async () => {
     if (!activeSession || Platform.OS === 'web') return
     try {
-      const coords = await getCurrentCoords()
-      if (!coords) return
-      const stillInZone = await checkUserInZone(activeSession.zone_id, coords.latitude, coords.longitude)
-      if (!stillInZone) {
+      const presence = await verifyZonePresence(activeSession.zone_id)
+      if (presence === 'inside' || presence === 'unknown') {
+        outsideStrikes.current = 0
+        return
+      }
+      // presence === 'outside' — trustworthy fix, confirmed out of the zone
+      outsideStrikes.current += 1
+      if (outsideStrikes.current >= EVICT_STRIKES) {
+        outsideStrikes.current = 0
         await doCheckOut(activeSession.id)
         setActiveSession(null)
       }
