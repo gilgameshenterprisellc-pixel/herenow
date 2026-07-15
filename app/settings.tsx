@@ -11,6 +11,13 @@ import BackButton from '@/components/BackButton'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
+// On web, Linking.openURL('mailto:…') opens a blank browser tab. Navigating the
+// current tab hands the mailto straight to the OS mail handler with no blank tab.
+function openMail(url: string) {
+  if (Platform.OS === 'web') { window.location.href = url }
+  else { Linking.openURL(url) }
+}
+
 function SettingsRow({
   icon, label, subtitle, onPress, value, onValueChange, destructive = false,
 }: {
@@ -170,13 +177,13 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="document-text-outline"
             label="Privacy Policy"
-            onPress={() => Linking.openURL('https://herenow.app/privacy')}
+            onPress={() => router.push('/legal/privacy' as any)}
           />
           <View style={styles.divider} />
           <SettingsRow
             icon="reader-outline"
             label="Terms of Service"
-            onPress={() => Linking.openURL('https://herenow.app/terms')}
+            onPress={() => router.push('/legal/terms' as any)}
           />
         </Section>
 
@@ -218,19 +225,19 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="mail-outline"
             label="Contact Support"
-            onPress={() => Linking.openURL('mailto:support@herenow.app')}
+            onPress={() => openMail('mailto:support@herenow.app')}
           />
           <View style={styles.divider} />
           <SettingsRow
             icon="bug-outline"
             label="Report a Bug"
-            onPress={() => Linking.openURL('mailto:support@herenow.app?subject=Bug%20Report')}
+            onPress={() => openMail('mailto:support@herenow.app?subject=Bug%20Report')}
           />
           <View style={styles.divider} />
           <SettingsRow
             icon="information-circle-outline"
             label="About HereNow"
-            onPress={() => Linking.openURL('https://herenow.app')}
+            onPress={() => router.push('/about' as any)}
           />
         </Section>
 
