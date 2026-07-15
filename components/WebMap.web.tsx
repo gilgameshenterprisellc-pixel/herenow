@@ -293,7 +293,10 @@ export default function WebMap({
         attributionControl: false,
       }).setView(center, 13)
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+      // dark_all (not dark_nolabels) so state/city/place names show for
+      // orientation, matching the native map's mutedStandard labels. Business
+      // POIs only surface at street-level zoom, which this discovery map avoids.
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
       }).addTo(map)
 
