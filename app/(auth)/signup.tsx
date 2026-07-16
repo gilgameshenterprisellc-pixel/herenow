@@ -277,6 +277,7 @@ export default function SignupScreen() {
       <Animated.View style={[styles.orb, { width: 280, height: 280, backgroundColor: '#0A3A80', top: -40, left: '30%', opacity: o4o, transform: [{ scale: o4s }] }]} />
 
       <ScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

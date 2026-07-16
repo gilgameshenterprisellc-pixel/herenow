@@ -98,6 +98,8 @@ export default function VenueThreadScreen() {
         <View style={styles.center}><ActivityIndicator color="#29B6F6" /></View>
       ) : (
         <FlatList
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ref={listRef}
           data={messages}
           keyExtractor={(m) => m.id}

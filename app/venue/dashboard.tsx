@@ -578,6 +578,8 @@ export default function VenueDashboard() {
       </View>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -743,6 +745,8 @@ export default function VenueDashboard() {
               <Text style={styles.monitorEmpty}>No Pulse posts yet tonight.</Text>
             ) : (
               <ScrollView
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 style={styles.feedPane}
                 nestedScrollEnabled
                 showsVerticalScrollIndicator
@@ -776,6 +780,8 @@ export default function VenueDashboard() {
               <Text style={styles.monitorEmpty}>No chat activity yet tonight.</Text>
             ) : (
               <ScrollView
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 style={styles.feedPane}
                 nestedScrollEnabled
                 showsVerticalScrollIndicator

@@ -168,7 +168,9 @@ export default function VenuePeopleScreen() {
       {promos.length > 0 && (
         <View style={styles.promosBar}>
           <Text style={styles.promosBarLabel}>ACTIVE PROMOS</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.promosBarScroll}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.promosBarScroll}>
             {promos.map((p) => (
               <View key={p.id} style={styles.promoChip}>
                 <Text style={styles.promoChipText}>{p.discount_label || p.title}</Text>
@@ -179,6 +181,8 @@ export default function VenuePeopleScreen() {
       )}
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,

@@ -208,6 +208,8 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingBottom: TAB_SAFE_BOTTOM }]}
       showsVerticalScrollIndicator={false}

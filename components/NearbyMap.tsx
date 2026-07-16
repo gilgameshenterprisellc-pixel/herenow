@@ -94,6 +94,8 @@ export default function NearbyMap({
 
         {/* Chip filter — multi-select: tap to add, tap again to remove */}
         <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipStrip}

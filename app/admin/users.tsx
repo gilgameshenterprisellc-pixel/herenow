@@ -126,6 +126,8 @@ export default function AdminUsers() {
         <ActivityIndicator color="#29B6F6" size="large" style={{ marginTop: 60 }} />
       ) : (
         <FlatList
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           data={filtered}
           keyExtractor={(u) => u.id}
           renderItem={renderUser}

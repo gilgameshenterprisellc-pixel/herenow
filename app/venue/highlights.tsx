@@ -99,6 +99,7 @@ export default function VenueHighlightsScreen() {
       </View>
 
       <ScrollView
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
@@ -137,7 +138,9 @@ export default function VenueHighlightsScreen() {
             <Text style={styles.sectionLabel}>ADD HIGHLIGHT</Text>
 
             <Text style={styles.label}>Emoji</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emojiRow}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emojiRow}>
               {EMOJIS.map((e) => (
                 <TouchableOpacity
                   key={e}

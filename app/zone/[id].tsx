@@ -654,7 +654,9 @@ export default function ZoneScreen() {
     <View>
       {venueBadges.length > 0 && (
         <View style={styles.badgeStrip}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeStripList}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeStripList}>
             {venueBadges.map((b) => (
               <View key={b.slug} style={styles.badgeChip}>
                 <Text style={styles.badgeChipIcon}>{b.icon ?? '🏅'}</Text>
@@ -667,7 +669,9 @@ export default function ZoneScreen() {
 
       {highlights.length > 0 && (
         <View style={styles.highlightsWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsList}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsList}>
             {highlights.map((h) => (
               <View key={h.id} style={styles.highlightCard}>
                 <Text style={styles.highlightEmoji}>{h.emoji ?? '⭐'}</Text>
@@ -681,7 +685,9 @@ export default function ZoneScreen() {
 
       {photos.length > 0 && (
         <View style={styles.galleryWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryList}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryList}>
             {photos.map((p) => (
               <TouchableOpacity key={p.id} style={styles.galleryThumb} onPress={() => setLightboxUrl(p.public_url)} activeOpacity={0.85}>
                 <Image source={{ uri: p.public_url }} style={styles.galleryImg} resizeMode="cover" />
@@ -952,10 +958,14 @@ export default function ZoneScreen() {
 
       {/* Pulse blurred preview — ghost posts visible, CTA overlay prompts check-in */}
       {tab === 'pulse' && !canViewFeed && (
-        <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1 }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag" style={styles.flex} contentContainerStyle={{ flexGrow: 1 }}>
           {venueInfo}
           <View style={{ flex: 1, position: 'relative', minHeight: 240 }}>
             <FlatList
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               data={pulsePosts.slice(0, 3)}
               keyExtractor={(p) => p.id}
               contentContainerStyle={styles.list}
@@ -988,6 +998,8 @@ export default function ZoneScreen() {
 
       {tab === 'people' && isCheckedIn && (
         <FlatList
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           data={people}
           keyExtractor={(p) => p.session_id}
           contentContainerStyle={styles.list}
@@ -1025,6 +1037,8 @@ export default function ZoneScreen() {
       {tab === 'pulse' && canViewFeed && (
         <View style={styles.flex}>
           <FlatList
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             data={pulsePosts}
             keyExtractor={(p) => p.id}
             contentContainerStyle={styles.list}
@@ -1117,6 +1131,8 @@ export default function ZoneScreen() {
       {tab === 'chat' && canViewFeed && (
         <View style={styles.flex}>
           <FlatList
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             ref={chatListRef}
             data={chatMsgs}
             keyExtractor={(m) => m.id}
@@ -1169,6 +1185,8 @@ export default function ZoneScreen() {
 
       {tab === 'events' && (
         <FlatList
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           data={events}
           keyExtractor={(e) => e.id}
           contentContainerStyle={styles.list}

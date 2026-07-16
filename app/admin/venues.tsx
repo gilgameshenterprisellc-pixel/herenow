@@ -625,6 +625,7 @@ export default function AdminVenues() {
       </View>
 
       <ScrollView
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
@@ -703,7 +704,8 @@ export default function AdminVenues() {
                       />
 
                       <Text style={styles.label}>Zone Type</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePills} keyboardShouldPersistTaps="handled">
+                      <ScrollView
+                        keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePills} keyboardShouldPersistTaps="handled">
                         {ZONE_TYPES.map((t) => (
                           <TouchableOpacity
                             key={t}
@@ -969,7 +971,8 @@ export default function AdminVenues() {
                             />
 
                             <Text style={styles.label}>Zone Type</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePills} keyboardShouldPersistTaps="handled">
+                            <ScrollView
+                              keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePills} keyboardShouldPersistTaps="handled">
                               {ZONE_TYPES.map((t) => (
                                 <TouchableOpacity
                                   key={t}

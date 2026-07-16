@@ -63,7 +63,9 @@ function TrendingStrip({ zones, onPress }: { zones: Zone[]; onPress: (id: string
   return (
     <View style={styles.trendingWrap}>
       <Text style={styles.trendingTitle}>🔥 Trending Now</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingScroll}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingScroll}>
         {trending.map(z => (
           <TouchableOpacity
             key={z.id}

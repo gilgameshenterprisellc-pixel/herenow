@@ -228,6 +228,7 @@ export default function VenueAnnouncementsScreen() {
       </View>
 
       <ScrollView
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,

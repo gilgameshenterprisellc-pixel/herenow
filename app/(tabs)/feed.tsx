@@ -237,6 +237,8 @@ export default function UpdatesScreen() {
       </View>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={[styles.list, webCenter]}
         onScroll={(e) => onScroll(e.nativeEvent.contentOffset.y)}
         scrollEventThrottle={16}
@@ -249,6 +251,8 @@ export default function UpdatesScreen() {
           <View style={styles.venuesSection}>
             <Text style={styles.sectionLabel}>MY VENUES</Text>
             <ScrollView
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.venuesList}
