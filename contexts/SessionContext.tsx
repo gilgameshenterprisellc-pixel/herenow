@@ -9,7 +9,7 @@ interface SessionContextValue {
   activeSession: Session | null
   loading: boolean
   refresh: () => Promise<void>
-  checkIn: (zoneId: string, socialMode: SocialMode, moodMode: MoodMode) => Promise<CheckInResult>
+  checkIn: (zoneId: string, socialModes: SocialMode[], moodMode: MoodMode) => Promise<CheckInResult>
   checkOut: () => Promise<void>
 }
 
@@ -56,10 +56,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const checkIn = useCallback(async (
     zoneId: string,
-    socialMode: SocialMode,
+    socialModes: SocialMode[],
     moodMode: MoodMode
   ): Promise<CheckInResult> => {
-    const result = await doCheckIn({ zoneId, socialMode, moodMode })
+    const result = await doCheckIn({ zoneId, socialModes, moodMode })
     if (result.ok) {
       outsideStrikes.current = 0
       setActiveSession(result.session)

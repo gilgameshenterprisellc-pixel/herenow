@@ -11,7 +11,11 @@ export interface Session {
   id: string
   zone_id: string
   user_id: string
+  // Primary (first-picked) mode — kept so existing aggregates don't change.
   social_mode: SocialMode
+  // Every mode the user picked ("dating but also friends"). Null on rows from
+  // before the multi-select rollout — fall back to [social_mode].
+  social_modes: SocialMode[] | null
   mood_mode: MoodMode
   checked_in_at: string
   checked_out_at: string | null
@@ -31,11 +35,18 @@ export interface ActivePerson {
   display_name: string
   avatar_url: string | null
   social_mode: SocialMode
+  social_modes: SocialMode[] | null
   mood_mode: MoodMode
   interest_tags: string[]
   kickoffs: string[]
   checked_in_at: string
   privacy_settings: PrivacySettings | null
+}
+
+// Every mode on a session/person, tolerating pre-rollout rows where only the
+// single social_mode column exists.
+export function allSocialModes(x: { social_mode: SocialMode; social_modes?: SocialMode[] | null }): SocialMode[] {
+  return (x.social_modes && x.social_modes.length > 0) ? x.social_modes : [x.social_mode]
 }
 
 export type CheckInResult =
@@ -49,7 +60,9 @@ const MAX_CHECKIN_ACCURACY_M = 60
 
 export async function checkIn(params: {
   zoneId: string
-  socialMode: SocialMode
+  // All picked modes, in pick order — the first is stored as the primary
+  // social_mode so existing aggregates keep working.
+  socialModes: SocialMode[]
   moodMode: MoodMode
 }): Promise<CheckInResult> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -84,7 +97,8 @@ export async function checkIn(params: {
     .insert({
       zone_id: params.zoneId,
       user_id: user.id,
-      social_mode: params.socialMode,
+      social_mode: params.socialModes[0],
+      social_modes: params.socialModes,
       mood_mode: params.moodMode,
     })
     .select('*')
@@ -103,7 +117,7 @@ export async function checkIn(params: {
       { onConflict: 'zone_id,user_id' }
     )
 
-  logEvent('check_in', { zoneId: params.zoneId, socialMode: params.socialMode, moodMode: params.moodMode })
+  logEvent('check_in', { zoneId: params.zoneId, socialModes: params.socialModes.join(','), moodMode: params.moodMode })
   return { ok: true, session: data }
 }
 
@@ -130,7 +144,7 @@ export async function verifyZonePresence(zoneId: string): Promise<PresenceCheck>
 
 export async function updateSessionModes(
   sessionId: string,
-  socialMode: SocialMode,
+  socialModes: SocialMode[],
   moodMode: MoodMode
 ): Promise<Session | null> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -138,7 +152,7 @@ export async function updateSessionModes(
 
   const { data, error } = await supabase
     .from('sessions')
-    .update({ social_mode: socialMode, mood_mode: moodMode })
+    .update({ social_mode: socialModes[0], social_modes: socialModes, mood_mode: moodMode })
     .eq('id', sessionId)
     .eq('user_id', user.id)
     .eq('is_active', true)

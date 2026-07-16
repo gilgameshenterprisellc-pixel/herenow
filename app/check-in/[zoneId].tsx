@@ -82,7 +82,9 @@ export default function CheckInScreen() {
   const insets = useSafeAreaInsets()
   const { zoneId } = useLocalSearchParams<{ zoneId: string }>()
   const [zoneName, setZoneName]     = useState('')
-  const [socialMode, setSocialMode] = useState<SocialMode | null>(null)
+  // Multi-select: people can be there for dating AND friends. Pick order
+  // matters — the first pick is stored as the primary mode.
+  const [socialModes, setSocialModes] = useState<SocialMode[]>([])
   const [moodMode, setMoodMode]     = useState<MoodMode>('selective')
   const [loading, setLoading]         = useState(false)
   const [loadingMsg, setLoadingMsg]   = useState('')
@@ -116,7 +118,7 @@ export default function CheckInScreen() {
       if (!user) return
       supabase
         .from('sessions')
-        .select('social_mode, mood_mode')
+        .select('social_mode, social_modes, mood_mode')
         .eq('user_id', user.id)
         .eq('zone_id', zoneId)
         .order('checked_in_at', { ascending: false })
@@ -124,13 +126,19 @@ export default function CheckInScreen() {
         .maybeSingle()
         .then(({ data }) => {
           if (cancelled || !data) return
-          setSocialMode((prev) => prev ?? data.social_mode)
+          setSocialModes((prev) => prev.length > 0 ? prev : (data.social_modes ?? [data.social_mode]))
           setMoodMode(data.mood_mode)
           setPrefilled(true)
         })
     })
     return () => { cancelled = true }
   }, [zoneId])
+
+  const toggleSocialMode = (mode: SocialMode) => {
+    setSocialModes((prev) =>
+      prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode]
+    )
+  }
 
   const runCheckInAnim = () =>
     new Promise<void>(resolve => {
@@ -151,8 +159,8 @@ export default function CheckInScreen() {
     })
 
   const handleCheckIn = async () => {
-    if (!socialMode) {
-      showToast('Choose a Social Mode to let others know what you\'re here for.', 'info')
+    if (socialModes.length === 0) {
+      showToast('Choose at least one Social Mode to let others know what you\'re here for.', 'info')
       return
     }
 
@@ -172,7 +180,7 @@ export default function CheckInScreen() {
   const doCheckIn = async () => {
     setLoading(true)
     setLoadingMsg('Verifying your location…')
-    const result = await checkIn(zoneId, socialMode!, moodMode)
+    const result = await checkIn(zoneId, socialModes, moodMode)
     setLoadingMsg('')
     setLoading(false)
 
@@ -272,20 +280,20 @@ export default function CheckInScreen() {
           </View>
         )}
 
-        {/* Social Mode */}
+        {/* Social Mode — multi-select: dating AND friends is a real answer */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What are you here for?</Text>
           <Text style={styles.sectionSub}>
-            This tells others your intent. Be honest — it prevents misread situations.
+            This tells others your intent. Pick everything that applies — be honest, it prevents misread situations.
           </Text>
           <View style={styles.options}>
             {SOCIAL_MODES.map((s) => {
-              const active = socialMode === s.mode
+              const active = socialModes.includes(s.mode)
               return (
                 <TouchableOpacity
                   key={s.mode}
                   style={[styles.option, active && { borderColor: s.color, backgroundColor: s.color + '12' }]}
-                  onPress={() => setSocialMode(s.mode)}
+                  onPress={() => toggleSocialMode(s.mode)}
                   activeOpacity={0.8}
                 >
                   <View style={styles.optionTop}>
@@ -342,9 +350,9 @@ export default function CheckInScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.checkInBtn, (!socialMode || loading) && styles.checkInBtnDisabled]}
+          style={[styles.checkInBtn, (socialModes.length === 0 || loading) && styles.checkInBtnDisabled]}
           onPress={handleCheckIn}
-          disabled={!socialMode || loading}
+          disabled={socialModes.length === 0 || loading}
           activeOpacity={0.85}
         >
           {loading ? (
