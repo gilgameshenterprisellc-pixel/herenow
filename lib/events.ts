@@ -59,6 +59,50 @@ export async function fetchAllVenueEvents(zoneId: string): Promise<VenueEvent[]>
   return (data as VenueEvent[]) ?? []
 }
 
+// Load one event by id — used by the edit screen to prefill the form.
+export async function fetchEventById(eventId: string): Promise<VenueEvent | null> {
+  const { data, error } = await supabase
+    .from('venue_events')
+    .select('*')
+    .eq('id', eventId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[events] fetchEventById error:', error.message)
+    return null
+  }
+  return data
+}
+
+// Update an event. RLS ("Creators update their events") only lets the creator —
+// i.e. the venue owner who made it — change it. Returns the updated row or null.
+export async function updateEvent(eventId: string, params: {
+  title: string
+  description?: string
+  eventType?: string
+  startsAt: string
+  endsAt?: string
+}): Promise<VenueEvent | null> {
+  const { data, error } = await supabase
+    .from('venue_events')
+    .update({
+      title: params.title,
+      description: params.description ?? null,
+      event_type: params.eventType ?? 'general',
+      starts_at: params.startsAt,
+      ends_at: params.endsAt ?? null,
+    })
+    .eq('id', eventId)
+    .select('*')
+    .maybeSingle()
+
+  if (error) {
+    console.error('[events] updateEvent error:', error.message)
+    return null
+  }
+  return data
+}
+
 // Delete an event. RLS ("Creators delete their events") only lets the creator —
 // i.e. the venue owner who made it — remove it. Returns false on failure.
 export async function deleteEvent(eventId: string): Promise<boolean> {

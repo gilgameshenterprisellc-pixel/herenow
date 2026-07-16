@@ -80,7 +80,7 @@ export default function ManageEventsScreen() {
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} />
         <View style={styles.headerText}>
           <Text style={styles.title}>Manage Events</Text>
-          <Text style={styles.sub}>See and delete the events you've posted</Text>
+          <Text style={styles.sub}>See, edit, and delete the events you've posted</Text>
         </View>
       </View>
 
@@ -122,16 +122,25 @@ export default function ManageEventsScreen() {
                 <Text style={styles.cardWhen}>{fmtRange(ev)}</Text>
                 <Text style={styles.cardMeta}>{ev.rsvp_count} RSVP{ev.rsvp_count === 1 ? '' : 's'}</Text>
               </View>
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => confirmDelete(ev)}
-                disabled={deletingId === ev.id}
-                hitSlop={8}
-              >
-                {deletingId === ev.id
-                  ? <ActivityIndicator color="#ef4444" size="small" />
-                  : <Text style={styles.deleteBtnText}>Delete</Text>}
-              </TouchableOpacity>
+              <View style={styles.cardActions}>
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  onPress={() => router.push(`/zone/event/create?zoneId=${ev.zone_id}&eventId=${ev.id}` as any)}
+                  hitSlop={8}
+                >
+                  <Text style={styles.editBtnText}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => confirmDelete(ev)}
+                  disabled={deletingId === ev.id}
+                  hitSlop={8}
+                >
+                  {deletingId === ev.id
+                    ? <ActivityIndicator color="#ef4444" size="small" />
+                    : <Text style={styles.deleteBtnText}>Delete</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
           ))
         )}
@@ -174,6 +183,13 @@ const styles = StyleSheet.create({
   },
   cardWhen: { fontSize: 13, color: '#29B6F6', fontWeight: '600' },
   cardMeta: { fontSize: 12, color: '#7A93AC' },
+  cardActions: { gap: 6 },
+  editBtn: {
+    borderWidth: 1, borderColor: '#29B6F655', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#29B6F612',
+    minWidth: 66, alignItems: 'center',
+  },
+  editBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 13 },
   deleteBtn: {
     borderWidth: 1, borderColor: '#ef444455', borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#ef444412',
