@@ -182,6 +182,7 @@ export default function ProfileScreen() {
         { label: 'My Circle', route: '/circle',    icon: 'ellipse-outline' },
         { label: 'Messages',  route: '/messages',  icon: 'chatbubble-ellipses-outline' },
         { label: 'My Venues', route: '/my-venues', icon: 'business-outline' },
+        { label: 'Organizations', route: '/org',   icon: 'trophy-outline' },
         { label: 'Badges',    route: '/badges',    icon: 'ribbon-outline' },
         { label: 'Settings',  route: '/settings',  icon: 'settings-outline' },
       ]

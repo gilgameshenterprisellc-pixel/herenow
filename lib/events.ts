@@ -77,6 +77,9 @@ export async function createEvent(params: {
   eventType?: string
   startsAt: string
   endsAt?: string
+  // Organization events are normal venue events tagged with the org — they
+  // show on the venue's Events tab AND the organization's page.
+  orgId?: string
 }): Promise<VenueEvent | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -91,6 +94,7 @@ export async function createEvent(params: {
       event_type: params.eventType ?? 'general',
       starts_at: params.startsAt,
       ends_at: params.endsAt ?? null,
+      org_id: params.orgId ?? null,
     })
     .select('*')
     .single()
