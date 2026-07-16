@@ -1,0 +1,37 @@
+diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+index 2a67797..0e7a731 100644
+--- a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
++++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+@@ -10,6 +10,7 @@
+ #import <React/RCTBridgeModule.h>
+ #import <React/RCTConvert.h>
+ #import <React/RCTCxxConvert.h>
++#import <React/RCTLog.h>
+ #import <React/RCTManagedPointer.h>
+ #import <React/RCTModuleMethod.h>
+ #import <React/RCTUtils.h>
+@@ -435,7 +436,23 @@ void ObjCTurboModule::performVoidMethodInvocation(
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      if (shouldVoidMethodsExecuteSync_) {
++        // Sync void methods execute on the JS thread — safe to build a JSError here.
++        throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      }
++      // HereNow patch (react-native#0.81.5): async void methods run on the
++      // module's method queue. Building a JSError here touches the JS runtime
++      // from the wrong thread, racing the Hermes interpreter and corrupting the
++      // heap (SIGSEGV in JSError::recordStackTrace / GC). Upstream main fixes
++      // this by re-@throwing, which still aborts the app. A void call has no
++      // caller awaiting a result, so log the exception with its origin and keep
++      // the app alive instead.
++      RCTLogError(
++          @"TurboModule %s.%s raised NSException '%@': %@",
++          moduleName,
++          methodNameStr.c_str(),
++          exception.name,
++          exception.reason);
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }

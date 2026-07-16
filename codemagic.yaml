@@ -7,6 +7,14 @@ workflows:
       app_store_connect: Jacob HereNow Key
     environment:
       node: 20.18.0
+      vars:
+        # Build React Native core from source instead of Expo SDK 54's
+        # precompiled React.xcframework. Required for the patch-package fix in
+        # patches/react-native+0.81.5.patch (TurboModule void-method NSException
+        # → cross-thread JSError conversion → Hermes heap corruption crash) to
+        # actually compile into the app. The template Podfile sets this with
+        # ||= so this workflow value wins. Adds ~15-25 min to the build.
+        RCT_USE_PREBUILT_RNCORE: "0"
       groups:
         - ios_signing
         - app_env
