@@ -19,10 +19,7 @@ export function useNotificationTaps() {
         if (!data) return
         // Message notifications carry a we_met_id and open the thread.
         // We Met request/confirm open the confirmation screen.
-        if (data.type === 'org_announcement' && data.org_id) {
-          // Organization announcement — open the org page.
-          router.push(`/org/${data.org_id}` as any)
-        } else if (data.type === 'message' && data.venue_zone_id) {
+        if (data.type === 'message' && data.venue_zone_id) {
           // Venue DM — the ?u is ignored for a patron, used by the owner to open
           // the specific patron thread.
           router.push(`/messages/venue/${data.venue_zone_id}${data.from_user_id ? `?u=${data.from_user_id}` : ''}` as any)
@@ -30,6 +27,9 @@ export function useNotificationTaps() {
           router.push(`/messages/${data.we_met_id}` as any)
         } else if (data.route === 'circle') {
           router.push('/circle' as any)
+        } else if (data.type === 'org_announcement' && data.org_id) {
+          // Organization announcement — open the org page.
+          router.push(`/org/${data.org_id}` as any)
         } else if (data.we_met_id) {
           router.push('/we-met' as any)
         } else if (data.zone_id) {
