@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
@@ -26,7 +26,7 @@ export default function ManageEventsScreen() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthedUser()
     if (!user) { router.replace('/(auth)/login'); return }
 
     const { data: zones } = await supabase

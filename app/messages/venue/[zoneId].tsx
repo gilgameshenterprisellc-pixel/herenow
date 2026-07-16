@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
 import { publicName } from '@/lib/format'
 import {
@@ -36,7 +36,7 @@ export default function VenueThreadScreen() {
   useEffect(() => {
     let sub: ReturnType<typeof supabase.channel> | null = null
     ;(async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getAuthedUser()
       if (!user) { router.replace('/(auth)/login'); return }
       setUserId(user.id)
 

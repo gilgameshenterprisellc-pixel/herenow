@@ -7,7 +7,7 @@ import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { fetchUserBadges } from '@/lib/badges'
 import { fetchConfirmedWeMets, type WeMet } from '@/lib/weMet'
@@ -74,7 +74,7 @@ export default function ProfileScreen() {
   const { activeSession }                   = useSessionContext()
 
   const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthedUser()
     if (!user) { router.replace('/(auth)/login'); return }
 
     const [profileRes, earned, sessRes, connRes, venueRes, wemets] = await Promise.all([

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { View, ActivityIndicator } from 'react-native'
 import { Slot, router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 
 export default function AdminLayout() {
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
     const check = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getAuthedUser()
       if (!user) { router.replace('/(auth)/login'); return }
 
       const { data } = await supabase

@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
 import { fetchVenueRecap, type VenueRecap } from '@/lib/venueRecap'
 
@@ -43,7 +43,7 @@ export default function VenueRecapScreen() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    getAuthedUser().then((user) => {
       if (!user) { router.replace('/(auth)/login'); return }
       supabase.from('zones').select('id').eq('owner_id', user.id).limit(1).maybeSingle()
         .then(({ data }) => setZoneId(data?.id ?? null))

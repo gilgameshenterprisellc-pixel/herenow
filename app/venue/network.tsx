@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
 import WebMap from '@/components/WebMap'
 import { fetchNearbyZones, type Zone } from '@/lib/zones'
@@ -22,7 +22,7 @@ export default function VenueNetworkScreen() {
   const [refreshing, setRefreshing] = useState(false)
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthedUser()
     if (!user) { router.replace('/(auth)/login'); return }
 
     const { data: own } = await supabase

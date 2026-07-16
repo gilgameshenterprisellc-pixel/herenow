@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { fetchHighlights, createHighlight, deleteHighlight, type VenueHighlight } from '@/lib/highlights'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
@@ -29,7 +29,7 @@ export default function VenueHighlightsScreen() {
   const [emoji, setEmoji]   = useState('⭐')
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthedUser()
     if (!user) { router.replace('/(auth)/login'); return }
 
     const { data: zone } = await supabase

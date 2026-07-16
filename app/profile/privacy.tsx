@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import BackButton from '@/components/BackButton'
 
@@ -29,7 +29,7 @@ export default function ProfilePrivacyScreen() {
   const [priv, setPriv]         = useState<PrivacySettings>(DEFAULTS)
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getAuthedUser().then(async (user) => {
       if (!user) { router.replace('/(auth)/login'); return }
       setUserId(user.id)
       const { data } = await supabase
