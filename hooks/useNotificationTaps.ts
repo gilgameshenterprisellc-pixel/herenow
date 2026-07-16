@@ -19,7 +19,10 @@ export function useNotificationTaps() {
         if (!data) return
         // Message notifications carry a we_met_id and open the thread.
         // We Met request/confirm open the confirmation screen.
-        if (data.type === 'message' && data.venue_zone_id) {
+        if (data.type === 'board_response' && data.response_id) {
+          // Board Response — a temporary pin-scoped thread, not a DM.
+          router.push(`/messages/response/${data.response_id}` as any)
+        } else if (data.type === 'message' && data.venue_zone_id) {
           // Venue DM — the ?u is ignored for a patron, used by the owner to open
           // the specific patron thread.
           router.push(`/messages/venue/${data.venue_zone_id}${data.from_user_id ? `?u=${data.from_user_id}` : ''}` as any)

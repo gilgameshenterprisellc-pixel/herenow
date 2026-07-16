@@ -1291,6 +1291,10 @@ export default function VenueDashboard() {
             <Text style={styles.actionEmoji}>🗓️</Text>
             <Text style={styles.actionLabel}>Manage Events</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard} onPress={() => venue && router.push(`/board/${venue.id}` as any)}>
+            <Text style={styles.actionEmoji}>📌</Text>
+            <Text style={styles.actionLabel}>The Board</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/highlights' as any)}>
             <Text style={styles.actionEmoji}>⭐</Text>
             <Text style={styles.actionLabel}>Highlights</Text>

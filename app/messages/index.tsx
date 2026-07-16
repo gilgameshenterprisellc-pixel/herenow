@@ -10,12 +10,14 @@ import { supabase } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
 import { publicName } from '@/lib/format'
 import { fetchVenueThreads, type VenueThread } from '@/lib/venueMessages'
+import { fetchMyResponseThreads, responseExpired, boardCategory, type ResponseThread } from '@/lib/board'
 
 export default function MessagesScreen() {
   const insets = useSafeAreaInsets()
   const [userId, setUserId] = useState<string | null>(null)
   const { threads, loading, refresh } = useDmThreads(userId ?? '')
   const [venueThreads, setVenueThreads] = useState<VenueThread[]>([])
+  const [responseThreads, setResponseThreads] = useState<ResponseThread[]>([])
   const [isVenueOwner, setIsVenueOwner] = useState(false)
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export default function MessagesScreen() {
       }
     })
     fetchVenueThreads().then(setVenueThreads)
+    fetchMyResponseThreads().then(setResponseThreads)
   }, [])
 
   const openVenueThread = (t: VenueThread) =>
@@ -67,10 +70,45 @@ export default function MessagesScreen() {
           data={threads}
           keyExtractor={(t) => t.we_met_id}
           contentContainerStyle={styles.list}
-          onRefresh={() => { refresh(); fetchVenueThreads().then(setVenueThreads) }}
+          onRefresh={() => { refresh(); fetchVenueThreads().then(setVenueThreads); fetchMyResponseThreads().then(setResponseThreads) }}
           refreshing={loading}
           ListHeaderComponent={
-            venueThreads.length > 0 ? (
+            <View>
+            {/* Responses — temporary threads tied to Board pins, not DMs */}
+            {responseThreads.length > 0 && (
+              <View style={styles.venueSection}>
+                <Text style={styles.sectionLabel}>RESPONSES</Text>
+                {responseThreads.map((t) => {
+                  const cat = boardCategory(t.pin_category)
+                  const expired = responseExpired(t)
+                  return (
+                    <TouchableOpacity
+                      key={t.response_id}
+                      style={[styles.thread, expired && styles.threadExpired]}
+                      onPress={() => router.push(`/messages/response/${t.response_id}` as any)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.avatar, { backgroundColor: cat.color + '22' }]}>
+                        <Text style={[styles.avatarText, { color: cat.color }]}>📌</Text>
+                      </View>
+                      <View style={styles.info}>
+                        <View style={styles.row}>
+                          <Text style={styles.name} numberOfLines={1}>{t.pin_title}</Text>
+                          <Text style={styles.time}>{t.last_message_at ? formatTime(t.last_message_at) : ''}</Text>
+                        </View>
+                        <Text style={[styles.preview, !t.last_message && styles.previewEmpty]} numberOfLines={1}>
+                          {t.last_message ?? 'No messages yet'}
+                        </Text>
+                        <Text style={styles.expiryNote}>
+                          {expired ? 'Expired' : `${t.is_owner ? 'Response from' : 'Your response to'} ${t.other_name ?? 'Anonymous'} · ${cat.label}`}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            )}
+            {venueThreads.length > 0 ? (
               <View style={styles.venueSection}>
                 <Text style={styles.sectionLabel}>VENUES</Text>
                 {venueThreads.map((t) => {
@@ -100,7 +138,8 @@ export default function MessagesScreen() {
                 })}
                 {threads.length > 0 && <Text style={styles.sectionLabel}>PEOPLE</Text>}
               </View>
-            ) : null
+            ) : (responseThreads.length > 0 && threads.length > 0 ? <Text style={styles.sectionLabel}>PEOPLE</Text> : null)}
+            </View>
           }
           renderItem={({ item }) => {
             const expiry = getExpiryStatus(item.expires_at)
