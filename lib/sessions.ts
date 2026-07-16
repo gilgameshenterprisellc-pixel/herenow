@@ -1,5 +1,6 @@
+import { Platform } from 'react-native'
 import { supabase } from './supabase'
-import { getCurrentCoords } from './location'
+import { getCurrentCoords, getBestCoords } from './location'
 import { checkUserInZone } from './zones'
 import { logEvent } from './analytics'
 import { publicName } from './format'
@@ -40,12 +41,28 @@ export interface ActivePerson {
 
 export type CheckInResult =
   | { ok: true; session: Session }
-  | { ok: false; reason: 'not_in_zone' | 'location_unavailable' | 'low_accuracy' | 'failed' }
+  | { ok: false; reason: 'not_in_zone' | 'location_unavailable' | 'low_accuracy' | 'precise_off' | 'failed' }
 
 // A GPS fix fuzzier than this can't be trusted to place someone inside a venue —
 // a poor fix on the street can land inside the building footprint by chance.
 // Reject it and ask the user to try again rather than allow a false check-in.
 const MAX_CHECKIN_ACCURACY_M = 60
+
+// Older iPhones (single-frequency GPS) often bottom out at 60–90m indoors even
+// after sampling — three people at the July venue test couldn't check in at
+// all. A fix in this band is accepted for CHECK-IN only when its center lands
+// inside the venue geofence: the reported center is usually near the true
+// position even when the confidence radius is wide, and eviction still uses
+// the strict 60m bar, so a rare street-side false positive self-corrects.
+const SOFT_CHECKIN_ACCURACY_M = 90
+
+// Accuracy this bad isn't GPS noise — it's iOS "Precise Location" turned off
+// (reduced accuracy is ~1–5km on purpose). Tell the user exactly that instead
+// of a generic "try again".
+const REDUCED_ACCURACY_HINT_M = 500
+
+// How long the check-in fix sampler is allowed to watch for a good reading.
+const CHECKIN_FIX_TIMEOUT_MS = 15_000
 
 export async function checkIn(params: {
   zoneId: string
@@ -55,21 +72,42 @@ export async function checkIn(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, reason: 'failed' }
 
+  // Every failure is logged with the accuracy we saw and the device OS so we
+  // can see patterns like "old iPhones fail the gate" in the data instead of
+  // hearing about it at a venue test.
+  const fail = (reason: 'not_in_zone' | 'location_unavailable' | 'low_accuracy' | 'precise_off', accuracy: number | null): CheckInResult => {
+    logEvent('check_in_failed', {
+      zoneId: params.zoneId, reason, accuracy,
+      os: Platform.OS, osVersion: String(Platform.Version),
+    })
+    return { ok: false, reason }
+  }
+
   // Geofence verification — must be physically at the venue to check in.
   // Without this, check-in is just a button anyone can tap from anywhere,
   // which breaks the whole "only visible to people actually here" promise.
-  const coords = await getCurrentCoords()
-  if (!coords) return { ok: false, reason: 'location_unavailable' }
+  // Sample fixes for up to 15s and take the best — older phones need a few
+  // seconds to converge from a coarse cell/wifi estimate to real GPS.
+  const coords = await getBestCoords(MAX_CHECKIN_ACCURACY_M, CHECKIN_FIX_TIMEOUT_MS)
+  if (!coords) return fail('location_unavailable', null)
 
   // Don't trust a fuzzy fix to prove presence — a poor reading on the street can
   // fall inside the building footprint. Better to ask for a retry than to let
-  // someone check in from outside the venue.
-  if (coords.accuracy != null && coords.accuracy > MAX_CHECKIN_ACCURACY_M) {
-    return { ok: false, reason: 'low_accuracy' }
+  // someone check in from outside the venue. Fixes in the 60–90m band get one
+  // more chance below: they pass only if their center is inside the geofence.
+  if (coords.accuracy != null && coords.accuracy > SOFT_CHECKIN_ACCURACY_M) {
+    return fail(coords.accuracy > REDUCED_ACCURACY_HINT_M ? 'precise_off' : 'low_accuracy', coords.accuracy)
   }
 
   const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude)
-  if (!inZone) return { ok: false, reason: 'not_in_zone' }
+  if (!inZone) {
+    // A soft-band fix whose center is OUTSIDE isn't evidence either way — call
+    // it low accuracy (retry) rather than "you're not here".
+    if (coords.accuracy != null && coords.accuracy > MAX_CHECKIN_ACCURACY_M) {
+      return fail('low_accuracy', coords.accuracy)
+    }
+    return fail('not_in_zone', coords.accuracy)
+  }
 
   // Check out of any existing active session first
   await supabase

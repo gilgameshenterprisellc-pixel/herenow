@@ -171,7 +171,7 @@ export default function CheckInScreen() {
 
   const doCheckIn = async () => {
     setLoading(true)
-    setLoadingMsg('Verifying your location…')
+    setLoadingMsg('Pinning your location — can take a few seconds…')
     const result = await checkIn(zoneId, socialMode!, moodMode)
     setLoadingMsg('')
     setLoading(false)
@@ -183,6 +183,8 @@ export default function CheckInScreen() {
         showToast('Turn on location access to check in.', 'error')
       } else if (result.reason === 'low_accuracy') {
         showToast("Couldn't pin your location precisely. Step inside or near a window and try again.", 'error')
+      } else if (result.reason === 'precise_off') {
+        showToast('Precise Location looks off for HereNow. Enable it in Settings → Privacy & Security → Location Services → HereNow.', 'error')
       } else {
         showToast('Check-in failed — something went wrong. Try again.', 'error')
       }
