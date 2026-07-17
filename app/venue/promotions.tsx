@@ -6,7 +6,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import BackButton from '@/components/BackButton'
@@ -98,7 +98,7 @@ export default function VenuePromotionsScreen() {
   }
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthedUser()
     if (!user) { router.replace('/(auth)/login'); return }
 
     const { data: zone } = await supabase

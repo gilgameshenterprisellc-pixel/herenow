@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import * as Location from 'expo-location'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import PinPicker from '@/components/PinPicker'
 
@@ -40,7 +40,7 @@ export default function CreateZoneScreen() {
 
   useEffect(() => {
     const checkAccess = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getAuthedUser()
       if (!user) { router.replace('/(auth)/login'); return }
 
       const { data: profile } = await supabase

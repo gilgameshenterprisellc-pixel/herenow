@@ -6,7 +6,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import { uploadAvatarWeb } from '@/lib/uploadAvatar'
 import { useToast } from '@/contexts/ToastContext'
@@ -51,7 +51,7 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getAuthedUser()
       if (!user) { router.replace('/(auth)/login'); return }
       setUserId(user.id)
       const { data } = await supabase

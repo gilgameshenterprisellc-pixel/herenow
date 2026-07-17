@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Location from 'expo-location'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import BackButton from '@/components/BackButton'
 
@@ -154,7 +154,7 @@ export default function VenueEditScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getAuthedUser()
       if (!user) { router.replace('/(auth)/login'); return }
       setUserId(user.id)
 

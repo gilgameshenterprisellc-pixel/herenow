@@ -8,7 +8,7 @@ import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { fetchSubscriberCount, fetchFollowerCount, fetchVenueSubscribers, type VenueSubscriber } from '@/lib/venueSubscriptions'
 import { fetchVenueThreads } from '@/lib/venueMessages'
 import AvatarImage from '@/components/AvatarImage'
@@ -149,7 +149,7 @@ export default function VenueDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getAuthedUser()
       if (!user) { router.replace('/(auth)/login'); return }
 
       const [{ data: profile }, { data: zones }] = await Promise.all([

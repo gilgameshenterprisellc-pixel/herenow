@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { getActivePeople } from '@/lib/sessions'
 import { useToast } from '@/contexts/ToastContext'
 import BackButton from '@/components/BackButton'
@@ -55,7 +55,7 @@ export default function VenuePeopleScreen() {
   const [redeeming, setRedeeming]   = useState<string | null>(null) // composite key
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthedUser()
     if (!user) { router.replace('/(auth)/login'); return }
     setOwnerId(user.id)
 

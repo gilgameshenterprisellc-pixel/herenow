@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import BackButton from '@/components/BackButton'
@@ -23,7 +23,7 @@ export default function AdminSubmissionsScreen() {
   const [busyId, setBusyId]     = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthedUser()
     if (!user) { router.replace('/(auth)/login'); return }
     const { data: profile } = await supabase
       .from('profiles').select('is_admin').eq('id', user.id).maybeSingle()
