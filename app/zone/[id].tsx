@@ -38,12 +38,13 @@ import EventCard from '@/components/EventCard'
 import HeatBar from '@/components/HeatBar'
 import type { VenueEvent } from '@/lib/events'
 
-type Tab = 'people' | 'pulse' | 'chat' | 'events'
+type Tab = 'people' | 'pulse' | 'chat' | 'events' | 'board'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'pulse',  label: 'Pulse'  },
   { id: 'chat',   label: 'Chat'   },
   { id: 'people', label: 'People' },
+  { id: 'board',  label: 'Board'  },
   { id: 'events', label: 'Events' },
 ]
 
@@ -943,6 +944,26 @@ export default function ZoneScreen() {
 
       {/* Tab content */}
 
+      {/* The Board — the venue's community bulletin board (own screen) */}
+      {tab === 'board' && (
+        <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+          {venueInfo}
+          <View style={styles.boardCard}>
+            <Text style={styles.boardEmoji}>📌</Text>
+            <Text style={styles.gateTitle}>The Board</Text>
+            <Text style={styles.gateSub}>
+              This venue's bulletin board — poetry, missed connections, stuff for sale, gig flyers, whatever this community pins up. Only people checked in and subscribed can see it. Just like a real corkboard: you have to be here.
+            </Text>
+            <TouchableOpacity
+              style={[styles.gateBtn, { marginTop: 10 }]}
+              onPress={() => router.push(`/board/${id}` as any)}
+            >
+              <Text style={styles.gateBtnText}>Open the Board →</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      )}
+
       {/* Gate: People / Chat require physical check-in (hard wall) */}
       {((tab === 'people' && !isCheckedIn) || (tab === 'chat' && !canViewFeed)) && (
         <View style={styles.gateWall}>
@@ -1371,6 +1392,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28, paddingVertical: 14, marginTop: 8,
   },
   gateBtnText: { color: '#050A15', fontWeight: '800', fontSize: 15 },
+  boardCard: {
+    alignItems: 'center', gap: 10, margin: 16, padding: 24,
+    backgroundColor: '#0B1828', borderRadius: 18,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  boardEmoji: { fontSize: 40 },
   pulsePhotoPreview: {
     position: 'relative', marginHorizontal: 12, marginBottom: 8,
     borderRadius: 12, overflow: 'hidden',
