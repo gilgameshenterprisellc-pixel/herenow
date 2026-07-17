@@ -30,6 +30,9 @@ export function useNotificationTaps() {
           router.push(`/messages/${data.we_met_id}` as any)
         } else if (data.route === 'circle') {
           router.push('/circle' as any)
+        } else if (data.type === 'org_announcement' && data.org_id) {
+          // Organization announcement — open the org page.
+          router.push(`/org/${data.org_id}` as any)
         } else if (data.we_met_id) {
           router.push('/we-met' as any)
         } else if (data.zone_id) {

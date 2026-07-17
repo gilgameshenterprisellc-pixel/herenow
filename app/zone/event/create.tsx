@@ -33,7 +33,7 @@ type PickerTarget = 'start' | 'end' | null
 export default function CreateEventScreen() {
   const insets = useSafeAreaInsets()
   const { showToast } = useToast()
-  const { zoneId, eventId } = useLocalSearchParams<{ zoneId: string; eventId?: string }>()
+  const { zoneId, eventId, orgId } = useLocalSearchParams<{ zoneId: string; eventId?: string; orgId?: string }>()
 
   // With an eventId this screen becomes Edit Event — same form, prefilled,
   // saving via UPDATE instead of INSERT (Jacob: "allow permission to edit events").
@@ -136,7 +136,7 @@ export default function CreateEventScreen() {
     }
     const event = isEditing
       ? await updateEvent(eventId as string, payload)
-      : await createEvent({ zoneId: zoneId as string, ...payload })
+      : await createEvent({ zoneId: zoneId as string, orgId: orgId || undefined, ...payload })
     setCreating(false)
 
     if (!event) { showToast('Could not save the event. Check your connection and try again.', 'error'); return }

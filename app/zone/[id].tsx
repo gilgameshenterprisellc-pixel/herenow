@@ -15,6 +15,7 @@ import { getActivePeople, updateSessionModes, allSocialModes } from '@/lib/sessi
 import BackButton from '@/components/BackButton'
 import type { ActivePerson, SocialMode, MoodMode } from '@/lib/sessions'
 import SocialModeBadge from '@/components/SocialModeBadge'
+import { fetchOrganizationsAtVenue, type Organization } from '@/lib/organizations'
 import MoodBadge from '@/components/MoodBadge'
 import { usePulse } from '@/hooks/usePulse'
 import { useVenueChat } from '@/hooks/useVenueChat'
@@ -100,6 +101,7 @@ export default function ZoneScreen() {
 
   // Events
   const [events, setEvents]         = useState<VenueEvent[]>([])
+  const [venueOrgs, setVenueOrgs]     = useState<Organization[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
 
   // Highlights
@@ -252,8 +254,9 @@ export default function ZoneScreen() {
 
   const loadEvents = async () => {
     setEventsLoading(true)
-    const data = await fetchEvents(id)
+    const [data, orgs] = await Promise.all([fetchEvents(id), fetchOrganizationsAtVenue(id)])
     setEvents(data)
+    setVenueOrgs(orgs)
     setEventsLoading(false)
   }
 
@@ -1218,6 +1221,24 @@ export default function ZoneScreen() {
           contentContainerStyle={styles.list}
           onRefresh={loadEvents}
           refreshing={eventsLoading}
+          ListHeaderComponent={
+            venueOrgs.length > 0 ? (
+              <View style={styles.orgsSection}>
+                <Text style={styles.orgsLabel}>GROUPS THAT MEET HERE</Text>
+                {venueOrgs.map((o) => (
+                  <TouchableOpacity
+                    key={o.id}
+                    style={styles.orgRow}
+                    onPress={() => router.push(`/org/${o.id}` as any)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.orgRowName}>{o.name}</Text>
+                    <Text style={styles.orgRowChevron}>›</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <EventCard
               event={item}
@@ -1380,6 +1401,15 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 12, color: '#4A6580', fontWeight: '600', letterSpacing: 0.1 },
   tabLabelActive: { color: '#29B6F6', fontWeight: '700' },
   list: { padding: 14, gap: 10, ...Platform.select({ web: { maxWidth: 560, alignSelf: 'center' as const, width: '100%' as any }, default: {} }) },
+  orgsSection: { gap: 8, marginBottom: 14 },
+  orgsLabel: { fontSize: 11, fontWeight: '800', color: '#3A5570', letterSpacing: 1 },
+  orgRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#0B1828', borderRadius: 12, borderWidth: 1, borderColor: '#1A2E4A',
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  orgRowName: { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
+  orgRowChevron: { fontSize: 20, color: '#4A6580' },
   gateWall: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 32, gap: 12,
