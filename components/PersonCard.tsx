@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated, Platform } from 'react-native'
-import type { ActivePerson, PrivacySettings } from '@/lib/sessions'
+import { allSocialModes, type ActivePerson, type PrivacySettings } from '@/lib/sessions'
 import SocialModeBadge from './SocialModeBadge'
 import MoodBadge from './MoodBadge'
 import AvatarImage from './AvatarImage'
@@ -60,7 +60,9 @@ export default function PersonCard({ person, currentUserId, zoneId, currentSessi
 
           {(priv.show_social_mode || priv.show_mood) && (
             <View style={styles.badges}>
-              {priv.show_social_mode && <SocialModeBadge mode={person.social_mode} />}
+              {priv.show_social_mode && allSocialModes(person).map((m) => (
+                <SocialModeBadge key={m} mode={m} />
+              ))}
               {priv.show_mood && <MoodBadge mode={person.mood_mode} />}
             </View>
           )}

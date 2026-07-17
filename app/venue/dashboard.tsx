@@ -174,7 +174,7 @@ export default function VenueDashboard() {
         const presenceCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
         const { data: sessions } = await supabase
           .from('sessions')
-          .select('social_mode, profiles(age_range, interest_tags)')
+          .select('social_mode, social_modes, profiles(age_range, interest_tags)')
           .eq('zone_id', z.id)
           .eq('is_active', true)
           .gt('last_seen_at', presenceCutoff)
@@ -186,7 +186,11 @@ export default function VenueDashboard() {
 
         for (const s of (sessions ?? []) as any[]) {
           total++
-          if (s.social_mode) socialModes[s.social_mode] = (socialModes[s.social_mode] ?? 0) + 1
+          // Count every picked mode — someone here for dating AND friends shows
+          // in both bars (multi-select rollout, July 2026).
+          for (const m of (s.social_modes ?? (s.social_mode ? [s.social_mode] : []))) {
+            socialModes[m] = (socialModes[m] ?? 0) + 1
+          }
           const p = s.profiles
           if (!p) continue
           if (p.age_range) ageRanges[p.age_range] = (ageRanges[p.age_range] ?? 0) + 1

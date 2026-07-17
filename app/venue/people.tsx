@@ -9,7 +9,7 @@ import { supabase, getAuthedUser } from '@/lib/supabase'
 import { getActivePeople } from '@/lib/sessions'
 import { useToast } from '@/contexts/ToastContext'
 import BackButton from '@/components/BackButton'
-import type { ActivePerson } from '@/lib/sessions'
+import { allSocialModes, type ActivePerson } from '@/lib/sessions'
 
 interface Promotion {
   id: string
@@ -213,7 +213,7 @@ export default function VenuePeopleScreen() {
                     <Text style={styles.personName}>{person.display_name}</Text>
                     <View style={styles.personMeta}>
                       <Text style={[styles.personMode, { color: modeColor }]}>
-                        {SOCIAL_MODE_LABELS[person.social_mode] ?? person.social_mode}
+                        {allSocialModes(person).map((m) => SOCIAL_MODE_LABELS[m] ?? m).join('  ·  ')}
                       </Text>
                       <Text style={styles.personTime}>{timeAgo(person.checked_in_at)}</Text>
                     </View>

@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
-import { getActivePeople, updateSessionModes } from '@/lib/sessions'
+import { getActivePeople, updateSessionModes, allSocialModes } from '@/lib/sessions'
 import BackButton from '@/components/BackButton'
 import type { ActivePerson, SocialMode, MoodMode } from '@/lib/sessions'
 import SocialModeBadge from '@/components/SocialModeBadge'
@@ -76,7 +76,7 @@ export default function ZoneScreen() {
 
   // Mid-session vibe editor
   const [vibeEditOpen, setVibeEditOpen] = useState(false)
-  const [editSocial, setEditSocial]     = useState<SocialMode>('just_vibes')
+  const [editSocials, setEditSocials]   = useState<SocialMode[]>(['just_vibes'])
   const [editMood, setEditMood]         = useState<MoodMode>('selective')
   const [vibeSaving, setVibeSaving]     = useState(false)
 
@@ -259,7 +259,8 @@ export default function ZoneScreen() {
   const handleVibeSave = async () => {
     if (!activeSession) return
     setVibeSaving(true)
-    const updated = await updateSessionModes(activeSession.id, editSocial, editMood)
+    if (editSocials.length === 0) { showToast('Pick at least one social mode'); setVibeSaving(false); return }
+    const updated = await updateSessionModes(activeSession.id, editSocials, editMood)
     if (updated) {
       await refresh()
       loadPeople(true)
@@ -841,11 +842,11 @@ export default function ZoneScreen() {
           {!vibeEditOpen ? (
             <View style={styles.vibeRow}>
               <Text style={styles.vibeLabel}>Your vibe</Text>
-              <SocialModeBadge mode={activeSession.social_mode} />
+              {allSocialModes(activeSession).map((m) => <SocialModeBadge key={m} mode={m} />)}
               <MoodBadge mode={activeSession.mood_mode} />
               <TouchableOpacity
                 onPress={() => {
-                  setEditSocial(activeSession.social_mode)
+                  setEditSocials(allSocialModes(activeSession))
                   setEditMood(activeSession.mood_mode)
                   setVibeEditOpen(true)
                 }}
@@ -858,20 +859,24 @@ export default function ZoneScreen() {
             <View style={styles.vibeEditor}>
               <Text style={styles.vibeEditorTitle}>Social Mode</Text>
               <View style={styles.modePillRow}>
-                {VIBE_SOCIAL_OPTIONS.map((o) => (
+                {VIBE_SOCIAL_OPTIONS.map((o) => {
+                  const on = editSocials.includes(o.mode)
+                  return (
                   <TouchableOpacity
                     key={o.mode}
                     style={[
                       styles.modePill,
-                      editSocial === o.mode && { backgroundColor: o.color + '22', borderColor: o.color },
+                      on && { backgroundColor: o.color + '22', borderColor: o.color },
                     ]}
-                    onPress={() => setEditSocial(o.mode)}
+                    onPress={() => setEditSocials((prev) =>
+                      prev.includes(o.mode) ? prev.filter((m) => m !== o.mode) : [...prev, o.mode])}
                   >
-                    <Text style={[styles.modePillText, editSocial === o.mode && { color: o.color }]}>
+                    <Text style={[styles.modePillText, on && { color: o.color }]}>
                       {o.label}
                     </Text>
                   </TouchableOpacity>
-                ))}
+                  )
+                })}
               </View>
               <Text style={styles.vibeEditorTitle}>Mood</Text>
               <View style={styles.modePillRow}>
