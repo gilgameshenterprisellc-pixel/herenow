@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, ActivityIndicator, KeyboardAvoidingView,
@@ -7,7 +7,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
-import { createEvent } from '@/lib/events'
+import { createEvent, updateEvent, fetchEventById } from '@/lib/events'
 import { useToast } from '@/contexts/ToastContext'
 import BackButton from '@/components/BackButton'
 
@@ -33,7 +33,11 @@ type PickerTarget = 'start' | 'end' | null
 export default function CreateEventScreen() {
   const insets = useSafeAreaInsets()
   const { showToast } = useToast()
-  const { zoneId } = useLocalSearchParams<{ zoneId: string }>()
+  const { zoneId, eventId } = useLocalSearchParams<{ zoneId: string; eventId?: string }>()
+
+  // With an eventId this screen becomes Edit Event — same form, prefilled,
+  // saving via UPDATE instead of INSERT (Jacob: "allow permission to edit events").
+  const isEditing = !!eventId
 
   const defaultStart = new Date(Date.now() + 60 * 60 * 1000)
   defaultStart.setMinutes(0, 0, 0)
@@ -45,6 +49,28 @@ export default function CreateEventScreen() {
   const [endDate, setEndDate]     = useState<Date | null>(null)
   const [hasEndDate, setHasEndDate] = useState(false)
   const [creating, setCreating]   = useState(false)
+  const [loadingEvent, setLoadingEvent] = useState(isEditing)
+
+  // Edit mode — load the existing event and prefill every field.
+  useEffect(() => {
+    if (!eventId) return
+    let cancelled = false
+    fetchEventById(eventId).then((ev) => {
+      if (cancelled) return
+      if (!ev) {
+        showToast('Could not load that event.', 'error')
+        router.canGoBack() ? router.back() : router.replace('/venue/events' as any)
+        return
+      }
+      setTitle(ev.title)
+      setDesc(ev.description ?? '')
+      setEventType(ev.event_type ?? 'general')
+      setStartDate(new Date(ev.starts_at))
+      if (ev.ends_at) { setEndDate(new Date(ev.ends_at)); setHasEndDate(true) }
+      setLoadingEvent(false)
+    })
+    return () => { cancelled = true }
+  }, [eventId])
 
   // Picker state
   const [pickerTarget, setPickerTarget]       = useState<PickerTarget>(null)
@@ -94,34 +120,40 @@ export default function CreateEventScreen() {
   }
 
   const handleCreate = async () => {
-    if (!zoneId) { showToast('Venue ID missing — go back and try again.', 'error'); return }
+    if (!isEditing && !zoneId) { showToast('Venue ID missing — go back and try again.', 'error'); return }
     if (!title.trim()) { showToast('Give your event a name.', 'error'); return }
     if (hasEndDate && endDate && endDate <= startDate) {
       showToast('End time must be after start time.', 'error'); return
     }
 
     setCreating(true)
-    const event = await createEvent({
-      zoneId: zoneId as string,
+    const payload = {
       title: title.trim(),
       description: desc.trim() || undefined,
       eventType,
       startsAt: startDate.toISOString(),
       endsAt: (hasEndDate && endDate) ? endDate.toISOString() : undefined,
-    })
+    }
+    const event = isEditing
+      ? await updateEvent(eventId as string, payload)
+      : await createEvent({ zoneId: zoneId as string, ...payload })
     setCreating(false)
 
     if (!event) { showToast('Could not save the event. Check your connection and try again.', 'error'); return }
-    router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId}` as any)
+    if (isEditing) showToast('Event updated.', 'success')
+    router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId ?? event.zone_id}` as any)
   }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId}` as any)} />
-        <Text style={styles.title}>Create Event</Text>
+        <Text style={styles.title}>{isEditing ? 'Edit Event' : 'Create Event'}</Text>
       </View>
 
+      {loadingEvent ? (
+        <ActivityIndicator color="#29B6F6" size="large" style={{ marginTop: 60 }} />
+      ) : (
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -265,10 +297,11 @@ export default function CreateEventScreen() {
         >
           {creating
             ? <ActivityIndicator color="#050A15" />
-            : <Text style={styles.createBtnText}>Create Event 📅</Text>
+            : <Text style={styles.createBtnText}>{isEditing ? 'Save Changes' : 'Create Event 📅'}</Text>
           }
         </TouchableOpacity>
       </ScrollView>
+      )}
     </KeyboardAvoidingView>
   )
 }
