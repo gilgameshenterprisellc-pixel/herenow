@@ -72,7 +72,9 @@ export default function AfterglowScreen() {
       <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} />
       </View>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Glow header */}
         <View style={styles.glowHeader}>
           <Text style={styles.glowEmoji}>

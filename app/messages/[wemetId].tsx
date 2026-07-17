@@ -155,6 +155,8 @@ export default function DmConversationScreen() {
         </View>
       ) : (
         <FlatList
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ref={listRef}
           data={messages}
           keyExtractor={(m) => m.id}

@@ -75,6 +75,8 @@ export default function ProfilePrivacyScreen() {
       </View>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

@@ -290,6 +290,8 @@ export default function VenueGalleryScreen() {
       </Text>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,

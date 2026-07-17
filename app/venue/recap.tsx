@@ -100,6 +100,8 @@ export default function VenueRecapScreen() {
       </View>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.content,
           Platform.select({ web: { maxWidth: 560, alignSelf: 'center' as any, width: '100%' as any } as any, default: {} }) as any,

@@ -216,6 +216,7 @@ export default function EditProfileScreen() {
       </View>
 
       <ScrollView
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -290,6 +291,8 @@ export default function EditProfileScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Age Range</Text>
           <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.pills}
@@ -315,6 +318,8 @@ export default function EditProfileScreen() {
             </Text>
           </Text>
           <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.pills}
@@ -369,6 +374,8 @@ export default function EditProfileScreen() {
           <Text style={styles.label}>Conversation Kickoff</Text>
           <Text style={styles.hint}>Shown on your People card to help others start a convo.</Text>
           <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.pills}

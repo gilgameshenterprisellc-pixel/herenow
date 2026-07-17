@@ -22,6 +22,8 @@ export default function AboutScreen() {
       </View>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,

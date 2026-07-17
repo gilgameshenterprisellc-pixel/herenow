@@ -155,6 +155,7 @@ export default function CreateEventScreen() {
         <ActivityIndicator color="#29B6F6" size="large" style={{ marginTop: 60 }} />
       ) : (
       <ScrollView
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"

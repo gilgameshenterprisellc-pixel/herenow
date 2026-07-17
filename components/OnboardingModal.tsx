@@ -125,6 +125,8 @@ export default function OnboardingModal({ onDone }: Props) {
           </View>
 
           <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >

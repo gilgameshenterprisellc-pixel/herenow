@@ -412,6 +412,7 @@ export default function VenueEditScreen() {
       </View>
 
       <ScrollView
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
@@ -768,7 +769,9 @@ export default function VenueEditScreen() {
                   ? `${timeTarget.day} — ${timeTarget.field === 'from' ? 'Open' : 'Close'}`
                   : 'Select Time'}
               </Text>
-              <ScrollView style={styles.webTimeList} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag" style={styles.webTimeList} showsVerticalScrollIndicator={false}>
                 {WEB_TIMES.map((t) => (
                   <TouchableOpacity
                     key={t}

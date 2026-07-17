@@ -185,6 +185,8 @@ function WebLanding() {
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       style={s.scroll}
       contentContainerStyle={s.scrollContent}
       showsVerticalScrollIndicator={false}

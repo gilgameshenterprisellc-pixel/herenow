@@ -27,6 +27,8 @@ export default function VenueWelcomeModal({ visible, data, onDismiss }: Props) {
           )}
 
           <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}

@@ -27,6 +27,8 @@ export default function LegalDoc({
       </View>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
