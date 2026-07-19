@@ -1,5 +1,7 @@
 ﻿import { View, Text, StyleSheet } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import type { Badge } from '@/lib/badges'
+import { badgeIcon } from '@/lib/appIcons'
 
 const CATEGORY_COLOR: Record<string, string> = {
   courage:     '#f43f5e',
@@ -25,7 +27,11 @@ export default function BadgeCard({ badge, earned = false, earnedAt, meta }: Pro
   return (
     <View style={[styles.card, earned && { borderColor: color + '44' }, !earned && styles.locked]}>
       <View style={[styles.iconBox, { backgroundColor: color + '18' }]}>
-        <Text style={styles.icon}>{badge.icon ?? '🏅'}</Text>
+        <Ionicons
+          name={badgeIcon(badge.slug, badge.name, badge.category)}
+          size={22}
+          color={earned ? color : '#7A93AC'}
+        />
       </View>
       <View style={styles.info}>
         <Text style={[styles.name, !earned && styles.nameLocked]}>{displayName}</Text>
@@ -53,7 +59,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  locked: { opacity: 0.5 },
+  // 0.5 made locked badge names and descriptions genuinely hard to read against
+  // this background — visible in Jacob's screenshots, where the unearned rows are
+  // barely legible. The locked state is already carried by the muted icon, the
+  // grey name and the "Not yet earned" label, so the dimming can be gentler.
+  locked: { opacity: 0.72 },
   iconBox: {
     width: 46,
     height: 46,

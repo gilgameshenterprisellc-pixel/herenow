@@ -218,7 +218,7 @@ export default function BoardScreen() {
         >
           {pins.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>📌</Text>
+              <Ionicons name="pin" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>Nothing on the Board yet</Text>
               <Text style={styles.emptySub}>
                 Poetry, missed connections, stuff for sale, gig flyers — pin the first thing and set the tone.

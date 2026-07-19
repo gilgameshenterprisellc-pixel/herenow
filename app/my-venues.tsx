@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { fetchMyVenues, unsubscribeFromVenue, type VenueSubscription } from '@/lib/venueSubscriptions'
@@ -84,7 +85,7 @@ export default function MyVenuesScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🏢</Text>
+              <Ionicons name="business" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>No venues followed yet</Text>
               <Text style={styles.emptySub}>
                 Visit a venue and tap "+ Follow" to get their promos and announcements in your feed.

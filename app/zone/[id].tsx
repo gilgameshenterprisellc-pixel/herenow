@@ -4,6 +4,7 @@ import {
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image,
   ActionSheetIOS, Animated, Modal,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
@@ -952,7 +953,7 @@ export default function ZoneScreen() {
         <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           {venueInfo}
           <View style={styles.boardCard}>
-            <Text style={styles.boardEmoji}>📌</Text>
+            <Ionicons name="pin" size={22} color="#29B6F6" style={styles.boardEmoji} />
             <Text style={styles.gateTitle}>The Board</Text>
             <Text style={styles.gateSub}>
               This venue's bulletin board — poetry, missed connections, stuff for sale, gig flyers, whatever this community pins up. Only people checked in and subscribed can see it. Just like a real corkboard: you have to be here.
@@ -1084,7 +1085,7 @@ export default function ZoneScreen() {
             )}
             ListEmptyComponent={
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>✨</Text>
+                <Ionicons name="sparkles" size={22} color="#29B6F6" style={styles.emptyEmoji} />
                 <Text style={styles.emptyTitle}>No Pulse moments yet</Text>
                 <Text style={styles.emptySub}>
                   {isCheckedIn ? 'Drop the first vibe.' : 'Check in to post.'}
@@ -1176,7 +1177,7 @@ export default function ZoneScreen() {
             )}
             ListEmptyComponent={
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>💬</Text>
+                <Ionicons name="chatbubbles" size={22} color="#29B6F6" style={styles.emptyEmoji} />
                 <Text style={styles.emptyTitle}>Chat is quiet</Text>
                 <Text style={styles.emptySub}>
                   {isCheckedIn ? 'Say something to break the ice.' : 'Check in to join the chat.'}
@@ -1258,7 +1259,7 @@ export default function ZoneScreen() {
       {wemetCelebName !== null && (
         <Animated.View style={[StyleSheet.absoluteFillObject, styles.wmOverlay, { opacity: wmOpacity }]} pointerEvents="none">
           <Animated.View style={[styles.wmContent, { transform: [{ scale: wmScale }] }]}>
-            <Text style={styles.wmEmoji}>🤝</Text>
+            <Ionicons name="hand-left" size={22} color="#29B6F6" style={styles.wmEmoji} />
             <Text style={styles.wmTitle}>We Met!</Text>
             <Text style={styles.wmName}>{wemetCelebName}</Text>
           </Animated.View>

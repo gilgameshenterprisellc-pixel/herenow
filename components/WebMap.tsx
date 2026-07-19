@@ -2,7 +2,7 @@
 // Mirrors the WebMap.web.tsx props contract exactly so NearbyMap doesn't branch.
 // Metro resolves WebMap.web.tsx on web and this file on native.
 import { useEffect, useRef, useMemo } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
 import MapView, { Marker, Circle, Polygon, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import type { Zone } from '@/lib/zones'
@@ -17,7 +17,32 @@ interface Props {
   recenterTick?: number
 }
 
-export const WEB_MAP_HEIGHT = 420
+/**
+ * Map height, proportional to the screen rather than a fixed 420.
+ *
+ * Jacob: "Under the map where the venue cards are is really small. I can foresee
+ * this being an issue the more venues we have. It's really hard to scroll on them
+ * considering the map doesn't move."
+ *
+ * He was right about the cause. The map is a fixed-height sibling ABOVE the venue
+ * list, not part of the scroll, so it never moves and whatever it doesn't use is
+ * all the list ever gets. On a 6.1" phone, 420px of map plus the header and the
+ * 108px tab inset left roughly one and a half cards visible — and that shrinks on
+ * smaller devices, where 420 was a much bigger share of the screen.
+ *
+ * Scaling to ~38% of screen height gives the list roughly 100px more room on a
+ * standard phone and far more on small ones, while the clamp keeps the map
+ * usable on tiny screens and stops it ballooning on tablets.
+ *
+ * Deliberately NOT solved by moving the map into the list header so it scrolls
+ * away: that puts a pannable map inside a vertical scroll view, and the gesture
+ * conflict lands right next to the react-native-worklets 0.5.1 pin that
+ * stabilised the launch crash. Wrong week to bet the beta on that.
+ */
+const { height: SCREEN_H } = Dimensions.get('window')
+export const WEB_MAP_HEIGHT = Math.round(
+  Math.min(420, Math.max(260, SCREEN_H * 0.38))
+)
 
 type Tier = 'subscribed' | 'live' | 'regular'
 

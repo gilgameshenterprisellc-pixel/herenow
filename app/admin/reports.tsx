@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, Alert, Platform, RefreshControl,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -254,7 +255,7 @@ export default function AdminReports() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>✅</Text>
+              <Ionicons name="checkmark-circle" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>No open content reports</Text>
             </View>
           }
@@ -272,7 +273,7 @@ export default function AdminReports() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>✅</Text>
+              <Ionicons name="checkmark-circle" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>No user safety reports</Text>
             </View>
           }

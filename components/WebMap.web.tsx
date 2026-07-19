@@ -11,7 +11,11 @@ interface Props {
   recenterTick?: number  // increment to snap map back to user location
 }
 
-export const WEB_MAP_HEIGHT = 420
+// Kept in step with the native WebMap.tsx — see the note there. Desktop browsers
+// have plenty of height, so this mostly matters for narrow/short windows.
+export const WEB_MAP_HEIGHT = Math.round(
+  Math.min(420, Math.max(260, (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.38))
+)
 
 type Tier = 'subscribed' | 'live' | 'regular'
 

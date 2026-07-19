@@ -47,7 +47,7 @@ export default function SurveyScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.doneWrap, { paddingTop: insets.top }]}>
-          <Text style={styles.doneEmoji}>🙏</Text>
+          <Ionicons name="hand-left" size={22} color="#29B6F6" style={styles.doneEmoji} />
           <Text style={styles.doneTitle}>Thank you</Text>
           <Text style={styles.doneSub}>
             Your feedback is anonymous and goes straight to the team. It genuinely shapes what we build next.

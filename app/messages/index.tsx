@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   ActivityIndicator,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useDmThreads } from '@/hooks/useMessages'
@@ -202,7 +203,7 @@ export default function MessagesScreen() {
           ListEmptyComponent={
             venueThreads.length > 0 ? null :
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>💌</Text>
+              <Ionicons name="mail" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>No messages yet</Text>
               {isVenueOwner ? (
                 <Text style={styles.emptySub}>

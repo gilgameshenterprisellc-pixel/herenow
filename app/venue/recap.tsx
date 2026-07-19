@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
@@ -112,7 +113,7 @@ export default function VenueRecapScreen() {
           <ActivityIndicator color="#29B6F6" style={{ marginTop: 50 }} />
         ) : !recap || recap.total_checkins === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>🌙</Text>
+            <Ionicons name="moon" size={22} color="#29B6F6" style={styles.emptyEmoji} />
             <Text style={styles.emptyTitle}>No check-ins that night</Text>
             <Text style={styles.emptySub}>Once people start checking in, your recap shows up here the next day.</Text>
           </View>

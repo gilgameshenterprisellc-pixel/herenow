@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
@@ -193,7 +194,7 @@ export default function VenuePeopleScreen() {
       >
         {people.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🏙️</Text>
+            <Ionicons name="business" size={22} color="#29B6F6" style={styles.emptyEmoji} />
             <Text style={styles.emptyTitle}>Nobody checked in yet</Text>
             <Text style={styles.emptySub}>Pull to refresh — guests appear here when they check in.</Text>
           </View>

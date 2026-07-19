@@ -4,6 +4,7 @@ import {
   ScrollView, ActivityIndicator, KeyboardAvoidingView,
   Platform, TextInput,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
@@ -211,7 +212,7 @@ export default function CreateEventScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Starts At *</Text>
           <TouchableOpacity style={styles.dateBtn} onPress={() => openPicker('start')}>
-            <Text style={styles.dateBtnEmoji}>📅</Text>
+            <Ionicons name="calendar" size={22} color="#29B6F6" style={styles.dateBtnEmoji} />
             <Text style={styles.dateBtnText}>{formatDateTime(startDate)}</Text>
           </TouchableOpacity>
           {Platform.OS === 'android' && pickerTarget === 'start' && (
@@ -250,7 +251,7 @@ export default function CreateEventScreen() {
             style={[styles.dateBtn, !hasEndDate && styles.dateBtnMuted]}
             onPress={() => openPicker('end')}
           >
-            <Text style={styles.dateBtnEmoji}>🏁</Text>
+            <Ionicons name="flag-outline" size={22} color="#29B6F6" style={styles.dateBtnEmoji} />
             <Text style={[styles.dateBtnText, !hasEndDate && styles.dateBtnTextMuted]}>
               {hasEndDate && endDate ? formatDateTime(endDate) : 'Tap to set end time'}
             </Text>

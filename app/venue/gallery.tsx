@@ -4,6 +4,7 @@ import {
   Image, ActivityIndicator, RefreshControl, Platform,
   Alert, ActionSheetIOS,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -304,7 +305,7 @@ export default function VenueGalleryScreen() {
           <ActivityIndicator color="#29B6F6" style={{ marginTop: 40 }} />
         ) : noZone ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🏠</Text>
+            <Ionicons name="home" size={22} color="#29B6F6" style={styles.emptyEmoji} />
             <Text style={styles.emptyTitle}>Gallery not available</Text>
             <Text style={styles.emptySub}>Your venue isn't set up yet or your account isn't linked as the venue owner. Contact support if this looks wrong.</Text>
           </View>
@@ -341,7 +342,7 @@ export default function VenueGalleryScreen() {
             {/* Approved gallery */}
             {photos.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>📸</Text>
+                <Ionicons name="camera" size={22} color="#29B6F6" style={styles.emptyEmoji} />
                 <Text style={styles.emptyTitle}>No photos yet</Text>
                 <Text style={styles.emptySub}>Add photos to give guests a feel for your space before they arrive.</Text>
                 <TouchableOpacity style={styles.emptyBtn} onPress={handleAdd}>
