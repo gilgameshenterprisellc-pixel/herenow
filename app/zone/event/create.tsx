@@ -5,6 +5,7 @@ import {
   Platform, TextInput,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { eventTypeIcon } from '@/lib/appIcons'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
@@ -13,13 +14,13 @@ import { useToast } from '@/contexts/ToastContext'
 import BackButton from '@/components/BackButton'
 
 const EVENT_TYPES = [
-  { id: 'music',      emoji: '🎵', label: 'Music' },
-  { id: 'trivia',     emoji: '🧠', label: 'Trivia' },
-  { id: 'happy_hour', emoji: '🍺', label: 'Happy Hour' },
-  { id: 'sports',     emoji: '🏀', label: 'Sports' },
-  { id: 'comedy',     emoji: '😂', label: 'Comedy' },
-  { id: 'karaoke',    emoji: '🎤', label: 'Karaoke' },
-  { id: 'general',    emoji: '📅', label: 'General' },
+  { id: 'music',      label: 'Music' },
+  { id: 'trivia',     label: 'Trivia' },
+  { id: 'happy_hour', label: 'Happy Hour' },
+  { id: 'sports',     label: 'Sports' },
+  { id: 'comedy',     label: 'Comedy' },
+  { id: 'karaoke',    label: 'Karaoke' },
+  { id: 'general',    label: 'General' },
 ]
 
 function formatDateTime(date: Date): string {
@@ -172,7 +173,7 @@ export default function CreateEventScreen() {
                 style={[styles.typeCard, eventType === t.id && styles.typeCardActive]}
                 onPress={() => setEventType(t.id)}
               >
-                <Text style={styles.typeEmoji}>{t.emoji}</Text>
+                <Ionicons name={eventTypeIcon(t.id)} size={24} color="#29B6F6" style={styles.typeEmoji} />
                 <Text style={[styles.typeLabel, eventType === t.id && styles.typeLabelActive]}>
                   {t.label}
                 </Text>
@@ -299,7 +300,7 @@ export default function CreateEventScreen() {
         >
           {creating
             ? <ActivityIndicator color="#050A15" />
-            : <Text style={styles.createBtnText}>{isEditing ? 'Save Changes' : 'Create Event 📅'}</Text>
+            : <Text style={styles.createBtnText}>{isEditing ? 'Save Changes' : 'Create Event'}</Text>
           }
         </TouchableOpacity>
       </ScrollView>

@@ -185,7 +185,7 @@ export default function BoardScreen() {
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId}` as any)} />
         <View style={styles.headerText}>
           <Text style={styles.title}>The Board</Text>
-          {!!zoneName && <Text style={styles.sub}>📌 {zoneName}</Text>}
+          {!!zoneName && <Text style={styles.sub}>{zoneName}</Text>}
         </View>
         {access === 'ok' && !isVenueOwner && (
           <TouchableOpacity style={styles.pinBtn} onPress={() => router.push(`/board/new?zoneId=${zoneId}` as any)} activeOpacity={0.85}>
@@ -235,7 +235,7 @@ export default function BoardScreen() {
                       <Text style={[styles.catTagText, { color: cat.color }]}>{cat.label}</Text>
                     </View>
                     {pin.is_pinned && (
-                      <View style={styles.pinnedTag}><Text style={styles.pinnedTagText}>📌 Pinned</Text></View>
+                      <View style={styles.pinnedTag}><Ionicons name="pin" size={11} color="#C9940C" /><Text style={styles.pinnedTagText}>Pinned</Text></View>
                     )}
                     {pin.status === 'complete' && (
                       <View style={styles.completeTag}><Text style={styles.completeTagText}>✓ {cat.id === 'for_sale' ? 'Sold' : 'Complete'}</Text></View>
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   catTag: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   catTagText: { fontSize: 11, fontWeight: '800' },
-  pinnedTag: { backgroundColor: '#C9940C22', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
+  pinnedTag: { backgroundColor: '#C9940C22', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 4 },
   pinnedTagText: { fontSize: 10, fontWeight: '800', color: '#C9940C' },
   completeTag: { backgroundColor: '#22c55e18', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
   completeTagText: { fontSize: 10, fontWeight: '800', color: '#22c55e' },

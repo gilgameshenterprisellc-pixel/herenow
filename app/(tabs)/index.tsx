@@ -62,7 +62,10 @@ function TrendingStrip({ zones, onPress }: { zones: Zone[]; onPress: (id: string
 
   return (
     <View style={styles.trendingWrap}>
-      <Text style={styles.trendingTitle}>🔥 Trending Now</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Ionicons name="flame" size={15} color="#29B6F6" />
+        <Text style={styles.trendingTitle}>Trending Now</Text>
+      </View>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingScroll}>

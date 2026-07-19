@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   Animated, Easing, Platform, ActivityIndicator,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
@@ -217,10 +218,12 @@ export default function LoginScreen() {
               />
             )}
             <TouchableOpacity style={styles.toggleOpt} onPress={() => switchMode('person')} activeOpacity={0.8}>
-              <Text style={[styles.toggleTxt, !isVenue && styles.toggleTxtOn]}>👤 Person</Text>
+              <Ionicons name="person" size={15} color={!isVenue ? '#050A15' : '#7A93AC'} />
+                <Text style={[styles.toggleTxt, !isVenue && styles.toggleTxtOn]}>Person</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.toggleOpt} onPress={() => switchMode('venue')} activeOpacity={0.8}>
-              <Text style={[styles.toggleTxt, isVenue && styles.toggleTxtOn]}>🏢 Venue</Text>
+              <Ionicons name="business" size={15} color={isVenue ? '#050A15' : '#7A93AC'} />
+                <Text style={[styles.toggleTxt, isVenue && styles.toggleTxtOn]}>Venue</Text>
             </TouchableOpacity>
           </View>
         </Reanimated.View>
@@ -237,7 +240,7 @@ export default function LoginScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.methodSegTxt, authMethod === m && styles.methodSegTxtOn]}>
-                    {m === 'email' ? '✉  Email' : '☎  Phone'}
+                    {m === 'email' ? 'Email' : 'Phone'}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -275,7 +278,7 @@ export default function LoginScreen() {
                 style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
                 onPress={() => setShowPw(v => !v)}
               >
-                <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
+                <Ionicons name={showPw ? 'eye-off' : 'eye'} size={18} color="#7A93AC" />
               </TouchableOpacity>
             </View>
           </Reanimated.View>
@@ -437,7 +440,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: '#29B6F6',
   },
-  toggleOpt: { flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  toggleOpt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, zIndex: 1 },
   toggleTxt: { fontSize: 13, fontWeight: '700', color: '#3A5C7A' },
   toggleTxtOn: { color: '#020810' },
   methodToggle: {

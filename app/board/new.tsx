@@ -136,7 +136,7 @@ export default function PinToBoardScreen() {
       })
       setSaving(false)
       if (!result.ok) { showToast(result.reason, 'error'); return }
-      showToast('Pinned to the Board. 📌', 'success')
+      showToast('Pinned to the Board.', 'success')
     }
     router.back()
   }
@@ -229,7 +229,7 @@ export default function PinToBoardScreen() {
               <TouchableOpacity style={styles.imageBtn} onPress={pickImage} disabled={uploading}>
                 {uploading
                   ? <ActivityIndicator color="#29B6F6" size="small" />
-                  : <Text style={styles.imageBtnText}>📷 Add a photo</Text>}
+                  : <Text style={styles.imageBtnText}>Add a photo</Text>}
               </TouchableOpacity>
             )}
           </View>
@@ -261,7 +261,7 @@ export default function PinToBoardScreen() {
         >
           {saving
             ? <ActivityIndicator color="#050A15" />
-            : <Text style={styles.submitBtnText}>{isEditing ? 'Save Changes' : '📌 Pin to Board'}</Text>}
+            : <Text style={styles.submitBtnText}>{isEditing ? 'Save Changes' : 'Pin to Board'}</Text>}
         </TouchableOpacity>
 
         <Text style={styles.note}>

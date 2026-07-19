@@ -56,7 +56,7 @@ export default function MessagesTab() {
         <View style={styles.accentLine} />
         <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 20 }, webCenter]}>
           <Image source={require('@/assets/logo-wordmark.png')} style={styles.brandLogo} resizeMode="contain" />
-          <Text style={styles.title}>Messages 💌</Text>
+          <Text style={styles.title}>Messages</Text>
         </View>
       </View>
 

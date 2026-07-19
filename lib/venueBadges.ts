@@ -21,7 +21,7 @@ const BADGE_DEFS: {
     slug: 'venue_first_100',
     name: 'First 100',
     description: '100 check-ins and counting.',
-    icon: '💯',
+    icon: 'flame',
     check: async (zoneId) => {
       const { count } = await supabase
         .from('sessions')
@@ -34,7 +34,7 @@ const BADGE_DEFS: {
     slug: 'venue_connection_hub',
     name: 'Connection Hub',
     description: '50+ real connections forged here.',
-    icon: '🤝',
+    icon: 'hand-left',
     check: async (zoneId) => {
       const { count } = await supabase
         .from('we_met')
@@ -48,7 +48,7 @@ const BADGE_DEFS: {
     slug: 'venue_event_host',
     name: 'Event Host',
     description: 'This venue has run community events.',
-    icon: '🎉',
+    icon: 'sparkles',
     check: async (zoneId) => {
       const { count } = await supabase
         .from('events')
@@ -61,7 +61,7 @@ const BADGE_DEFS: {
     slug: 'venue_community_fav',
     name: 'Community Fav',
     description: 'Members keep coming back.',
-    icon: '⭐',
+    icon: 'star',
     check: async (zoneId) => {
       const { data } = await supabase
         .from('sessions')
@@ -80,7 +80,7 @@ const BADGE_DEFS: {
     slug: 'venue_the_spot',
     name: 'The Spot',
     description: 'This place gets packed.',
-    icon: '🔥',
+    icon: 'flame',
     check: async (zoneId) => {
       const { data } = await supabase
         .from('sessions')
