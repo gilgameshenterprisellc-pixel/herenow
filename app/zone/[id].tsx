@@ -665,7 +665,7 @@ export default function ZoneScreen() {
             keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeStripList}>
             {venueBadges.map((b) => (
               <View key={b.slug} style={styles.badgeChip}>
-                <Text style={styles.badgeChipIcon}>{b.icon ?? '🏅'}</Text>
+                <Ionicons name={(b.icon ?? 'medal') as any} size={13} color="#29B6F6" />
                 <Text style={styles.badgeChipName}>{b.name}</Text>
               </View>
             ))}
@@ -795,7 +795,8 @@ export default function ZoneScreen() {
                 style={styles.msgVenueBtn}
                 onPress={() => router.push(`/messages/venue/${id}` as any)}
               >
-                <Text style={styles.msgVenueBtnText}>💬 Message</Text>
+                <Ionicons name="chatbubble-ellipses" size={14} color="#29B6F6" />
+              <Text style={styles.msgVenueBtnText}>Message</Text>
               </TouchableOpacity>
             )}
 
@@ -1123,7 +1124,7 @@ export default function ZoneScreen() {
                   style={styles.vibeToggle}
                   onPress={() => setShowVibePicker(!showVibePicker)}
                 >
-                  <Text style={styles.vibeToggleText}>{vibeTag ? '🏷️' : '✨'}</Text>
+                  <Ionicons name={vibeTag ? 'pricetag' : 'sparkles'} size={17} color="#29B6F6" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.vibeToggle}
@@ -1132,7 +1133,7 @@ export default function ZoneScreen() {
                 >
                   {pulsePhotoUploading
                     ? <ActivityIndicator color="#29B6F6" size="small" />
-                    : <Text style={styles.vibeToggleText}>{pulsePhotoUrl ? '🖼️' : '📷'}</Text>}
+                    : <Ionicons name={pulsePhotoUrl ? 'images' : 'camera'} size={17} color="#29B6F6" />}
                 </TouchableOpacity>
                 <TextInput
                   style={styles.pulseInput}
@@ -1351,6 +1352,7 @@ const styles = StyleSheet.create({
   msgVenueBtn: {
     borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#0D1B2E',
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
   },
   msgVenueBtnText: { color: '#8EADC7', fontWeight: '700', fontSize: 12 },
   patronBtn: {

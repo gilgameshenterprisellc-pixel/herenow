@@ -4,6 +4,7 @@ import {
   ActivityIndicator, RefreshControl, Platform,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { eventTypeIcon } from '@/lib/appIcons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
@@ -12,10 +13,6 @@ import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { fetchAllVenueEvents, deleteEvent, type VenueEvent } from '@/lib/events'
 
-const TYPE_EMOJI: Record<string, string> = {
-  music: '🎵', trivia: '🧠', happy_hour: '🍺', sports: '🏀',
-  comedy: '😂', karaoke: '🎤', general: '📅',
-}
 
 export default function ManageEventsScreen() {
   const insets = useSafeAreaInsets()
@@ -116,7 +113,7 @@ export default function ManageEventsScreen() {
         ) : (
           events.map((ev) => (
             <View key={ev.id} style={[styles.card, isPast(ev) && styles.cardPast]}>
-              <Text style={styles.cardEmoji}>{TYPE_EMOJI[ev.event_type] ?? '📅'}</Text>
+              <Ionicons name={eventTypeIcon(ev.event_type)} size={22} color="#29B6F6" style={styles.cardEmoji} />
               <View style={styles.cardBody}>
                 <View style={styles.cardTitleRow}>
                   <Text style={styles.cardTitle} numberOfLines={1}>{ev.title}</Text>

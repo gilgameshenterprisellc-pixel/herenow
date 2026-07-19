@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   ActivityIndicator,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -13,11 +14,11 @@ import type { Badge } from '@/lib/badges'
 
 const CATEGORY_ORDER = ['courage', 'kindness', 'exploration', 'connection', 'presence']
 const CATEGORY_LABEL: Record<string, string> = {
-  courage:     '⚡ Courage',
-  kindness:    '💚 Kindness',
-  exploration: '🧭 Exploration',
-  connection:  '🔗 Connection',
-  presence:    '🌟 Presence',
+  courage:     'Courage',
+  kindness:    'Kindness',
+  exploration: 'Exploration',
+  connection:  'Connection',
+  presence:    'Presence',
 }
 
 export default function BadgesScreen() {
@@ -65,7 +66,7 @@ export default function BadgesScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} />
         <View style={styles.headerInfo}>
-          <Text style={styles.title}>Badges 🏅</Text>
+          <Text style={styles.title}>Badges</Text>
           {!loading && (
             <Text style={styles.subtitle}>
               {earnedCount} / {allBadges.length} earned
