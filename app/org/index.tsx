@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
 import BackButton from '@/components/BackButton'
@@ -90,7 +91,7 @@ export default function MyOrganizationsScreen() {
             )}
             {owned.length === 0 && joined.length === 0 && (
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>🎲</Text>
+                <Ionicons name="dice" size={22} color="#29B6F6" style={styles.emptyEmoji} />
                 <Text style={styles.emptyTitle}>No organizations yet</Text>
                 <Text style={styles.emptySub}>
                   Join one from a venue page, or register your own crew above.

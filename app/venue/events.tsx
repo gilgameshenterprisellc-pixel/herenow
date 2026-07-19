@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
@@ -108,7 +109,7 @@ export default function ManageEventsScreen() {
           <ActivityIndicator color="#29B6F6" size="large" style={{ marginTop: 60 }} />
         ) : events.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📅</Text>
+            <Ionicons name="calendar" size={22} color="#29B6F6" style={styles.emptyEmoji} />
             <Text style={styles.emptyText}>No events yet.</Text>
             <Text style={styles.emptySub}>Events you create show up here where you can remove them.</Text>
           </View>

@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Alert, Platform, RefreshControl,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -645,7 +646,7 @@ export default function AdminVenues() {
           // ── PENDING TAB ────────────────────────────────────────────────────
           pending.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>✅</Text>
+              <Ionicons name="checkmark-circle" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>All clear</Text>
               <Text style={styles.emptySub}>No pending venue applications.</Text>
             </View>
@@ -816,7 +817,7 @@ export default function AdminVenues() {
           // ── LIVE TAB ───────────────────────────────────────────────────────
           live.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🏢</Text>
+              <Ionicons name="business" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>No live venues yet</Text>
               <Text style={styles.emptySub}>Approve a pending application to get started.</Text>
             </View>

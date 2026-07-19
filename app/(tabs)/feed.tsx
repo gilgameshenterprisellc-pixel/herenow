@@ -263,7 +263,7 @@ export default function UpdatesScreen() {
                   style={styles.venueChip}
                   onPress={() => router.push(`/zone/${v.zone_id}` as any)}
                 >
-                  <Text style={styles.venueChipEmoji}>🏢</Text>
+                  <Ionicons name="business" size={22} color="#29B6F6" style={styles.venueChipEmoji} />
                   <Text style={styles.venueChipName} numberOfLines={1}>
                     {v.zones?.name ?? 'Venue'}
                   </Text>

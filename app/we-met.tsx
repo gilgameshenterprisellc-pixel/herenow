@@ -2,6 +2,7 @@
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -68,7 +69,7 @@ export default function WeMetScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🤝</Text>
+              <Ionicons name="hand-left" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>No We Met yet</Text>
               <Text style={styles.emptySub}>
                 When you and someone confirm you actually met IRL, they'll show up here.

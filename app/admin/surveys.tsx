@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator,
   RefreshControl, TouchableOpacity, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import BackButton from '@/components/BackButton'
@@ -67,7 +68,7 @@ export default function AdminSurveys() {
           <ActivityIndicator color="#29B6F6" size="large" style={{ marginTop: 60 }} />
         ) : total === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📭</Text>
+            <Ionicons name="mail-open" size={22} color="#29B6F6" style={styles.emptyEmoji} />
             <Text style={styles.emptyText}>No survey responses yet.</Text>
           </View>
         ) : (

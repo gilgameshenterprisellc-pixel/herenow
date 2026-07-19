@@ -4,6 +4,7 @@ import {
   TextInput, ActivityIndicator, Platform, RefreshControl, Switch,
   Image, Alert, ActionSheetIOS,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -290,7 +291,7 @@ export default function VenueAnnouncementsScreen() {
             </View>
           ) : (
             <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
-              <Text style={styles.addImageEmoji}>📷</Text>
+              <Ionicons name="camera" size={22} color="#29B6F6" style={styles.addImageEmoji} />
               <Text style={styles.addImageText}>Add flyer or photo</Text>
             </TouchableOpacity>
           )}

@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
@@ -116,7 +117,7 @@ export default function VenueThreadScreen() {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>💬</Text>
+              <Ionicons name="chatbubbles" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptySub}>Say hi — ask a question or send a note. This chat stays open, no time limit.</Text>
             </View>
           }

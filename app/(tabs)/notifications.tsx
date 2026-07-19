@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   View, Text, Image, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { router } from 'expo-router'
@@ -134,7 +135,7 @@ export default function MessagesTab() {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>💌</Text>
+              <Ionicons name="mail" size={22} color="#29B6F6" style={styles.emptyEmoji} />
               <Text style={styles.emptyTitle}>No messages yet</Text>
               <Text style={styles.emptySub}>
                 Confirm a "We Met" with someone you actually met in person and DMs open right away.
