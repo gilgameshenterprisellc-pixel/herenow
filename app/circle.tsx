@@ -145,7 +145,6 @@ const styles = StyleSheet.create({
   memberName: { flex: 1, fontSize: 15, fontWeight: '700', color: '#f0f8ff' },
   chevron: { fontSize: 22, color: '#4A6580' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyEmoji: { fontSize: 48 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#f8fafc' },
   emptySub: { fontSize: 13, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 28, lineHeight: 19 },
 })

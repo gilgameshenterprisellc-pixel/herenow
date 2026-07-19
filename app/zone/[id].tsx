@@ -1417,7 +1417,6 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 32, gap: 12,
   },
-  gateEmoji:   { fontSize: 44 },
   gateTitle:   { fontSize: 18, fontWeight: '800', color: '#f8fafc', textAlign: 'center' },
   gateSub:     { fontSize: 14, color: '#7A93AC', textAlign: 'center', lineHeight: 20 },
   gateBtn: {
