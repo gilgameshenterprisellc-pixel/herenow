@@ -4,6 +4,8 @@ import {
   ActivityIndicator, RefreshControl, Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
+import { UI } from '@/lib/appIcons'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 
@@ -73,7 +75,10 @@ export default function AdminOverview() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>🛡️ Admin Panel</Text>
+        <View style={styles.headerRow}>
+            <Ionicons name={UI.admin} size={22} color="#29B6F6" />
+            <Text style={styles.headerTitle}>Admin Panel</Text>
+          </View>
         <Text style={styles.headerSub}>HereNow Operations</Text>
       </View>
 
@@ -104,7 +109,7 @@ export default function AdminOverview() {
 
             <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/venues' as any)}>
               <View style={styles.actionLeft}>
-                <Text style={styles.actionEmoji}>🏢</Text>
+                <Ionicons name={UI.venueApprovals} size={22} color="#29B6F6" style={styles.actionEmoji} />
                 <View>
                   <Text style={styles.actionTitle}>Venue Approvals</Text>
                   <Text style={styles.actionSub}>Review and approve pending venue applications</Text>
@@ -120,7 +125,7 @@ export default function AdminOverview() {
 
             <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/submissions' as any)}>
               <View style={styles.actionLeft}>
-                <Text style={styles.actionEmoji}>🗺️</Text>
+                <Ionicons name={UI.venueSuggestions} size={22} color="#29B6F6" style={styles.actionEmoji} />
                 <View>
                   <Text style={styles.actionTitle}>Venue Suggestions</Text>
                   <Text style={styles.actionSub}>User-nominated venues to review and go live</Text>
@@ -136,7 +141,7 @@ export default function AdminOverview() {
 
             <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/reports' as any)}>
               <View style={styles.actionLeft}>
-                <Text style={styles.actionEmoji}>🚩</Text>
+                <Ionicons name={UI.reports} size={22} color="#29B6F6" style={styles.actionEmoji} />
                 <View>
                   <Text style={styles.actionTitle}>Reports Queue</Text>
                   <Text style={styles.actionSub}>Flagged content and user safety reports</Text>
@@ -152,7 +157,7 @@ export default function AdminOverview() {
 
             <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/users' as any)}>
               <View style={styles.actionLeft}>
-                <Text style={styles.actionEmoji}>👥</Text>
+                <Ionicons name={UI.users} size={22} color="#29B6F6" style={styles.actionEmoji} />
                 <View>
                   <Text style={styles.actionTitle}>User Management</Text>
                   <Text style={styles.actionSub}>Search users, view profiles, mute or ban</Text>
@@ -163,7 +168,7 @@ export default function AdminOverview() {
 
             <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/surveys' as any)}>
               <View style={styles.actionLeft}>
-                <Text style={styles.actionEmoji}>📝</Text>
+                <Ionicons name={UI.surveys} size={22} color="#29B6F6" style={styles.actionEmoji} />
                 <View>
                   <Text style={styles.actionTitle}>Surveys & Feedback</Text>
                   <Text style={styles.actionSub}>Anonymous responses from the in-app survey</Text>
@@ -195,6 +200,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#0D1B2E',
   },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
   headerSub:   { fontSize: 13, color: '#7A93AC', marginTop: 2 },
   scroll: { flex: 1 },

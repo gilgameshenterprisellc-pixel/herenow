@@ -6,6 +6,7 @@ import {
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
+import { UI } from '@/lib/appIcons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
@@ -567,7 +568,7 @@ export default function VenueDashboard() {
             <Image source={{ uri: venue.avatar_url }} style={styles.venueAvatar} resizeMode="cover" />
           ) : null}
           <View style={{ gap: 2 }}>
-            <Text style={styles.headerGreeting}>Hey, {ownerName || 'there'} 👋</Text>
+            <Text style={styles.headerGreeting}>Hey, {ownerName || 'there'}</Text>
             <Text style={styles.headerVenue}>{venue?.name ?? 'Your Venue'}</Text>
           </View>
         </View>
@@ -625,7 +626,7 @@ export default function VenueDashboard() {
         {/* Nightly recap / afterglow */}
         {venue && (
           <TouchableOpacity style={styles.recapLink} onPress={() => router.push('/venue/recap' as any)}>
-            <Text style={styles.recapLinkEmoji}>🌙</Text>
+            <Ionicons name={UI.nightlyRecap} size={20} color="#29B6F6" style={styles.recapLinkEmoji} />
             <View style={{ flex: 1 }}>
               <Text style={styles.recapLinkTitle}>Nightly Recap</Text>
               <Text style={styles.recapLinkSub}>Last night's numbers + where your crowd came from and went</Text>
@@ -640,7 +641,7 @@ export default function VenueDashboard() {
             <View style={styles.closedRow}>
               <View style={styles.closedLeft}>
                 <Text style={[styles.closedLabel, isClosed && styles.closedLabelActive]}>
-                  {isClosed ? '🔴 Temporarily Closed' : '🟢 Open for check-ins'}
+                  {isClosed ? 'Temporarily Closed' : 'Open for check-ins'}
                 </Text>
                 <Text style={styles.closedSub}>
                   {isClosed
@@ -701,7 +702,7 @@ export default function VenueDashboard() {
               style={styles.pulseInput}
               value={pulseText}
               onChangeText={setPulseText}
-              placeholder="Welcome to launch night! Tag your moments 📸"
+              placeholder="Welcome to launch night! Tag your moments"
               placeholderTextColor="#4A6580"
               multiline
               maxLength={280}
@@ -710,14 +711,14 @@ export default function VenueDashboard() {
               <View style={styles.pulsePhotoPreviewWrap}>
                 <Image source={{ uri: pulseMediaUrl }} style={styles.pulsePhotoPreview} resizeMode="cover" />
                 <TouchableOpacity style={styles.pulsePhotoRemove} onPress={() => setPulseMediaUrl(null)}>
-                  <Text style={styles.pulsePhotoRemoveText}>✕</Text>
+                  <Ionicons name="close" size={14} color="#f8fafc" />
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity style={styles.pulsePhotoBtn} onPress={attachPulsePhoto} disabled={pulsePhotoUploading}>
                 {pulsePhotoUploading
                   ? <ActivityIndicator color="#29B6F6" size="small" />
-                  : <Text style={styles.pulsePhotoBtnText}>📷 Add a photo</Text>}
+                  : <Text style={styles.pulsePhotoBtnText}>Add a photo</Text>}
               </TouchableOpacity>
             )}
             <View style={styles.pulseRow}>
@@ -766,7 +767,7 @@ export default function VenueDashboard() {
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       style={styles.modDelete}
                     >
-                      <Text style={styles.modDeleteText}>✕</Text>
+                      <Ionicons name="close" size={15} color="#7A93AC" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -779,7 +780,7 @@ export default function VenueDashboard() {
         {venue && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Live Chat</Text>
-            <Text style={styles.cardHint}>Monitor the room. ✕ removes a message; 🔇 mutes a guest for the night.</Text>
+            <Text style={styles.cardHint}>Monitor the room. Tap the cross to remove a message, or mute to silence a guest for the night.</Text>
             {monitorChat.length === 0 ? (
               <Text style={styles.monitorEmpty}>No chat activity yet tonight.</Text>
             ) : (
@@ -806,7 +807,7 @@ export default function VenueDashboard() {
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         style={styles.modMute}
                       >
-                        <Text style={styles.modMuteText}>🔇</Text>
+                        <Ionicons name="volume-mute" size={15} color="#7A93AC" />
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity
@@ -814,7 +815,7 @@ export default function VenueDashboard() {
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       style={styles.modDelete}
                     >
-                      <Text style={styles.modDeleteText}>✕</Text>
+                      <Ionicons name="close" size={15} color="#7A93AC" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -968,7 +969,7 @@ export default function VenueDashboard() {
         {/* No venue set up yet */}
         {!venue && (
           <View style={styles.setupCard}>
-            <Text style={styles.setupEmoji}>📍</Text>
+            <Ionicons name={UI.checkIn} size={30} color="#29B6F6" style={styles.setupEmoji} />
             <Text style={styles.setupTitle}>Set your venue location</Text>
             <Text style={styles.setupSub}>
               Add your address so guests can find and check into your venue.
@@ -1045,7 +1046,7 @@ export default function VenueDashboard() {
         {/* Empty state when no check-ins */}
         {stats.total === 0 && venue && (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyEmoji}>🏙️</Text>
+            <Ionicons name={UI.venue} size={30} color="#4A6580" style={styles.emptyEmoji} />
             <Text style={styles.emptyTitle}>No one checked in yet</Text>
             <Text style={styles.emptySub}>
               Share your venue link or QR code so guests can check in when they arrive.
@@ -1272,7 +1273,7 @@ export default function VenueDashboard() {
             style={[styles.actionCard, styles.actionCardLive]}
             onPress={() => router.push('/venue/people' as any)}
           >
-            <Text style={styles.actionEmoji}>👥</Text>
+            <Ionicons name={UI.livePeople} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={[styles.actionLabel, styles.actionLabelLive]}>Live People</Text>
             {stats.total > 0 && (
               <View style={styles.actionLiveBadge}>
@@ -1281,7 +1282,7 @@ export default function VenueDashboard() {
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/messages' as any)}>
-            <Text style={styles.actionEmoji}>💬</Text>
+            <Ionicons name={UI.message} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Messages</Text>
             {venueMsgUnread > 0 && (
               <View style={styles.actionLiveBadge}>
@@ -1290,42 +1291,42 @@ export default function VenueDashboard() {
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/edit' as any)}>
-            <Text style={styles.actionEmoji}>✏️</Text>
+            <Ionicons name={UI.editVenue} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Edit Venue</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => venue && router.push(`/zone/event/create?zoneId=${venue.id}` as any)}>
-            <Text style={styles.actionEmoji}>📅</Text>
+            <Ionicons name={UI.addEvent} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Add Event</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/events' as any)}>
-            <Text style={styles.actionEmoji}>🗓️</Text>
+            <Ionicons name={UI.manageEvents} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Manage Events</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => venue && router.push(`/board/${venue.id}` as any)}>
-            <Text style={styles.actionEmoji}>📌</Text>
+            <Ionicons name={UI.board} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>The Board</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/highlights' as any)}>
-            <Text style={styles.actionEmoji}>⭐</Text>
+            <Ionicons name={UI.highlights} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Highlights</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/promotions' as any)}>
-            <Text style={styles.actionEmoji}>🏷️</Text>
+            <Ionicons name={UI.promotions} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Promotions</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/announcements' as any)}>
-            <Text style={styles.actionEmoji}>📣</Text>
+            <Ionicons name={UI.announce} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Announce</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/gallery' as any)}>
-            <Text style={styles.actionEmoji}>📸</Text>
+            <Ionicons name={UI.gallery} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Gallery</Text>
           </TouchableOpacity>
         </View>
 
         {/* Footer note */}
         <Text style={styles.privacyNote}>
-          🔒 Age + interest data is anonymous aggregate — you never see individual profiles.
+          Age + interest data is anonymous aggregate — you never see individual profiles.
         </Text>
         </>)}
       </ScrollView>
