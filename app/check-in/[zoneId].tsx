@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -26,28 +27,28 @@ import VenueWelcomeModal from '@/components/VenueWelcomeModal'
 const SOCIAL_MODES: { mode: SocialMode; emoji: string; label: string; desc: string; color: string }[] = [
   {
     mode:  'dating',
-    emoji: '💘',
+    emoji: '',
     label: 'Dating',
     desc:  'Open to romantic connection — IRL, no pressure',
     color: '#f43f5e',
   },
   {
     mode:  'friends',
-    emoji: '🤝',
+    emoji: '',
     label: 'Friends',
     desc:  'Here to socialize and meet new people',
     color: '#22c55e',
   },
   {
     mode:  'networking',
-    emoji: '💼',
+    emoji: '',
     label: 'Networking',
     desc:  'Creative or professional connections',
     color: '#3b82f6',
   },
   {
     mode:  'just_vibes',
-    emoji: '✌️',
+    emoji: '',
     label: 'Just Vibes',
     desc:  "Here for the energy, not for meeting people",
     color: '#a855f7',
@@ -57,21 +58,21 @@ const SOCIAL_MODES: { mode: SocialMode; emoji: string; label: string; desc: stri
 const MOOD_MODES: { mode: MoodMode; emoji: string; label: string; desc: string; color: string }[] = [
   {
     mode:  'open',
-    emoji: '🟢',
+    emoji: '',
     label: 'Open',
     desc:  'Come say hi — I\'m happy to meet people',
     color: '#22c55e',
   },
   {
     mode:  'selective',
-    emoji: '🟡',
+    emoji: '',
     label: 'Selective',
     desc:  'Open but want quality over quantity',
     color: '#29B6F6',
   },
   {
     mode:  'not_today',
-    emoji: '🛡️',
+    emoji: '',
     label: 'Not Today',
     desc:  'Please don\'t approach me right now',
     color: '#7A93AC',
@@ -265,7 +266,7 @@ export default function CheckInScreen() {
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any)} />
         <View style={styles.headerText}>
           <Text style={styles.title}>Check In</Text>
-          {zoneName ? <Text style={styles.zoneName}>📍 {zoneName}</Text> : null}
+ {zoneName ? <Text style={styles.zoneName}>{zoneName}</Text> : null}
         </View>
       </View>
 
@@ -346,9 +347,7 @@ export default function CheckInScreen() {
 
         {/* Privacy note */}
         <View style={styles.privacyNote}>
-          <Text style={styles.privacyText}>
-            🔒 Only visible to people checked in to the same venue at the same time. Disappears when you leave.
-          </Text>
+          <Text style={styles.privacyText}> Only visible to people checked in to the same venue at the same time. Disappears when you leave. </Text>
         </View>
       </ScrollView>
 
@@ -365,7 +364,7 @@ export default function CheckInScreen() {
               {!!loadingMsg && <Text style={{ fontSize: 11, color: '#050A15', opacity: 0.7 }}>{loadingMsg}</Text>}
             </View>
           ) : (
-            <Text style={styles.checkInBtnText}>I'm Here 📍</Text>
+            <Text style={styles.checkInBtnText}>I'm Here</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -388,7 +387,7 @@ export default function CheckInScreen() {
       {showCiAnim && (
         <Animated.View style={[StyleSheet.absoluteFillObject, styles.ciOverlay, { opacity: ciOpacity }]} pointerEvents="none">
           <Animated.View style={[styles.ciContent, { transform: [{ scale: ciScale }] }]}>
-            <Text style={styles.ciPin}>📍</Text>
+            <Ionicons name="location" size={18} color="#29B6F6" />
             <Text style={styles.ciTitle}>You're In!</Text>
             {!!zoneName && <Text style={styles.ciVenue}>{zoneName}</Text>}
           </Animated.View>

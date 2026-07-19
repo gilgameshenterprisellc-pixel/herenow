@@ -50,14 +50,14 @@ export interface PulsePost {
 }
 
 export const VIBE_TAGS = [
-  '🔥 Lit',
-  '😊 Good vibes',
-  '🎵 Music slaps',
-  '🍺 Drinks flowing',
-  '💃 Dancing',
-  '😴 Chill',
-  '👀 Something wild',
-  '🎉 Party mode',
+  'Lit',
+  'Good vibes',
+  'Music slaps',
+  'Drinks flowing',
+  'Dancing',
+  'Chill',
+  'Something wild',
+  'Party mode',
 ]
 
 export async function fetchPulse(zoneId: string): Promise<PulsePost[]> {

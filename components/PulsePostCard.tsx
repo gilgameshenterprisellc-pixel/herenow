@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import type { PulsePost } from '@/lib/pulse'
 import { deletePulsePost, togglePinPulse } from '@/lib/pulse'
 import ExpiryLabel from './ExpiryLabel'
@@ -54,7 +55,7 @@ export default function PulsePostCard({ post, currentUserId, canPin, onDeleted, 
           <View style={styles.nameRow}>
             <Text style={styles.name}>{profile?.display_name ?? 'Someone'}</Text>
             {isVenue && <Text style={styles.venueTag}>VENUE</Text>}
-            {post.is_pinned && <Text style={styles.pinnedTag}>📌</Text>}
+            {post.is_pinned && <Ionicons name="pin" size={12} color="#C9940C" style={styles.pinnedTag} />}
           </View>
           <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
         </View>
@@ -65,7 +66,7 @@ export default function PulsePostCard({ post, currentUserId, canPin, onDeleted, 
           </TouchableOpacity>
         ) : onReport ? (
           <TouchableOpacity onPress={() => onReport(post.id)} style={styles.iconBtn}>
-            <Text style={styles.flagText}>🚩</Text>
+            <Ionicons name="flag" size={13} color="#7A93AC" />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -88,7 +89,7 @@ export default function PulsePostCard({ post, currentUserId, canPin, onDeleted, 
       {/* Venue owner: pin control on their own venue posts */}
       {canPin && isVenue && (
         <TouchableOpacity onPress={handlePin} style={styles.pinBtn}>
-          <Text style={styles.pinBtnText}>{post.is_pinned ? '📌 Unpin' : '📌 Pin to top'}</Text>
+          <Text style={styles.pinBtnText}>{post.is_pinned ? 'Unpin' : 'Pin to top'}</Text>
         </TouchableOpacity>
       )}
     </View>

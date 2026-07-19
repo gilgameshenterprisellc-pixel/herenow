@@ -36,7 +36,7 @@ export default function MyOrganizationsScreen() {
         onPress={() => router.push(`/org/${org.id}` as any)}
         activeOpacity={0.8}
       >
-        <Text style={styles.cardEmoji}>{cat?.emoji ?? '📍'}</Text>
+        <Text style={styles.cardEmoji}>{cat?.emoji ?? ''}</Text>
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle}>{org.name}</Text>
           <Text style={styles.cardMeta}>

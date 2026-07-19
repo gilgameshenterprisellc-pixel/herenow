@@ -11,7 +11,7 @@ function getHeatLabel(ratio: number): { label: string; color: string } {
   if (ratio < 0.45)  return { label: 'Filling up',  color: '#22c55e' }
   if (ratio < 0.7)   return { label: 'Buzzing',     color: '#29B6F6' }
   if (ratio < 0.9)   return { label: 'Packed',      color: '#f97316' }
-  return               { label: '🔥 On fire',       color: '#ef4444' }
+  return               { label: 'On fire',       color: '#ef4444' }
 }
 
 export default function HeatBar({ count, capacity = 50 }: Props) {

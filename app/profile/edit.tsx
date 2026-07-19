@@ -233,7 +233,7 @@ export default function EditProfileScreen() {
             <View style={styles.photoOverlay}>
               {uploading
                 ? <ActivityIndicator color="#f8fafc" size="small" />
-                : <Text style={styles.photoOverlayText}>{avatarUrl ? '✏️' : '📷'}</Text>
+                : <Text style={styles.photoOverlayText}>{avatarUrl ? '✏️' : ''}</Text>
               }
             </View>
           </TouchableOpacity>
@@ -413,7 +413,7 @@ export default function EditProfileScreen() {
             <View style={styles.privacyToggleRow}>
               <View style={styles.privacyToggleText}>
                 <Text style={styles.privacyToggleTitle}>
-                  {checkinPrivacy === 'full' ? '🔓 Full profile visible' : '🔒 Minimal only'}
+                  {checkinPrivacy === 'full' ? 'Full profile visible' : 'Minimal only'}
                 </Text>
                 <Text style={styles.privacyToggleSub}>
                   {checkinPrivacy === 'full'
@@ -433,10 +433,8 @@ export default function EditProfileScreen() {
 
         {/* Privacy note */}
         <View style={styles.privacyNote}>
-          <Text style={styles.privacyText}>
-            🔒 Your profile is only visible to people checked in to the same venue at the same time.
-            It's never searchable and disappears when your session ends.
-          </Text>
+          <Text style={styles.privacyText}> Your profile is only visible to people checked in to the same venue at the same time.
+ It's never searchable and disappears when your session ends. </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

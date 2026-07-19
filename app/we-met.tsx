@@ -28,7 +28,7 @@ export default function WeMetScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} />
-        <Text style={styles.title}>We Met 🤝</Text>
+        <Text style={styles.title}>We Met</Text>
         {(pending.length + confirmed.length) > 0 && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{pending.length + confirmed.length}</Text>

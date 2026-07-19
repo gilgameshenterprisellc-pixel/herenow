@@ -66,7 +66,7 @@ export default function MyVenuesScreen() {
                 onPress={() => router.push(`/zone/${item.zone_id}` as any)}
               >
                 <View style={styles.venueIcon}>
-                  <Text style={styles.venueIconText}>🏢</Text>
+                  <Ionicons name="business" size={20} color="#29B6F6" />
                 </View>
                 <View style={styles.cardInfo}>
                   <Text style={styles.cardName}>{item.zones?.name ?? 'Venue'}</Text>

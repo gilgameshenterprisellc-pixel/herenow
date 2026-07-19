@@ -47,7 +47,7 @@ export default function MessagesScreen() {
   }
 
   const getExpiryStatus = (expiresAt: string | null) => {
-    if (expiresAt === null) return { locked: true, expired: false, label: '🔒', warn: false }
+    if (expiresAt === null) return { locked: true, expired: false, label: '', warn: false }
     const ms = new Date(expiresAt).getTime() - Date.now()
     if (ms < 0) return { locked: false, expired: true, label: 'Expired', warn: false }
     const hrs = Math.floor(ms / 3_600_000)
@@ -90,7 +90,7 @@ export default function MessagesScreen() {
                       activeOpacity={0.8}
                     >
                       <View style={[styles.avatar, { backgroundColor: cat.color + '22' }]}>
-                        <Text style={[styles.avatarText, { color: cat.color }]}>📌</Text>
+                        <Ionicons name="pin" size={18} color={cat.color} />
                       </View>
                       <View style={styles.info}>
                         <View style={styles.row}>
@@ -177,7 +177,7 @@ export default function MessagesScreen() {
                         : 'No messages yet'}
                     </Text>
                     {expiry.locked && (
-                      <Text style={styles.expiryLocked}>🔒 At venue</Text>
+                      <Text style={styles.expiryLocked}>At venue</Text>
                     )}
                     {expiry.warn && !expiry.expired && (
                       <Text style={styles.expiryWarn}>{expiry.label}</Text>

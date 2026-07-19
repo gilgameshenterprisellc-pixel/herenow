@@ -680,7 +680,7 @@ export default function ZoneScreen() {
             keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsList}>
             {highlights.map((h) => (
               <View key={h.id} style={styles.highlightCard}>
-                <Text style={styles.highlightEmoji}>{h.emoji ?? '⭐'}</Text>
+                <Text style={styles.highlightEmoji}>{h.emoji ?? ''}</Text>
                 <Text style={styles.highlightTitle} numberOfLines={1}>{h.title}</Text>
                 {h.body ? <Text style={styles.highlightBody} numberOfLines={2}>{h.body}</Text> : null}
               </View>

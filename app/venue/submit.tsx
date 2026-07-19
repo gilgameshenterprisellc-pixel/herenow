@@ -113,7 +113,7 @@ export default function SubmitVenueScreen() {
         <TouchableOpacity style={styles.locBtn} onPress={useMyLocation} disabled={locating}>
           {locating
             ? <ActivityIndicator color="#29B6F6" size="small" />
-            : <Text style={styles.locBtnText}>{coords ? '✓ Using my current location' : '📍 Use my current location'}</Text>}
+            : <Text style={styles.locBtnText}>{coords ? '✓ Using my current location' : 'Use my current location'}</Text>}
         </TouchableOpacity>
         <TextInput
           style={styles.input}

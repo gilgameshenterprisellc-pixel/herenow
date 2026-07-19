@@ -97,7 +97,7 @@ export default function DmConversationScreen() {
           </View>
         </View>
         <View style={styles.center}>
-          <Text style={{ fontSize: 36 }}>💌</Text>
+          <Ionicons name="mail" size={34} color="#29B6F6" />
           <Text style={[styles.name, { marginTop: 12 }]}>Thread not found</Text>
           <Text style={[styles.expiredText, { marginTop: 6, textAlign: 'center', paddingHorizontal: 32 }]}>
             This conversation may have expired or been removed.

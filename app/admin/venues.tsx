@@ -463,7 +463,7 @@ export default function AdminVenues() {
         showToast('Failed to save polygon: ' + (error?.message ?? 'RPC returned false'), 'error')
       } else {
         setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'found' }))
-        showToast(`🏢 Polygon saved for ${venue.display_name}!`, 'success')
+        showToast(`Polygon saved for ${venue.display_name}!`, 'success')
       }
     } catch {
       setPolygonStatus((prev) => ({ ...prev, [venue.id]: 'error' }))
@@ -686,9 +686,9 @@ export default function AdminVenues() {
                       <Text style={styles.formTitle}>Geofencing Setup</Text>
                       <Text style={styles.formHint}>
                         {(venue.venue_geocode_confidence ?? 0) >= 0.9
-                          ? `✓ Mapbox returned ${Math.round((venue.venue_geocode_confidence ?? 0) * 100)}% confidence — coordinates are precise. Verify the map pin is on the right building, then approve.`
+                          ? `✓ Mapbox returned ${Math.round((venue.venue_geocode_confidence?? 0) * 100)}% confidence — coordinates are precise. Verify the map pin is on the right building, then approve.`
                           : (venue.venue_lat && venue.venue_lng)
-                            ? `⚠ Geocoder returned low confidence (${Math.round((venue.venue_geocode_confidence ?? 0) * 100)}%). Verify the map pin below — move it manually if it's off.`
+                            ? `Geocoder returned low confidence (${Math.round((venue.venue_geocode_confidence?? 0) * 100)}%). Verify the map pin below — move it manually if it's off.`
                             : venue.venue_address
                               ? `Address on file: ${[venue.venue_address, venue.venue_suite, venue.venue_city, venue.venue_state, venue.venue_zip].filter(Boolean).join(', ')} — geocoding failed. Use Re-fetch or enter coordinates manually.`
                               : 'No address on file. Enter coordinates manually.'
@@ -727,7 +727,7 @@ export default function AdminVenues() {
                             {geocoding[venue.id]
                               ? <ActivityIndicator size="small" color="#050A15" />
                               : <Text style={styles.geocodeBtnText}>
-                                  {form.lat && form.lng ? '🔄 Re-fetch Coordinates' : '📍 Fetch Coordinates from Address'}
+                                  {form.lat && form.lng ? 'Re-fetch Coordinates' : 'Fetch Coordinates from Address'}
                                 </Text>
                             }
                           </TouchableOpacity>
@@ -735,8 +735,8 @@ export default function AdminVenues() {
                             <>
                               <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates fetched — verify map pin below</Text>
                               {form.polygonWkt
-                                ? <Text style={{ color: '#29B6F6', fontSize: 12, marginTop: 2 }}>🏢 Building polygon from OSM — precise check-in active</Text>
-                                : <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>⚠ No building polygon found — check-in uses {form.radius}m circle</Text>
+                                ? <Text style={{ color: '#29B6F6', fontSize: 12, marginTop: 2 }}>Building polygon from OSM — precise check-in active</Text>
+ : <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}> No building polygon found — check-in uses {form.radius}m circle</Text>
                               }
                             </>
                           )}
@@ -903,14 +903,14 @@ export default function AdminVenues() {
                         >
                           {refreshingPolygon === venue.id
                             ? <ActivityIndicator size="small" color="#050A15" />
-                            : <Text style={styles.polygonRefreshBtnText}>🏢 Refresh Building Polygon from OSM</Text>
+                            : <Text style={styles.polygonRefreshBtnText}>Refresh Building Polygon from OSM</Text>
                           }
                         </TouchableOpacity>
                         {polygonStatus[venue.id] === 'found' && (
                           <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 2 }}>✓ Polygon saved — precise check-in active</Text>
                         )}
                         {polygonStatus[venue.id] === 'notfound' && (
-                          <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>⚠ No building found in OSM within 200m — check-in still uses circle radius</Text>
+                          <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>No building found in OSM within 200m — check-in still uses circle radius</Text>
                         )}
                         {polygonStatus[venue.id] === 'error' && (
                           <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 2 }}>✗ Error refreshing polygon. Check connection and retry.</Text>
@@ -993,15 +993,15 @@ export default function AdminVenues() {
                                 >
                                   {editGeocoding[venue.id]
                                     ? <ActivityIndicator size="small" color="#050A15" />
-                                    : <Text style={styles.geocodeBtnText}>🔄 Re-fetch Coordinates from Address</Text>
+                                    : <Text style={styles.geocodeBtnText}>Re-fetch Coordinates from Address</Text>
                                   }
                                 </TouchableOpacity>
                                 {editGeocodeStatus[venue.id] === 'success' && (
                                   <>
                                     <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>✓ Coordinates updated — verify below then save</Text>
                                     {editForm.polygonWkt
-                                      ? <Text style={{ color: '#29B6F6', fontSize: 12, marginTop: 2 }}>🏢 Building polygon from OSM — precise check-in active</Text>
-                                      : <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>⚠ No building polygon found — check-in uses {editForm.radius}m circle</Text>
+                                      ? <Text style={{ color: '#29B6F6', fontSize: 12, marginTop: 2 }}>Building polygon from OSM — precise check-in active</Text>
+ : <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}> No building polygon found — check-in uses {editForm.radius}m circle</Text>
                                     }
                                   </>
                                 )}
@@ -1118,7 +1118,7 @@ export default function AdminVenues() {
 
             {denyTarget.email && (
               <Text style={styles.emailNote}>
-                📧 After denying, your email client will open with a pre-written message to {denyTarget.email}
+ After denying, your email client will open with a pre-written message to {denyTarget.email}
               </Text>
             )}
 

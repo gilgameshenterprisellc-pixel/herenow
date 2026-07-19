@@ -213,7 +213,7 @@ export default function VenuePromotionsScreen() {
                 {(p.starts_at || p.ends_at) && (
                   <View style={styles.windowBadge}>
                     <Text style={styles.windowText}>
-                      🕐{' '}
+ {' '}
                       {p.starts_at ? formatDateTime(new Date(p.starts_at)) : 'Now'}
                       {p.ends_at ? ` → ${formatDateTime(new Date(p.ends_at))}` : ' (no end)'}
                     </Text>
@@ -221,7 +221,7 @@ export default function VenuePromotionsScreen() {
                 )}
                 {p.post_to_feed && (
                   <View style={styles.feedBadge}>
-                    <Text style={styles.feedBadgeText}>📡 Posted to feed</Text>
+                    <Text style={styles.feedBadgeText}>Posted to feed</Text>
                   </View>
                 )}
               </View>
@@ -353,9 +353,7 @@ export default function VenuePromotionsScreen() {
                 style={[styles.audienceChip, audience === 'subscribers' && styles.audienceChipGoldOn]}
                 onPress={() => setAudience('subscribers')}
               >
-                <Text style={[styles.audienceChipText, audience === 'subscribers' && styles.audienceChipTextGoldOn]}>
-                  ★ Subscribers only
-                </Text>
+                <Text style={[styles.audienceChipText, audience === 'subscribers' && styles.audienceChipTextGoldOn]}> ★ Subscribers only </Text>
               </TouchableOpacity>
             </View>
           </View>

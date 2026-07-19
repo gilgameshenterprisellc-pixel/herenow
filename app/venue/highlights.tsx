@@ -11,7 +11,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import BackButton from '@/components/BackButton'
 
-const EMOJIS = ['⭐', '🔥', '🎉', '🍹', '🎵', '🌃', '🎭', '🎮', '🍔', '🥳', '💫', '🏆']
+const EMOJIS = ['', '', '', '', '', '', '', '', '', '', '', '']
 const MAX = 6
 
 export default function VenueHighlightsScreen() {
@@ -26,7 +26,7 @@ export default function VenueHighlightsScreen() {
   // New highlight form
   const [title, setTitle]   = useState('')
   const [body, setBody]     = useState('')
-  const [emoji, setEmoji]   = useState('⭐')
+  const [emoji, setEmoji]   = useState('')
 
   const load = useCallback(async () => {
     const user = await getAuthedUser()
@@ -65,7 +65,7 @@ export default function VenueHighlightsScreen() {
       setHighlights((prev) => [...prev, created])
       setTitle('')
       setBody('')
-      setEmoji('⭐')
+      setEmoji('')
     }
     setSaving(false)
   }
@@ -119,7 +119,7 @@ export default function VenueHighlightsScreen() {
             <Text style={styles.sectionLabel}>CURRENT HIGHLIGHTS</Text>
             {highlights.map((h) => (
               <View key={h.id} style={styles.hlCard}>
-                <Text style={styles.hlEmoji}>{h.emoji ?? '⭐'}</Text>
+                <Text style={styles.hlEmoji}>{h.emoji ?? ''}</Text>
                 <View style={styles.hlBody}>
                   <Text style={styles.hlTitle}>{h.title}</Text>
                   {h.body ? <Text style={styles.hlText}>{h.body}</Text> : null}

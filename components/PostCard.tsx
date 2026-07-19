@@ -70,7 +70,7 @@ export default function PostCard({ post, onComment }: Props) {
         </View>
         {post.zones && (
           <View style={styles.zonePill}>
-            <Text style={styles.zonePillText}>📍 {post.zones.name}</Text>
+ <Text style={styles.zonePillText}>{post.zones.name}</Text>
           </View>
         )}
       </View>
@@ -80,11 +80,11 @@ export default function PostCard({ post, onComment }: Props) {
       <View style={styles.actions}>
         <TouchableOpacity style={styles.action} onPress={handleLike} activeOpacity={0.7}>
           <Text style={[styles.actionText, liked && styles.actionLiked]}>
-            {liked ? '❤️' : '🤍'} {count}
+            {count}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.action} onPress={onComment} activeOpacity={0.7}>
-          <Text style={styles.actionText}>💬 {post.comment_count}</Text>
+ <Text style={styles.actionText}>{post.comment_count}</Text>
         </TouchableOpacity>
       </View>
     </View>

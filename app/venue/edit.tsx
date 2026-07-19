@@ -4,6 +4,7 @@ import {
   ScrollView, ActivityIndicator, Platform, KeyboardAvoidingView,
   Modal, Image, Alert,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Location from 'expo-location'
@@ -437,7 +438,7 @@ export default function VenueEditScreen() {
                 <Image source={{ uri: bannerUrl }} style={styles.bannerPreview} resizeMode="cover" />
               ) : (
                 <View style={styles.bannerPlaceholder}>
-                  <Text style={styles.uploadIcon}>🖼</Text>
+                  <Ionicons name="images" size={22} color="#29B6F6" />
                   <Text style={styles.uploadHint}>Tap to add a banner photo (16:9)</Text>
                 </View>
               )}
@@ -460,7 +461,7 @@ export default function VenueEditScreen() {
                   <Image source={{ uri: avatarUrl }} style={styles.avatarPreview} resizeMode="cover" />
                 ) : (
                   <View style={styles.avatarPlaceholder}>
-                    <Text style={{ fontSize: 22 }}>🏢</Text>
+                    <Ionicons name="business" size={22} color="#29B6F6" />
                   </View>
                 )}
                 {uploadingPhoto === 'avatar' && (
@@ -479,7 +480,7 @@ export default function VenueEditScreen() {
 
         {/* Location */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>📍 Venue Location</Text>
+          <Text style={styles.sectionLabel}>Venue Location</Text>
           <Text style={styles.sectionHint}>
             Stand at your venue (or anywhere inside it) and tap the button below.
             This pins the center of your check-in zone.
@@ -494,7 +495,7 @@ export default function VenueEditScreen() {
               <ActivityIndicator color="#f8fafc" size="small" />
             ) : (
               <Text style={[styles.locBtnText, hasLocation && styles.locBtnTextDone]}>
-                {hasLocation ? '✓ Location set — tap to update' : '📡 Use My Current Location'}
+                {hasLocation ? '✓ Location set — tap to update' : 'Use My Current Location'}
               </Text>
             )}
           </TouchableOpacity>
@@ -620,7 +621,7 @@ export default function VenueEditScreen() {
           {/* Live preview */}
           {hoursPreview ? (
             <View style={styles.hoursPreview}>
-              <Text style={styles.hoursPreviewText}>🕐 {hoursPreview}</Text>
+ <Text style={styles.hoursPreviewText}>{hoursPreview}</Text>
             </View>
           ) : null}
 
@@ -743,10 +744,8 @@ export default function VenueEditScreen() {
 
         {/* Info card */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoText}>
-            🔒 On the map and in analytics, guests stay anonymous — you only see counts, never full profiles or contact info.
-            In your live Chat you'll see first names so you can moderate the room.
-          </Text>
+          <Text style={styles.infoText}> On the map and in analytics, guests stay anonymous — you only see counts, never full profiles or contact info.
+ In your live Chat you'll see first names so you can moderate the room. </Text>
         </View>
       </ScrollView>
 

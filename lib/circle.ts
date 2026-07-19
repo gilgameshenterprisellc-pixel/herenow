@@ -63,7 +63,7 @@ export async function sendCircleRequest(recipientId: string): Promise<boolean> {
   await sendNotification({
     userId: recipientId,
     type:   'circle_request',
-    title:  'Someone wants you in their Circle 🔵',
+    title:  'Someone wants you in their Circle',
     body:   'Tap to see who and add them back.',
     data:   { route: 'circle' },
   })
@@ -85,7 +85,7 @@ export async function respondCircleRequest(requestId: string, accept: boolean): 
     await sendNotification({
       userId: data.requester_id,
       type:   'circle_accepted',
-      title:  'You\'re in their Circle 🔵',
+      title:  'You\'re in their Circle',
       body:   'You\'re now connected.',
       data:   {},
     })

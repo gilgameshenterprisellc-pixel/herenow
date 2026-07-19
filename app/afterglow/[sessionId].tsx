@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, ActivityIndicator,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
@@ -77,9 +78,12 @@ export default function AfterglowScreen() {
         keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Glow header */}
         <View style={styles.glowHeader}>
-          <Text style={styles.glowEmoji}>
-            {hadConnections ? '✨' : hadPeople ? '🌙' : '🪐'}
-          </Text>
+          <Ionicons
+            name={hadConnections ? 'sparkles' : hadPeople ? 'moon' : 'planet'}
+            size={30}
+            color="#29B6F6"
+            style={styles.glowEmoji}
+          />
           <Text style={styles.glowTitle}>Afterglow</Text>
           <Text style={styles.zoneName}>{glow.zone_name}</Text>
         </View>
@@ -142,7 +146,7 @@ export default function AfterglowScreen() {
             style={styles.dmBtn}
             onPress={() => router.push('/messages')}
           >
-            <Text style={styles.dmBtnText}>💌 Go to Messages</Text>
+            <Text style={styles.dmBtnText}>Go to Messages</Text>
           </TouchableOpacity>
         )}
 
@@ -154,10 +158,8 @@ export default function AfterglowScreen() {
         </TouchableOpacity>
 
         {/* Privacy reminder */}
-        <Text style={styles.privacy}>
-          🔒 Pulse posts and venue chat from this session have already expired.
-          Your presence is no longer visible at this venue.
-        </Text>
+        <Text style={styles.privacy}> Pulse posts and venue chat from this session have already expired.
+ Your presence is no longer visible at this venue. </Text>
       </ScrollView>
     </View>
   )

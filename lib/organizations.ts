@@ -11,12 +11,12 @@ import { screenText } from './textModeration'
 export type OrgCategory = 'club' | 'league' | 'community' | 'brand' | 'creators' | 'other'
 
 export const ORG_CATEGORIES: { id: OrgCategory; label: string; emoji: string }[] = [
-  { id: 'club',      label: 'Club',       emoji: '🎲' },
-  { id: 'league',    label: 'League',     emoji: '🏆' },
-  { id: 'community', label: 'Community',  emoji: '🫂' },
-  { id: 'brand',     label: 'Brand',      emoji: '✨' },
-  { id: 'creators',  label: 'Creators',   emoji: '🎨' },
-  { id: 'other',     label: 'Other',      emoji: '📍' },
+  { id: 'club',      label: 'Club',       emoji: '' },
+  { id: 'league',    label: 'League',     emoji: '' },
+  { id: 'community', label: 'Community',  emoji: '' },
+  { id: 'brand',     label: 'Brand',      emoji: '' },
+  { id: 'creators',  label: 'Creators',   emoji: '' },
+  { id: 'other',     label: 'Other',      emoji: '' },
 ]
 
 export interface Organization {

@@ -69,7 +69,7 @@ export default function NewOrganizationScreen() {
       })
       setSaving(false)
       if (!org) { showToast('Could not create the organization. Try again.', 'error'); return }
-      showToast('Organization created. 🎉', 'success')
+      showToast('Organization created.', 'success')
       router.replace(`/org/${org.id}` as any)
     }
   }

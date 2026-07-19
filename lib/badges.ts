@@ -72,7 +72,7 @@ export async function awardBadge(slug: string, meta?: Record<string, string>): P
   await supabase.from('notifications').insert({
     user_id: user.id,
     type: 'badge_earned',
-    title: 'Badge earned! 🏅',
+    title: 'Badge earned!',
     body: `You earned a new badge.`,
     data: { badge_slug: slug },
   })
