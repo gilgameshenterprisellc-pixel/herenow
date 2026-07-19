@@ -86,7 +86,7 @@ export async function sendWeMet(params: {
   await sendNotification({
     userId: params.recipientId,
     type:   'we_met_request',
-    title:  'Someone wants to confirm you met! 🤝',
+    title:  'Someone wants to confirm you met!',
     body:   'Tap to confirm or decline.',
     data:   { we_met_id: data.id },
   })
@@ -125,7 +125,7 @@ export async function confirmWeMet(wemetId: string): Promise<void> {
     await sendNotification({
       userId: record.initiator_id,
       type:   'we_met_confirmed',
-      title:  'We Met confirmed! 🤝',
+      title:  'We Met confirmed!',
       body:   'DMs are open — someone has 48 hours to make the first move.',
       data:   { we_met_id: wemetId },
     })

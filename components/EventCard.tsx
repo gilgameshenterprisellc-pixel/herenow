@@ -2,13 +2,13 @@
 import type { VenueEvent } from '@/lib/events'
 
 const EVENT_TYPE_EMOJI: Record<string, string> = {
-  music:       '🎵',
-  trivia:      '🧠',
-  happy_hour:  '🍺',
-  sports:      '🏀',
-  comedy:      '😂',
-  karaoke:     '🎤',
-  general:     '📅',
+  music:       '',
+  trivia:      '',
+  happy_hour:  '',
+  sports:      '',
+  comedy:      '',
+  karaoke:     '',
+  general:     '',
 }
 
 function formatTime(iso: string): string {
@@ -31,7 +31,7 @@ interface Props {
 }
 
 export default function EventCard({ event, onToggleRsvp }: Props) {
-  const emoji = EVENT_TYPE_EMOJI[event.event_type] ?? '📅'
+  const emoji = EVENT_TYPE_EMOJI[event.event_type] ?? ''
   const isPast = event.ends_at ? new Date(event.ends_at) < new Date() : false
 
   return (

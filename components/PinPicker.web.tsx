@@ -46,7 +46,7 @@ function makeDropIcon(L: any) {
           border-radius:50% 50% 50% 0;transform:rotate(-45deg);
           display:flex;align-items:center;justify-content:center;
           box-shadow:0 0 16px rgba(245,158,11,0.7);">
-          <span style="transform:rotate(45deg);color:#050A15;font-size:14px;">📍</span>
+          <span style="transform:rotate(45deg);color:#050A15;font-size:14px;"></span>
         </div>
         <div style="width:3px;height:10px;background:#f59e0b;border-radius:0 0 2px 2px;
           box-shadow:0 0 8px rgba(245,158,11,0.5);"></div>
@@ -128,7 +128,7 @@ export default function PinPicker({ lat, lng, onChange }: Props) {
           gap: 6,
         }}
       >
-        <span>📍</span>
+        <span></span>
         <span>Drag the pin or tap the map to set the exact venue location</span>
       </div>
       <div ref={containerRef} style={{ width: '100%', height: 260, background: '#060D1A' }} />

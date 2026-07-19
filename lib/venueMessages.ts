@@ -61,7 +61,7 @@ export async function sendVenueMessage(params: {
   await sendNotification({
     userId: recipientId,
     type:   'message',
-    title:  isOwner ? `💬 ${zone.name}` : '💬 New message',
+    title:  isOwner ? `${zone.name}` : 'New message',
     body:   params.content.slice(0, 80),
     data:   { venue_zone_id: params.zoneId, from_user_id: user.id },
   })

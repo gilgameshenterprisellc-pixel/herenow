@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   Animated, Easing, Platform, ActivityIndicator, ScrollView,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
 import { Link, router } from 'expo-router'
@@ -316,10 +317,10 @@ export default function SignupScreen() {
                 />
               )}
               <TouchableOpacity style={styles.toggleOpt} onPress={() => switchMode('person')} activeOpacity={0.8}>
-                <Text style={[styles.toggleTxt, !isVenue && styles.toggleTxtOn]}>👤 Person</Text>
+                <Text style={[styles.toggleTxt, !isVenue && styles.toggleTxtOn]}>Person</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.toggleOpt} onPress={() => switchMode('venue')} activeOpacity={0.8}>
-                <Text style={[styles.toggleTxt, isVenue && styles.toggleTxtOn]}>🏢 Venue</Text>
+                <Text style={[styles.toggleTxt, isVenue && styles.toggleTxtOn]}>Venue</Text>
               </TouchableOpacity>
             </View>
           </Reanimated.View>
@@ -389,7 +390,7 @@ export default function SignupScreen() {
                   style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
                   onPress={() => setShowPw(v => !v)}
                 >
-                  <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
+                  <Ionicons name={showPw ? 'eye-off' : 'eye'} size={18} color="#7A93AC" />
                 </TouchableOpacity>
               </View>
             </Reanimated.View>
@@ -497,7 +498,7 @@ export default function SignupScreen() {
                   style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
                   onPress={() => setShowPw(v => !v)}
                 >
-                  <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁'}</Text>
+                  <Ionicons name={showPw ? 'eye-off' : 'eye'} size={18} color="#7A93AC" />
                 </TouchableOpacity>
               </View>
             </Reanimated.View>

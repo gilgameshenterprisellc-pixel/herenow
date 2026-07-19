@@ -101,16 +101,16 @@ export default function AdminSubmissionsScreen() {
               <Text style={styles.name}>{s.name}</Text>
               <View style={styles.metaRow}>
                 {s.category ? <Text style={styles.metaChip}>{s.category}</Text> : null}
-                {s.latitude != null ? <Text style={styles.metaChip}>📍 GPS pinned</Text> : null}
+                {s.latitude != null ? <Text style={styles.metaChip}>GPS pinned</Text> : null}
               </View>
-              {s.address ? <Text style={styles.detail}>🏠 {s.address}</Text> : null}
-              {s.venue_contact ? <Text style={styles.detail}>✉️ {s.venue_contact}</Text> : null}
+ {s.address ? <Text style={styles.detail}>{s.address}</Text> : null}
+ {s.venue_contact ? <Text style={styles.detail}>{s.venue_contact}</Text> : null}
               {s.note ? <Text style={styles.note}>"{s.note}"</Text> : null}
               <Text style={styles.submitter}>
                 Suggested by {s.submitter?.display_name ?? 'a user'}
               </Text>
               {s.latitude == null && (
-                <Text style={styles.needsGps}>⚠️ No GPS location — reach out to the submitter or add coordinates before it can go live.</Text>
+                <Text style={styles.needsGps}>No GPS location — reach out to the submitter or add coordinates before it can go live.</Text>
               )}
               <View style={styles.actions}>
                 <TouchableOpacity

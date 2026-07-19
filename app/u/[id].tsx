@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -82,10 +83,10 @@ export default function UserProfileScreen() {
   }
 
   const circleLabel = {
-    none:        '🔵 Add to My Circle',
-    pending_out: '🔵 Circle request sent',
-    pending_in:  '🔵 Add back to your Circle',
-    in_circle:   '🔵 In your Circle',
+    none:        'Add to My Circle',
+    pending_out: 'Circle request sent',
+    pending_in:  'Add back to your Circle',
+    in_circle:   'In your Circle',
   }[circleStatus]
   const circleDisabled = circleBusy || circleStatus === 'pending_out' || circleStatus === 'in_circle'
 
@@ -103,7 +104,7 @@ export default function UserProfileScreen() {
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
         <View style={styles.center}>
-          <Text style={{ fontSize: 36 }}>👤</Text>
+          <Ionicons name="person" size={34} color="#29B6F6" />
           <Text style={[styles.name, { marginTop: 12 }]}>Profile not found</Text>
         </View>
       </View>
@@ -137,7 +138,7 @@ export default function UserProfileScreen() {
           {!!joined && <Text style={styles.joined}>{joined}</Text>}
           {wemetId && (
             <View style={styles.connectedPill}>
-              <Text style={styles.connectedText}>🤝 You met in person</Text>
+              <Text style={styles.connectedText}>You met in person</Text>
             </View>
           )}
         </View>

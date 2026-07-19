@@ -87,7 +87,7 @@ export default function AdminUsers() {
             {item.is_muted && <View style={styles.mutedBadge}><Text style={styles.mutedBadgeText}>MUTED</Text></View>}
           </View>
           {item.username ? <Text style={styles.username}>@{item.username}</Text> : null}
-          {item.venue_status === 'approved' && <Text style={styles.venueBadge}>🏢 Venue owner</Text>}
+          {item.venue_status === 'approved' && <Text style={styles.venueBadge}>Venue owner</Text>}
         </View>
       </View>
       {acting === item.id ? (

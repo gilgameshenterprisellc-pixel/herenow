@@ -30,10 +30,10 @@ const SOCIAL_MODE_COLORS: Record<string, string> = {
 }
 
 const SOCIAL_MODE_LABELS: Record<string, string> = {
-  dating:     '💘 Dating',
-  friends:    '🤝 Friends',
-  networking: '💼 Networking',
-  just_vibes: '✌️ Just Vibes',
+  dating:     'Dating',
+  friends:    'Friends',
+  networking: 'Networking',
+  just_vibes: 'Just Vibes',
 }
 
 function timeAgo(iso: string): string {
@@ -243,7 +243,7 @@ export default function VenuePeopleScreen() {
                             ) : (
                               <>
                                 <Text style={[styles.redeemBtnIcon, redeemed && styles.redeemBtnIconDone]}>
-                                  {redeemed ? '✓' : '🏷️'}
+                                  {redeemed ? '✓' : ''}
                                 </Text>
                                 <Text style={[styles.redeemBtnText, redeemed && styles.redeemBtnTextDone]} numberOfLines={1}>
                                   {promo.discount_label || promo.title}

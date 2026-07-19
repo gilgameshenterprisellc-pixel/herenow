@@ -178,7 +178,7 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
             {nextEventSoon && zone.next_event_title && zone.next_event_starts_at && (
               <View style={styles.eventPill}>
                 <Text style={styles.eventText}>
-                  📅 {zone.next_event_title} · {formatEventTime(zone.next_event_starts_at)}
+ {zone.next_event_title} · {formatEventTime(zone.next_event_starts_at)}
                 </Text>
               </View>
             )}
@@ -187,7 +187,7 @@ export default function ZoneCard({ zone, onPress, selected }: Props) {
 
         {/* Operating hours */}
         {!!zone.opening_hours && !isClosed && (
-          <Text style={styles.hoursText}>🕐 {zone.opening_hours}</Text>
+ <Text style={styles.hoursText}>{zone.opening_hours}</Text>
         )}
 
         {/* Venue chips */}

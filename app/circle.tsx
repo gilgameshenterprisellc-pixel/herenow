@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import AvatarImage from '@/components/AvatarImage'
@@ -87,7 +88,7 @@ export default function MyCircleScreen() {
             {/* Circle members */}
             {circle.length === 0 && incoming.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>🔵</Text>
+                <Ionicons name="ellipse" size={30} color="#29B6F6" />
                 <Text style={styles.emptyTitle}>Your Circle is empty</Text>
                 <Text style={styles.emptySub}>
                   When you meet someone worth keeping, send them a Circle request from their profile. It's mutual and private.

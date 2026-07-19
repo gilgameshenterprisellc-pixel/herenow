@@ -189,7 +189,7 @@ export default function VenueAnnouncementsScreen() {
             sendNotification({
               userId: user_id,
               type: 'venue_announcement',
-              title: '📣 New announcement',
+              title: 'New announcement',
               body: preview,
               data: { zone_id: zoneId },
             }).catch(() => {})
@@ -246,7 +246,7 @@ export default function VenueAnnouncementsScreen() {
         {noZone ? (
           <View style={styles.section}>
             <View style={{ backgroundColor: '#0D1B2E', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#1A2E4A', alignItems: 'center', gap: 10 }}>
-              <Text style={{ fontSize: 28 }}>📣</Text>
+              <Ionicons name="megaphone" size={26} color="#29B6F6" />
               <Text style={{ fontSize: 15, fontWeight: '700', color: '#f8fafc', textAlign: 'center' }}>Announcements not available</Text>
               <Text style={{ fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 }}>Your venue isn't set up yet or your account isn't linked as the venue owner. Contact support if this looks wrong.</Text>
             </View>
@@ -261,7 +261,7 @@ export default function VenueAnnouncementsScreen() {
             style={[styles.input, styles.multiline]}
             value={message}
             onChangeText={setMessage}
-            placeholder="e.g. DJ starts at 10pm tonight — come through 🎵"
+            placeholder="e.g. DJ starts at 10pm tonight — come through"
             placeholderTextColor="#4A6580"
             multiline
             maxLength={300}
@@ -310,9 +310,7 @@ export default function VenueAnnouncementsScreen() {
                 style={[styles.audienceChip, audience === 'subscribers' && styles.audienceChipGoldOn]}
                 onPress={() => setAudience('subscribers')}
               >
-                <Text style={[styles.audienceChipText, audience === 'subscribers' && styles.audienceChipTextGoldOn]}>
-                  ★ Subscribers only
-                </Text>
+                <Text style={[styles.audienceChipText, audience === 'subscribers' && styles.audienceChipTextGoldOn]}> ★ Subscribers only </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -337,7 +335,7 @@ export default function VenueAnnouncementsScreen() {
           >
             {sending
               ? <ActivityIndicator color="#050A15" size="small" />
-              : <Text style={styles.sendBtnText}>📣 Send Announcement</Text>
+              : <Text style={styles.sendBtnText}>Send Announcement</Text>
             }
           </TouchableOpacity>
         </View>}
@@ -354,7 +352,7 @@ export default function VenueAnnouncementsScreen() {
                   <Text style={styles.annoTime}>{timeAgo(a.created_at)}</Text>
                   {a.post_to_feed && (
                     <View style={styles.feedBadge}>
-                      <Text style={styles.feedBadgeText}>📡 Feed</Text>
+                      <Text style={styles.feedBadgeText}>Feed</Text>
                     </View>
                   )}
                   <TouchableOpacity onPress={() => handleDelete(a.id)} style={styles.deleteBtn}>

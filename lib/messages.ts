@@ -93,7 +93,7 @@ export async function sendMessage(params: {
   await sendNotification({
     userId: recipientId,
     type:   'message',
-    title:  '💌 New message',
+    title:  'New message',
     body:   params.content.slice(0, 80),
     data:   { we_met_id: params.wemetId },
   })

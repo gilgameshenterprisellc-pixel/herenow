@@ -37,9 +37,7 @@ export default function ForgotPasswordScreen() {
 
         {sent ? (
           <View style={styles.successBox}>
-            <Text style={styles.successText}>
-              ✓ Check your email — a reset link is on its way.
-            </Text>
+            <Text style={styles.successText}> ✓ Check your email — a reset link is on its way. </Text>
           </View>
         ) : (
           <>

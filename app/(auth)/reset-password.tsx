@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 
@@ -53,7 +54,7 @@ export default function ResetPasswordScreen() {
                 returnKeyType="next"
               />
               <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPw(v => !v)}>
-                <Text style={styles.eyeText}>{showPw ? '🙈' : '👁'}</Text>
+                <Ionicons name={showPw ? 'eye-off' : 'eye'} size={18} color="#7A93AC" />
               </TouchableOpacity>
             </View>
             <TextInput

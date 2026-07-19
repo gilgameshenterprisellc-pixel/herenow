@@ -18,35 +18,35 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
 const SLIDES = [
   {
-    emoji: '📍',
+    emoji: '',
     title: 'Welcome to HereNow',
     subtitle: 'Where you are is who you meet.',
     body: 'HereNow is a location-aware social layer for the real world. Walk into a bar, a coffee shop, or an event — check in, and see who else is there right now.\n\nNo swiping. No algorithm. Just real people, in real places, right now.',
     accent: '#29B6F6',
   },
   {
-    emoji: '🎭',
+    emoji: '',
     title: 'Social Mode',
     subtitle: 'Tell people why you\'re out.',
-    body: 'Before you check in, you pick your intent — so nobody has to guess.\n\n💘  Dating — open to romantic connection\n🤝  Friends — here to socialize\n💼  Networking — creative or professional\n✌️  Just Vibes — here for the energy\n\nEveryone at the venue sees your mode. It removes the ambiguity.',
+    body: 'Before you check in, you pick your intent — so nobody has to guess.\n\n Dating — open to romantic connection\n Friends — here to socialize\n Networking — creative or professional\n Just Vibes — here for the energy\n\nEveryone at the venue sees your mode. It removes the ambiguity.',
     accent: '#a855f7',
   },
   {
-    emoji: '🟢',
+    emoji: '',
     title: 'Mood Mode',
     subtitle: 'How approachable are you right now?',
-    body: 'Separate from your Social Mode — this is about how you\'re feeling in the moment.\n\n🟢  Open — come say hi\n🟡  Selective — thoughtful over quantity\n🛡️  Not Today — hard boundary, no approaches\n\nNot Today is respected by the app. No one can send you a We Met request if you\'re set to Not Today.',
+    body: 'Separate from your Social Mode — this is about how you\'re feeling in the moment.\n\n Open — come say hi\n Selective — thoughtful over quantity\n Not Today — hard boundary, no approaches\n\nNot Today is respected by the app. No one can send you a We Met request if you\'re set to Not Today.',
     accent: '#22c55e',
   },
   {
-    emoji: '🤝',
+    emoji: '',
     title: 'We Met',
     subtitle: 'The IRL handshake.',
     body: 'When you actually meet someone in person — both of you confirm it with a "We Met" tap.\n\nNo We Met = no DMs. It keeps things real and intentional.\n\nThe moment you both confirm, DMs open. Someone has 48 hours to make the first move — and one reply keeps the chat open for good.\n\nSo actually go talk to people first.',
     accent: '#f43f5e',
   },
   {
-    emoji: '✨',
+    emoji: '',
     title: 'Afterglow',
     subtitle: 'The recap after a real night out.',
     body: 'When you check out of a venue, you get a recap — how long you were there, how many people were around, how many connections you made.\n\nIt\'s the reflection moment. The thing you\'ll screenshot and send your friends.\n\nNow go check in somewhere.',
@@ -156,7 +156,7 @@ export default function OnboardingModal({ onDone }: Props) {
               activeOpacity={0.85}
             >
               <Text style={styles.nextBtnText}>
-                {isLast ? "Let's Go 🚀" : 'Next →'}
+                {isLast ? "Let's Go" : 'Next →'}
               </Text>
             </TouchableOpacity>
           </View>

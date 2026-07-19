@@ -275,7 +275,7 @@ export default function ProfileScreen() {
       {/* Ghost Mode active banner */}
       {!isVenueOwner && profile?.mood_mode === 'not_today' && (
         <Reanimated.View entering={FadeInDown.delay(100).duration(350)} style={styles.ghostBanner}>
-          <Text style={styles.ghostBannerIcon}>👻</Text>
+          <Ionicons name="eye-off" size={20} color="#7A93AC" />
           <View style={styles.ghostBannerText}>
             <Text style={styles.ghostBannerTitle}>Ghost Mode Active</Text>
             <Text style={styles.ghostBannerSub}>No one can approach, tag, or DM you.</Text>

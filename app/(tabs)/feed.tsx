@@ -285,9 +285,12 @@ export default function UpdatesScreen() {
                 activeOpacity={0.85}
               >
                 <View style={styles.venueFeedHeader}>
-                  <Text style={styles.venueFeedEmoji}>
-                    {item.type === 'announcement' ? '📣' : item.type === 'event' ? '📅' : '🏷️'}
-                  </Text>
+                  <Ionicons
+                    name={item.type === 'announcement' ? 'megaphone' : item.type === 'event' ? 'calendar' : 'pricetag'}
+                    size={18}
+                    color="#29B6F6"
+                    style={styles.venueFeedEmoji}
+                  />
                   <View style={styles.venueFeedMeta}>
                     <Text style={styles.venueFeedZone}>{item.zone_name}</Text>
                     <Text style={styles.venueFeedTime}>{timeAgo(item.created_at)}</Text>

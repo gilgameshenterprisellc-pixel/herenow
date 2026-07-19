@@ -1,4 +1,5 @@
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import type { VenueHighlight } from '@/lib/highlights'
 
 interface VenueWelcomeData {
@@ -46,7 +47,7 @@ export default function VenueWelcomeModal({ visible, data, onDismiss }: Props) {
 
             {data.opening_hours ? (
               <View style={styles.hoursRow}>
-                <Text style={styles.hoursIcon}>🕐</Text>
+                <Ionicons name="time" size={15} color="#29B6F6" />
                 <Text style={styles.hoursText}>{data.opening_hours}</Text>
               </View>
             ) : null}
@@ -56,7 +57,7 @@ export default function VenueWelcomeModal({ visible, data, onDismiss }: Props) {
                 <Text style={styles.highlightsLabel}>What to know</Text>
                 {data.highlights.slice(0, 3).map((h) => (
                   <View key={h.id} style={styles.highlightRow}>
-                    <Text style={styles.highlightEmoji}>{h.emoji ?? '⭐'}</Text>
+                    <Text style={styles.highlightEmoji}>{h.emoji ?? ''}</Text>
                     <View style={styles.highlightText}>
                       <Text style={styles.highlightTitle}>{h.title}</Text>
                       {h.body ? <Text style={styles.highlightBody} numberOfLines={2}>{h.body}</Text> : null}

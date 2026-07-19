@@ -50,7 +50,7 @@ export default function WemetCard({ wemet, currentUserId, onUpdate }: Props) {
           <Text style={styles.sub}>
             {isPending && isRecipient  && 'Wants to confirm you met'}
             {isPending && !isRecipient && 'Waiting for confirmation'}
-            {isConfirmed               && '🤝 Connection confirmed!'}
+            {isConfirmed               && 'Connection confirmed!'}
             {isDeclined                && 'Declined'}
             {isExpired                 && 'Expired'}
           </Text>

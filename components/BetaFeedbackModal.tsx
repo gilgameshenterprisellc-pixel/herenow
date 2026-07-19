@@ -27,9 +27,9 @@ export async function markBetaFeedbackShown(): Promise<void> {
 type Rating = 'smooth' | 'issues' | 'broken'
 
 const RATINGS: { value: Rating; emoji: string; label: string }[] = [
-  { value: 'smooth', emoji: '🔥', label: 'Smooth' },
-  { value: 'issues', emoji: '🤔', label: 'Had Issues' },
-  { value: 'broken', emoji: '❌', label: 'Broken' },
+  { value: 'smooth', emoji: '', label: 'Smooth' },
+  { value: 'issues', emoji: '', label: 'Had Issues' },
+  { value: 'broken', emoji: '', label: 'Broken' },
 ]
 
 interface Props {

@@ -156,7 +156,7 @@ export default function AdminReports() {
     <View style={styles.reportCard}>
       <View style={styles.reportMeta}>
         <View style={[styles.typePill, item.content_type === 'pulse_post' ? styles.typePost : styles.typeChat]}>
-          <Text style={styles.typePillText}>{item.content_type === 'pulse_post' ? '✨ Pulse' : '💬 Chat'}</Text>
+          <Text style={styles.typePillText}>{item.content_type === 'pulse_post' ? 'Pulse' : 'Chat'}</Text>
         </View>
         <Text style={styles.reportReason}>Reason: {item.reason.replace(/_/g, ' ')}</Text>
       </View>
@@ -228,7 +228,7 @@ export default function AdminReports() {
         {(['content', 'users'] as ReportTab[]).map((t) => (
           <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
             <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === 'content' ? '🚩 Content' : '👤 Users'}
+              {t === 'content' ? 'Content' : 'Users'}
             </Text>
             {t === 'content' && content.length > 0 && (
               <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{content.length}</Text></View>

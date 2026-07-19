@@ -92,7 +92,7 @@ export default function OrganizationScreen() {
       const ok = await joinOrganization(org.id)
       setJoining(false)
       if (!ok) { showToast('Could not join. Try again.', 'error'); return }
-      showToast(`Welcome to ${org.name}! 🎉`, 'success')
+      showToast(`Welcome to ${org.name}!`, 'success')
       load()
     }
   }

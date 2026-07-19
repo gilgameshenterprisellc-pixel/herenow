@@ -15,15 +15,15 @@ import PinPicker from '@/components/PinPicker'
 type AccessState = 'loading' | 'denied' | 'pending' | 'granted'
 
 const VENUE_TYPES = [
-  { id: 'bar',        emoji: '🍺', label: 'Bar' },
-  { id: 'cafe',       emoji: '☕', label: 'Café' },
-  { id: 'restaurant', emoji: '🍽️', label: 'Restaurant' },
-  { id: 'venue',      emoji: '🎵', label: 'Music Venue' },
-  { id: 'park',       emoji: '🌳', label: 'Park / Outdoor' },
-  { id: 'gym',        emoji: '🏋️', label: 'Gym' },
-  { id: 'library',    emoji: '📚', label: 'Library' },
-  { id: 'cowork',     emoji: '💻', label: 'Co-working' },
-  { id: 'other',      emoji: '📍', label: 'Other' },
+  { id: 'bar',        emoji: '', label: 'Bar' },
+  { id: 'cafe',       emoji: '', label: 'Café' },
+  { id: 'restaurant', emoji: '', label: 'Restaurant' },
+  { id: 'venue',      emoji: '', label: 'Music Venue' },
+  { id: 'park',       emoji: '', label: 'Park / Outdoor' },
+  { id: 'gym',        emoji: '', label: 'Gym' },
+  { id: 'library',    emoji: '', label: 'Library' },
+  { id: 'cowork',     emoji: '', label: 'Co-working' },
+  { id: 'other',      emoji: '', label: 'Other' },
 ]
 
 export default function CreateZoneScreen() {
@@ -211,7 +211,7 @@ export default function CreateZoneScreen() {
               />
               <View style={styles.locConfirm}>
                 <Text style={styles.locConfirmText}>
-                  📍 {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+ {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
                 </Text>
                 <TouchableOpacity onPress={fetchLocation}>
                   <Text style={styles.locRefresh}>Reset to GPS</Text>
