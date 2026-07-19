@@ -25,6 +25,55 @@ workflows:
         script: npx expo prebuild --clean --platform ios
       - name: Install CocoaPods
         script: cd ios && pod install
+      - name: Set build number from App Store Connect
+        # Build 15's first attempt failed at the PUBLISH step, not the build:
+        #   ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE (409)
+        #   "The bundle version must be higher than the previously uploaded version."
+        # app.json still said 14 because the release bump lived in a separate
+        # commit that the feature branch didn't carry. Hand-maintained build
+        # numbers drift like that every time, and you only find out after a
+        # 40-minute build.
+        #
+        # This asks App Store Connect what it actually has and adds one, so the
+        # number can't collide no matter what app.json says. Runs after prebuild
+        # so ios/ exists for agvtool to patch.
+        script: |
+          set -eo pipefail
+
+          BUNDLE_ID=$(python3 -c "import json;print(json.load(open('app.json'))['expo']['ios']['bundleIdentifier'])")
+          echo "Bundle ID: $BUNDLE_ID"
+
+          # Resolve the numeric App Store app id from the bundle id, so this
+          # needs no extra env var beyond the existing app_store_connect key.
+          APP_ID=$(app-store-connect apps list \
+                     --bundle-id-identifier "$BUNDLE_ID" \
+                     --json 2>/dev/null \
+                   | python3 -c "import json,sys;a=json.load(sys.stdin);print(a[0]['id'] if a else '')" 2>/dev/null || echo "")
+
+          LATEST=""
+          if [ -n "$APP_ID" ]; then
+            echo "App Store app id: $APP_ID"
+            LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_ID" 2>/dev/null || echo "")
+            if [ -z "$LATEST" ]; then
+              LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_ID" 2>/dev/null || echo "")
+            fi
+          fi
+
+          if [ -n "$LATEST" ]; then
+            NEW_BUILD=$((LATEST + 1))
+            echo "Latest on App Store Connect: $LATEST -> using $NEW_BUILD"
+          else
+            # Fall back to app.json + 1 rather than failing the build. Worst case
+            # this collides again and you get the same clear 409, but a lookup
+            # hiccup shouldn't cost a whole build.
+            CURRENT=$(python3 -c "import json;print(json.load(open('app.json'))['expo']['ios']['buildNumber'])")
+            NEW_BUILD=$((CURRENT + 1))
+            echo "Could not read App Store Connect. Falling back to app.json ($CURRENT) -> $NEW_BUILD"
+          fi
+
+          cd ios
+          agvtool new-version -all "$NEW_BUILD"
+          echo "CFBundleVersion set to $NEW_BUILD"
       - name: Set up code signing
         script: |
           keychain initialize
