@@ -100,6 +100,31 @@ export async function scheduleDmExpiryAlert(partnerName: string, expiresAt: stri
   }
 }
 
+// Fires an immediate local notification when a session ends automatically
+// because the user left the venue (background geofence exit or the foreground
+// presence verifier evicting them). This is the counterpart to the check-in
+// haptic — a clear "you've been checked out" signal the user gets without having
+// to reopen and refresh the app (Jacob's beta-night feedback). Native only;
+// web has no local notification API. Manual check-out stays silent — the user
+// already knows they left.
+export async function notifyAutoCheckout(zoneName: string | null, sessionId?: string): Promise<void> {
+  if (Platform.OS === 'web') return
+  try {
+    const Notifications = await import('expo-notifications')
+    const where = zoneName ?? 'the venue'
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Checked out',
+        body:  `You left ${where}, so we checked you out. Tap to see your recap.`,
+        data:  { type: 'auto_checkout', ...(sessionId ? { session_id: sessionId } : {}) },
+      },
+      trigger: null, // fire immediately
+    })
+  } catch (e) {
+    console.warn('[notifications] notifyAutoCheckout error:', e)
+  }
+}
+
 // Unified helper: always inserts in-app row; fires push only if user has that type enabled
 export async function sendNotification(params: {
   userId: string

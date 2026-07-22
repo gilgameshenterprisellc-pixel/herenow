@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import type { Session, CheckInResult } from '@/lib/sessions'
 import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut, touchSession, verifyZonePresence } from '@/lib/sessions'
 import type { SocialMode, MoodMode } from '@/lib/sessions'
+import { notifyAutoCheckout } from '@/lib/notifications'
 
 interface SessionContextValue {
   activeSession: Session | null
@@ -54,6 +55,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [refresh])
 
+  // Re-sync the session from the server every time the app returns to the
+  // foreground. If the background geofence task checked the user out while the
+  // app was away, this clears the stale "you're checked in" UI on reopen with no
+  // manual refresh — Jacob: "it's hard to know if you're checked in when you
+  // reopen the app... I had to refresh the page to realize I was checked out."
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh()
+    })
+    return () => sub.remove()
+  }, [refresh])
+
   const checkIn = useCallback(async (
     zoneId: string,
     socialModes: SocialMode[],
@@ -87,8 +100,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       outsideStrikes.current += 1
       if (outsideStrikes.current >= EVICT_STRIKES) {
         outsideStrikes.current = 0
-        await doCheckOut(activeSession.id)
+        const evictedId = activeSession.id
+        const zoneName = await doCheckOut(evictedId)
         setActiveSession(null)
+        // Only notifies if this call actually ended the session — doCheckOut
+        // returns null when it was already checked out (e.g. the geofence task
+        // beat us to it), so the user never gets two "checked out" alerts.
+        if (zoneName) await notifyAutoCheckout(zoneName, evictedId)
       }
     } catch {
       // Location unavailable — skip, try again next tick

@@ -368,6 +368,18 @@ export default function LoginScreen() {
           </Link>
         </Reanimated.View>
 
+        <Reanimated.View entering={FadeInUp.delay(300).springify().damping(16)}>
+          <View style={styles.metaLinks}>
+            <TouchableOpacity onPress={() => router.push('/about' as any)}>
+              <Text style={styles.metaLink}>About</Text>
+            </TouchableOpacity>
+            <Text style={styles.metaDot}>·</Text>
+            <TouchableOpacity onPress={() => router.push('/faq' as any)}>
+              <Text style={styles.metaLink}>FAQ</Text>
+            </TouchableOpacity>
+          </View>
+        </Reanimated.View>
+
       </View>
     </View>
   )
@@ -477,5 +489,8 @@ const styles = StyleSheet.create({
   },
   btnTxt: { color: '#020810', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
   footerLink: { color: '#3A5C7A', fontSize: 13, textAlign: 'center', paddingTop: 4 },
+  metaLinks: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingTop: 2 },
+  metaLink: { color: '#2B4560', fontSize: 12, fontWeight: '600' },
+  metaDot: { color: '#2B4560', fontSize: 12 },
   errorMsg: { color: '#f87171', fontSize: 13, textAlign: 'center', paddingHorizontal: 4, lineHeight: 18 },
 })

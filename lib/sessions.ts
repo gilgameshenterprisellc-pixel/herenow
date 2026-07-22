@@ -204,18 +204,26 @@ export async function updateSessionModes(
   return data
 }
 
-export async function checkOut(sessionId: string): Promise<void> {
+// Ends a session and writes the Afterglow recap. Returns the venue name so the
+// auto-checkout callers (geofence exit, presence eviction) can name the place in
+// the "you've been checked out" notification. Idempotent: if the session is
+// already checked out, it returns null and does nothing — a session can't fire
+// two notifications or write two afterglow rows when the background task and the
+// foreground verifier both reach for it.
+export async function checkOut(sessionId: string): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
+  if (!user) return null
 
   const { data: session } = await supabase
     .from('sessions')
-    .select('zone_id, checked_in_at, zones(name)')
+    .select('zone_id, checked_in_at, checked_out_at, zones(name)')
     .eq('id', sessionId)
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (!session) return
+  if (!session) return null
+  // Already checked out — nothing to do (and nothing to notify about again).
+  if (session.checked_out_at) return null
 
   const checkedOutAt = new Date().toISOString()
   const durationMins = Math.round(
@@ -295,6 +303,8 @@ export async function checkOut(sessionId: string): Promise<void> {
   if (afterglowError) console.error('[sessions] checkOut — afterglow insert error:', afterglowError.message)
 
   logEvent('check_out', { zoneId: session.zone_id, durationMins, weMets: wemetCount ?? 0 })
+
+  return zoneName
 }
 
 // Presence heartbeat — keeps a checked-in user counted as "here". If the app

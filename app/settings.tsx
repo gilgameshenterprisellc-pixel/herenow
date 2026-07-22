@@ -237,6 +237,12 @@ export default function SettingsScreen() {
           />
           <View style={styles.divider} />
           <SettingsRow
+            icon="help-circle-outline"
+            label="FAQ"
+            onPress={() => router.push('/faq' as any)}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
             icon="information-circle-outline"
             label="About HereNow"
             onPress={() => router.push('/about' as any)}
