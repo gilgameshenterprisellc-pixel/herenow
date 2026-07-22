@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Platform } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import { checkOut, verifyZonePresence } from '@/lib/sessions'
+import { notifyAutoCheckout } from '@/lib/notifications'
 
 export const GEOFENCE_TASK = 'HERENOW_GEOFENCE_TASK'
 
@@ -50,9 +51,15 @@ if (Platform.OS !== 'web') {
         .maybeSingle()
 
       if (session) {
-        await checkOut(session.id).catch((e: unknown) =>
+        const zoneName = await checkOut(session.id).catch((e: unknown) => {
           console.error('[geofence] auto-checkout error:', e)
-        )
+          return null
+        })
+        // Tell the user they were dropped for leaving — the whole point of the
+        // proximity checkout is that it happens while the app is closed. Only
+        // notify if checkOut actually ended the session (non-null name); a null
+        // means it errored or was already closed, so there's nothing to announce.
+        if (zoneName) await notifyAutoCheckout(zoneName, session.id)
       } else {
         // No active session — just clear presence
         await supabase

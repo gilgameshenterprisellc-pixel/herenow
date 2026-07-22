@@ -28,6 +28,9 @@ export function useNotificationTaps() {
           router.push(`/messages/venue/${data.venue_zone_id}${data.from_user_id ? `?u=${data.from_user_id}` : ''}` as any)
         } else if (data.type === 'message' && data.we_met_id) {
           router.push(`/messages/${data.we_met_id}` as any)
+        } else if (data.type === 'auto_checkout' && data.session_id) {
+          // Proximity check-out — open the Afterglow recap for that session.
+          router.push(`/afterglow/${data.session_id}` as any)
         } else if (data.route === 'circle') {
           router.push('/circle' as any)
         } else if (data.type === 'org_announcement' && data.org_id) {
