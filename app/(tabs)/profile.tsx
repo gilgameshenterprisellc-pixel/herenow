@@ -13,6 +13,7 @@ import { fetchUserBadges } from '@/lib/badges'
 import { fetchConfirmedWeMets, type WeMet } from '@/lib/weMet'
 import { checkOutActiveOnSignOut } from '@/lib/sessions'
 import AvatarImage from '@/components/AvatarImage'
+import FounderBadge from '@/components/FounderBadge'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { useTabBarScroll } from '@/contexts/TabBarScrollContext'
 
@@ -30,6 +31,7 @@ interface Profile {
   is_venue_owner: boolean
   venue_status: string | null
   is_admin: boolean | null
+  is_founder: boolean | null
   social_mode: string | null
   mood_mode: string | null
   created_at: string | null
@@ -226,7 +228,10 @@ export default function ProfileScreen() {
             <Ionicons name="camera" size={13} color="#8EADC7" />
           </View>
         </TouchableOpacity>
-        <Text style={styles.displayName}>{profile?.display_name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.displayName}>{profile?.display_name}</Text>
+          {profile?.is_founder && <FounderBadge size={18} />}
+        </View>
         <Text style={styles.username}>@{profile?.username}</Text>
         {profile?.created_at && (
           <Text style={styles.joinedDate}>{formatJoined(profile.created_at)}</Text>
@@ -476,6 +481,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D1B2E', borderWidth: 2, borderColor: '#050A15',
     alignItems: 'center', justifyContent: 'center',
   },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   displayName: { fontSize: 22, fontWeight: '900', color: '#f8fafc' },
   username:   { fontSize: 14, color: '#7A93AC' },
   joinedDate: { fontSize: 12, color: '#3D5A73', marginTop: 1 },
