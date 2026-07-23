@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Animated,
   ScrollView,
+  Image,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -377,7 +378,11 @@ export default function NearbyScreen() {
           {/* Badge + info */}
           <View style={preview.row}>
             <View style={[preview.badge, (selectedZone.member_count ?? 0) > 0 && preview.badgeLive]}>
-              <Text style={preview.initial}>{selectedZone.name[0]?.toUpperCase()}</Text>
+              {selectedZone.avatar_url ? (
+                <Image source={{ uri: selectedZone.avatar_url }} style={preview.badgeImg} resizeMode="cover" />
+              ) : (
+                <Text style={preview.initial}>{selectedZone.name[0]?.toUpperCase()}</Text>
+              )}
             </View>
 
             <View style={preview.info}>
@@ -565,6 +570,7 @@ const preview = StyleSheet.create({
   },
   badgeLive: { backgroundColor: '#22c55e14', borderColor: '#22c55e40' },
   initial:   { fontSize: 20, fontWeight: '800', color: '#29B6F6' },
+  badgeImg:  { width: '100%', height: '100%', borderRadius: 12 },
   info:      { flex: 1, gap: 5 },
   nameRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name:      { fontSize: 17, fontWeight: '800', color: '#f0f8ff', flex: 1, letterSpacing: -0.3 },
