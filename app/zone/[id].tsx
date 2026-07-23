@@ -31,7 +31,7 @@ import { reportUser, reportContent, type ReportReason, type ContentReportReason 
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
 import { successBuzz } from '@/lib/haptics'
-import { fetchVenueBadges, checkAndAwardVenueBadges, type VenueBadge } from '@/lib/venueBadges'
+import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFoundingBadge, type VenueBadge } from '@/lib/venueBadges'
 import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
@@ -691,12 +691,15 @@ export default function ZoneScreen() {
           <ScrollView
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeStripList}>
-            {venueBadges.map((b) => (
-              <View key={b.slug} style={styles.badgeChip}>
-                <Ionicons name={(b.icon ?? 'medal') as any} size={13} color="#29B6F6" />
-                <Text style={styles.badgeChipName}>{b.name}</Text>
-              </View>
-            ))}
+            {sortVenueBadges(venueBadges).map((b) => {
+              const founding = isFoundingBadge(b.slug)
+              return (
+                <View key={b.slug} style={[styles.badgeChip, founding && styles.badgeChipFounding]}>
+                  <Ionicons name={(b.icon ?? 'medal') as any} size={13} color={founding ? '#E8B84B' : '#29B6F6'} />
+                  <Text style={[styles.badgeChipName, founding && styles.badgeChipNameFounding]}>{b.name}</Text>
+                </View>
+              )
+            })}
           </ScrollView>
         </View>
       )}
@@ -1699,6 +1702,13 @@ const styles = StyleSheet.create({
   },
   badgeChipIcon: { fontSize: 13 },
   badgeChipName: { fontSize: 11, fontWeight: '700', color: '#8EADC7' },
+  // Founding tags read as premium status, not another stat — warm gold vs the
+  // blue achievement chips.
+  badgeChipFounding: {
+    backgroundColor: '#241C08',
+    borderColor: '#E8B84B55',
+  },
+  badgeChipNameFounding: { color: '#F0CD73' },
   wmOverlay: {
     backgroundColor: 'rgba(5,10,21,0.88)',
     justifyContent: 'center',

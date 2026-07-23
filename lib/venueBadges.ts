@@ -10,6 +10,42 @@ export interface VenueBadge {
   earned_at: string
 }
 
+// Founding tags (Jacob, Jul 2026): curated status badges, not earned by metrics.
+// "First HereNow Venue" is Martha My Dear; "Founding Partner" goes to the early
+// Nashville venues onboarded by hand. They live in the same zone_badges table as
+// the achievement badges but are awarded via SQL (see docs), never by the
+// auto-award loop below, and render distinctly (gold, pinned first).
+export const FOUNDING_BADGES = {
+  first_herenow_venue: {
+    slug: 'first_herenow_venue',
+    name: 'First HereNow Venue',
+    description: 'The first venue ever on HereNow.',
+    icon: 'ribbon',
+  },
+  founding_partner: {
+    slug: 'founding_partner',
+    name: 'Founding Partner',
+    description: 'An early Nashville partner that helped launch HereNow.',
+    icon: 'star',
+  },
+} as const
+
+const FOUNDING_SLUGS: Set<string> = new Set(Object.keys(FOUNDING_BADGES))
+
+export function isFoundingBadge(slug: string): boolean {
+  return FOUNDING_SLUGS.has(slug)
+}
+
+// Founding tags first, then achievement badges — so a venue's status reads
+// before its stats. Stable within each group by earned_at (fetch order).
+export function sortVenueBadges(badges: VenueBadge[]): VenueBadge[] {
+  return [...badges].sort((a, b) => {
+    const af = isFoundingBadge(a.slug) ? 0 : 1
+    const bf = isFoundingBadge(b.slug) ? 0 : 1
+    return af - bf
+  })
+}
+
 const BADGE_DEFS: {
   slug: string
   name: string
