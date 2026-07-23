@@ -8,6 +8,7 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import BackButton from '@/components/BackButton'
+import FounderBadge from '@/components/FounderBadge'
 import { getCircleStatus, sendCircleRequest, respondCircleRequest, type CircleStatus } from '@/lib/circle'
 import { publicName } from '@/lib/format'
 
@@ -21,6 +22,7 @@ interface UserProfile {
   interest_tags: string[] | null
   kickoffs: string[] | null
   created_at: string | null
+  is_founder: boolean | null
 }
 
 export default function UserProfileScreen() {
@@ -40,7 +42,7 @@ export default function UserProfileScreen() {
 
       const { data: p } = await supabase
         .from('profiles')
-        .select('id, display_name, username, avatar_url, bio, age_range, interest_tags, kickoffs, created_at')
+        .select('id, display_name, username, avatar_url, bio, age_range, interest_tags, kickoffs, created_at, is_founder')
         .eq('id', id)
         .maybeSingle()
 
@@ -133,7 +135,10 @@ export default function UserProfileScreen() {
       >
         <View style={styles.hero}>
           <AvatarImage uri={profile.avatar_url} name={profile.display_name} size={96} />
-          <Text style={styles.displayName}>{publicName(profile.display_name)}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.displayName}>{publicName(profile.display_name)}</Text>
+            {profile.is_founder && <FounderBadge size={18} />}
+          </View>
           {profile.username ? <Text style={styles.username}>@{profile.username}</Text> : null}
           {!!joined && <Text style={styles.joined}>{joined}</Text>}
           {wemetId && (
@@ -198,7 +203,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#f8fafc' },
   content: { padding: 20, gap: 14 },
   hero: { alignItems: 'center', gap: 6, paddingTop: 8 },
-  displayName: { fontSize: 24, fontWeight: '900', color: '#f0f8ff', marginTop: 10 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  displayName: { fontSize: 24, fontWeight: '900', color: '#f0f8ff' },
   username: { fontSize: 14, color: '#7A93AC' },
   joined: { fontSize: 12, color: '#4A6580' },
   name: { fontSize: 17, fontWeight: '700', color: '#f8fafc' },
