@@ -100,6 +100,57 @@ export async function scheduleDmExpiryAlert(partnerName: string, expiresAt: stri
   }
 }
 
+const MORNING_RECAP_ID = 'morning_recap'
+
+// Schedules a single on-device notification for the morning after a night out,
+// nudging the user to open their Afterglow recap ("Your Nights"). Fires even if
+// the app is closed (native only; web has no local notification API).
+// Deduped by a fixed identifier: a night with five check-outs reschedules to the
+// same next-morning slot, so only one recap notification ever fires. Respects
+// the afterglow_recap pref (default on). Jacob: "the system hits you with a
+// notification every morning at a certain time for the recap."
+export async function scheduleMorningRecapAlert(): Promise<void> {
+  if (Platform.OS === 'web') return
+  try {
+    const Notifications = await import('expo-notifications')
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const prefs = await getUserNotifPrefs(user.id)
+      if (prefs['afterglow_recap'] === false) {
+        await Notifications.cancelScheduledNotificationAsync(MORNING_RECAP_ID).catch(() => {})
+        return
+      }
+    }
+
+    // Next 9:30am local time.
+    const now = new Date()
+    const target = new Date(now)
+    target.setHours(9, 30, 0, 0)
+    if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1)
+    const seconds = Math.floor((target.getTime() - now.getTime()) / 1000)
+    if (seconds <= 0) return
+
+    // Clear any pending recap first so a multi-venue night fires only once.
+    await Notifications.cancelScheduledNotificationAsync(MORNING_RECAP_ID).catch(() => {})
+    await Notifications.scheduleNotificationAsync({
+      identifier: MORNING_RECAP_ID,
+      content: {
+        title: 'Your night recap is ready 🌅',
+        body:  'Relive last night — where you went, who you met, the whole run.',
+        data:  { type: 'afterglow_recap' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds,
+        repeats: false,
+      } as any,
+    })
+  } catch (e) {
+    console.warn('[notifications] scheduleMorningRecapAlert error:', e)
+  }
+}
+
 // Fires an immediate local notification when a session ends automatically
 // because the user left the venue (background geofence exit or the foreground
 // presence verifier evicting them). This is the counterpart to the check-in

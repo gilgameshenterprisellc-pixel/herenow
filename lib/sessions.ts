@@ -4,6 +4,7 @@ import { getCurrentCoords, getBestCoords } from './location'
 import { checkUserInZone } from './zones'
 import { logEvent } from './analytics'
 import { publicName } from './format'
+import { scheduleMorningRecapAlert } from './notifications'
 
 export type SocialMode = 'dating' | 'friends' | 'networking' | 'just_vibes'
 export type MoodMode   = 'open' | 'selective' | 'not_today'
@@ -301,6 +302,10 @@ export async function checkOut(sessionId: string): Promise<string | null> {
   })
 
   if (afterglowError) console.error('[sessions] checkOut — afterglow insert error:', afterglowError.message)
+
+  // Nudge the user to open their recap in the morning. Fire-and-forget so it
+  // never delays checkout; deduped so a multi-venue night fires only one alert.
+  scheduleMorningRecapAlert().catch(() => {})
 
   logEvent('check_out', { zoneId: session.zone_id, durationMins, weMets: wemetCount ?? 0 })
 

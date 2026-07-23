@@ -31,6 +31,9 @@ export function useNotificationTaps() {
         } else if (data.type === 'auto_checkout' && data.session_id) {
           // Proximity check-out — open the Afterglow recap for that session.
           router.push(`/afterglow/${data.session_id}` as any)
+        } else if (data.type === 'afterglow_recap') {
+          // Morning recap nudge — open the "Your Nights" library.
+          router.push('/afterglow' as any)
         } else if (data.route === 'circle') {
           router.push('/circle' as any)
         } else if (data.type === 'org_announcement' && data.org_id) {
