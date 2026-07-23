@@ -130,6 +130,9 @@ export default function ZoneScreen() {
   const wmOpacity = useRef(new Animated.Value(0)).current
 
   const isCheckedIn = activeSession?.zone_id === id
+  // Ghost Mode (mood 'not_today'): invisible in the venue, so Pulse + Chat
+  // composing is off (posting would reveal you're here).
+  const isGhosted = isCheckedIn && activeSession?.mood_mode === 'not_today'
   // The venue owner can view (monitor) their own Pulse + Chat without checking in,
   // since owners never check in as a person (Jacob feedback 6). View-only — the
   // person composers stay gated to checked-in users; venues post Pulse from the dashboard.
@@ -442,8 +445,18 @@ export default function ZoneScreen() {
     }
   }
 
+  // In Ghost Mode you're invisible in the venue, so posting is off. Reopen the
+  // vibe editor (in the header) so it's one tap to switch mood and start posting.
+  const openMoodEditor = () => {
+    if (!activeSession) return
+    setEditSocials(allSocialModes(activeSession))
+    setEditMood(activeSession.mood_mode)
+    setVibeEditOpen(true)
+  }
+
   const handlePostPulse = async () => {
     if (!activeSession || (!newPulse.trim() && !vibeTag && !pulsePhotoUrl)) return
+    if (isGhosted) { showToast("You're in Ghost Mode — switch your mood to post.", 'error'); return }
     const pulseScreen = screenText(newPulse)
     if (!pulseScreen.ok) { showToast(blockedMessage(pulseScreen.category), 'error'); return }
     setPostingPulse(true)
@@ -472,6 +485,7 @@ export default function ZoneScreen() {
 
   const handleSendChat = async () => {
     if (!chatInput.trim() || sendingChat) return
+    if (isGhosted) { showToast("You're in Ghost Mode — switch your mood to chat.", 'error'); return }
     const chatScreen = screenText(chatInput)
     if (!chatScreen.ok) { showToast(blockedMessage(chatScreen.category), 'error'); return }
     setSendingChat(true)
@@ -491,6 +505,20 @@ export default function ZoneScreen() {
       setSendingChat(false)
     }
   }
+
+  // Shown in place of the Pulse/Chat composer while ghosted, so it's obvious why
+  // you can't post and one tap away to fix.
+  const renderGhostNotice = () => (
+    <View style={[styles.ghostNotice, { paddingBottom: insets.bottom + 12 }]}>
+      <Ionicons name="eye-off-outline" size={18} color="#8AA6C0" />
+      <Text style={styles.ghostNoticeText}>
+        You're in Ghost Mode, so you're invisible here. Posting is off.
+      </Text>
+      <TouchableOpacity onPress={openMoodEditor} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Text style={styles.ghostNoticeLink}>Switch mood</Text>
+      </TouchableOpacity>
+    </View>
+  )
 
   const handleReportPost = (postId: string) => {
     if (Platform.OS === 'web') {
@@ -1095,7 +1123,8 @@ export default function ZoneScreen() {
             }
           />
 
-          {isCheckedIn && (
+          {isCheckedIn && isGhosted && renderGhostNotice()}
+          {isCheckedIn && !isGhosted && (
             <View style={styles.pulseCompose}>
               {showVibePicker && (
                 <View style={styles.vibePillsWrap}>
@@ -1187,7 +1216,8 @@ export default function ZoneScreen() {
             }
           />
 
-          {isCheckedIn && (
+          {isCheckedIn && isGhosted && renderGhostNotice()}
+          {isCheckedIn && !isGhosted && (
             <View style={[styles.chatCompose, { paddingBottom: insets.bottom + 10 }]}>
               <TextInput
                 style={styles.chatInput}
@@ -1470,6 +1500,18 @@ const styles = StyleSheet.create({
     borderTopColor: '#0D1B2E',
     gap: 0,
   },
+  ghostNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#122436',
+    backgroundColor: '#0A1420',
+  },
+  ghostNoticeText: { flex: 1, fontSize: 12.5, color: '#8AA6C0', lineHeight: 17 },
+  ghostNoticeLink: { fontSize: 13, fontWeight: '700', color: '#29B6F6' },
   vibePillsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   vibePill: {
     backgroundColor: '#0D1B2E',
