@@ -506,16 +506,19 @@ export default function ZoneScreen() {
     }
   }
 
-  // Shown in place of the Pulse/Chat composer while ghosted, so it's obvious why
-  // you can't post and one tap away to fix.
-  const renderGhostNotice = () => (
-    <View style={[styles.ghostNotice, { paddingBottom: insets.bottom + 12 }]}>
-      <Ionicons name="eye-off-outline" size={18} color="#8AA6C0" />
-      <Text style={styles.ghostNoticeText}>
-        You're in Ghost Mode, so you're invisible here. Posting is off.
+  // Full-tab wall on the room tabs (People/Pulse/Chat/Board) while ghosted. Ghost
+  // Mode hides you from the room, so you don't get to lurk it either — only venue
+  // updates come through. Going live lifts the wall. (Jacob: a ghost shouldn't be
+  // able to sit invisible and watch the room.)
+  const renderGhostGate = () => (
+    <View style={styles.gateWall}>
+      <Ionicons name="eye-off-outline" size={26} color="#8AA6C0" style={{ marginBottom: 10 }} />
+      <Text style={styles.gateTitle}>You're in Ghost Mode</Text>
+      <Text style={styles.gateSub}>
+        You're invisible here, so the room is hidden too. You'll still get updates from the venue. Go live to see who's here and join in.
       </Text>
-      <TouchableOpacity onPress={openMoodEditor} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Text style={styles.ghostNoticeLink}>Switch mood</Text>
+      <TouchableOpacity style={styles.gateBtn} onPress={openMoodEditor}>
+        <Text style={styles.gateBtnText}>Go live →</Text>
       </TouchableOpacity>
     </View>
   )
@@ -980,8 +983,12 @@ export default function ZoneScreen() {
 
       {/* Tab content */}
 
+      {/* Ghost Mode: the room (People/Pulse/Chat/Board) is walled off — you only
+          get venue updates. Events + venue info stay open below. */}
+      {isGhosted && (tab === 'people' || tab === 'pulse' || tab === 'chat' || tab === 'board') && renderGhostGate()}
+
       {/* The Board — the venue's community bulletin board (own screen) */}
-      {tab === 'board' && (
+      {tab === 'board' && !isGhosted && (
         <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           {venueInfo}
           <View style={styles.boardCard}>
@@ -1058,7 +1065,7 @@ export default function ZoneScreen() {
         </ScrollView>
       )}
 
-      {tab === 'people' && isCheckedIn && (
+      {tab === 'people' && isCheckedIn && !isGhosted && (
         <FlatList
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -1096,7 +1103,7 @@ export default function ZoneScreen() {
         />
       )}
 
-      {tab === 'pulse' && canViewFeed && (
+      {tab === 'pulse' && canViewFeed && !isGhosted && (
         <View style={styles.flex}>
           <FlatList
             keyboardShouldPersistTaps="handled"
@@ -1126,8 +1133,7 @@ export default function ZoneScreen() {
             }
           />
 
-          {isCheckedIn && isGhosted && renderGhostNotice()}
-          {isCheckedIn && !isGhosted && (
+          {isCheckedIn && (
             <View style={styles.pulseCompose}>
               {showVibePicker && (
                 <View style={styles.vibePillsWrap}>
@@ -1191,7 +1197,7 @@ export default function ZoneScreen() {
         </View>
       )}
 
-      {tab === 'chat' && canViewFeed && (
+      {tab === 'chat' && canViewFeed && !isGhosted && (
         <View style={styles.flex}>
           <FlatList
             keyboardShouldPersistTaps="handled"
@@ -1219,8 +1225,7 @@ export default function ZoneScreen() {
             }
           />
 
-          {isCheckedIn && isGhosted && renderGhostNotice()}
-          {isCheckedIn && !isGhosted && (
+          {isCheckedIn && (
             <View style={[styles.chatCompose, { paddingBottom: insets.bottom + 10 }]}>
               <TextInput
                 style={styles.chatInput}
@@ -1503,18 +1508,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#0D1B2E',
     gap: 0,
   },
-  ghostNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#122436',
-    backgroundColor: '#0A1420',
-  },
-  ghostNoticeText: { flex: 1, fontSize: 12.5, color: '#8AA6C0', lineHeight: 17 },
-  ghostNoticeLink: { fontSize: 13, fontWeight: '700', color: '#29B6F6' },
   vibePillsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   vibePill: {
     backgroundColor: '#0D1B2E',
