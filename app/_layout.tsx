@@ -95,6 +95,7 @@ function RootLayout() {
           <Stack.Screen name="zone/event/create" />
           <Stack.Screen name="check-in/[zoneId]" />
           <Stack.Screen name="afterglow/[sessionId]" />
+          <Stack.Screen name="afterglow/index" />
           <Stack.Screen name="we-met" />
           <Stack.Screen name="messages/index" />
           <Stack.Screen name="messages/[wemetId]" />
