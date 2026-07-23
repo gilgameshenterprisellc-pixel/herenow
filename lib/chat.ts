@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { screenText } from './textModeration'
+import { isSessionGhosted } from './sessions'
 
 export interface ChatMessage {
   id: string
@@ -46,6 +47,14 @@ export async function sendChatMessage(params: {
   // Content filter: never let profanity/hate land (enforced regardless of caller).
   if (!screenText(params.content).ok) {
     console.warn('[chat] message blocked by content filter')
+    return null
+  }
+
+  // Ghost Mode (session mood 'not_today') means you're invisible in the venue.
+  // Chatting would out your presence, so it's blocked. The composer is hidden in
+  // the UI; this is the enforcement backstop for any caller.
+  if (params.sessionId && await isSessionGhosted(params.sessionId)) {
+    console.warn('[chat] message blocked — user in Ghost Mode')
     return null
   }
 

@@ -364,6 +364,24 @@ export async function getActivePeople(zoneId: string): Promise<ActivePerson[]> {
   return ((data ?? []) as ActivePerson[]).map((p) => ({ ...p, display_name: publicName(p.display_name) }))
 }
 
+// Ghost Mode is a session whose mood is 'not_today' — the user is invisible in
+// the venue (filtered out of the people list, can't be approached/tagged/DM'd).
+// Posting to Pulse or Chat would reveal their presence, so those paths check
+// this first. Returns false on any lookup error so a transient glitch never
+// silently blocks a normal post.
+export async function isSessionGhosted(sessionId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('mood_mode')
+    .eq('id', sessionId)
+    .maybeSingle()
+  if (error) {
+    console.error('[sessions] isSessionGhosted error:', error.message)
+    return false
+  }
+  return data?.mood_mode === 'not_today'
+}
+
 export async function getAfterglowHistory(): Promise<any[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
