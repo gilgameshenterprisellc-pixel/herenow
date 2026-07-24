@@ -81,9 +81,9 @@ export default function SettingsScreen() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
-      supabase.from('profiles').select('mood_mode, notification_prefs').eq('id', user.id).maybeSingle()
+      supabase.from('profiles').select('ghost_mode, notification_prefs').eq('id', user.id).maybeSingle()
         .then(({ data }) => {
-          if (data?.mood_mode) setGhostMode(data.mood_mode === 'not_today')
+          setGhostMode(data?.ghost_mode === true)
           if (data?.notification_prefs) {
             setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...(data.notification_prefs as typeof DEFAULT_NOTIF_PREFS) })
           }
@@ -94,9 +94,10 @@ export default function SettingsScreen() {
   const toggleGhostMode = async (val: boolean) => {
     setGhostMode(val)
     if (!userId) return
-    await supabase.from('profiles')
-      .update({ mood_mode: val ? 'not_today' : 'selective' })
-      .eq('id', userId)
+    // Ghost is its own flag now (separate from Mood). Save the default and flip
+    // the active session too, so it takes effect immediately if checked in.
+    await supabase.from('profiles').update({ ghost_mode: val }).eq('id', userId)
+    await supabase.from('sessions').update({ is_ghost: val }).eq('user_id', userId).eq('is_active', true)
   }
 
   const updateNotifPref = async (key: keyof typeof DEFAULT_NOTIF_PREFS, val: boolean) => {

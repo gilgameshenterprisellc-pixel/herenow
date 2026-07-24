@@ -97,9 +97,9 @@ export async function createPulsePost(params: {
     return null
   }
 
-  // Ghost Mode (session mood 'not_today') means you're invisible in the venue.
-  // Posting to Pulse would out your presence, so it's blocked. The composer is
-  // hidden in the UI; this is the enforcement backstop for any caller.
+  // Ghost Mode (session is_ghost) means you're invisible in the venue. Posting to
+  // Pulse would out your presence, so it's blocked. The composer is hidden in the
+  // UI; this is the enforcement backstop for any caller.
   if (params.sessionId && await isSessionGhosted(params.sessionId)) {
     console.warn('[pulse] post blocked — user in Ghost Mode')
     return null

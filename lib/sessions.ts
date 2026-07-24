@@ -19,6 +19,10 @@ export interface Session {
   // before the multi-select rollout — fall back to [social_mode].
   social_modes: SocialMode[] | null
   mood_mode: MoodMode
+  // Ghost is its own toggle, independent of mood: invisible in the room + walled
+  // off from it. Set from the user's profile default at check-in, toggleable
+  // in-venue ("Go live") and from Settings.
+  is_ghost: boolean
   checked_in_at: string
   checked_out_at: string | null
   is_active: boolean
@@ -130,6 +134,14 @@ export async function checkIn(params: {
     .eq('user_id', user.id)
     .eq('is_active', true)
 
+  // Carry the user's Ghost default into this check-in. If it's on, they arrive
+  // invisible until they hit "Go live". Non-fatal: default to not ghosted.
+  const { data: pref } = await supabase
+    .from('profiles')
+    .select('ghost_mode')
+    .eq('id', user.id)
+    .maybeSingle()
+
   // Create new session
   const { data, error } = await supabase
     .from('sessions')
@@ -139,6 +151,7 @@ export async function checkIn(params: {
       social_mode: params.socialModes[0],
       social_modes: params.socialModes,
       mood_mode: params.moodMode,
+      is_ghost: pref?.ghost_mode ?? false,
     })
     .select('*')
     .single()
@@ -369,22 +382,44 @@ export async function getActivePeople(zoneId: string): Promise<ActivePerson[]> {
   return ((data ?? []) as ActivePerson[]).map((p) => ({ ...p, display_name: publicName(p.display_name) }))
 }
 
-// Ghost Mode is a session whose mood is 'not_today' — the user is invisible in
-// the venue (filtered out of the people list, can't be approached/tagged/DM'd).
+// Ghost Mode is a session flagged is_ghost — the user is invisible in the venue
+// (filtered out of the people list at the RPC) and walled off from the room.
 // Posting to Pulse or Chat would reveal their presence, so those paths check
 // this first. Returns false on any lookup error so a transient glitch never
 // silently blocks a normal post.
 export async function isSessionGhosted(sessionId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('mood_mode')
+    .select('is_ghost')
     .eq('id', sessionId)
     .maybeSingle()
   if (error) {
     console.error('[sessions] isSessionGhosted error:', error.message)
     return false
   }
-  return data?.mood_mode === 'not_today'
+  return data?.is_ghost === true
+}
+
+// Toggle Ghost on the active session (the in-venue "Go live" button and the
+// Settings toggle both use this). Returns the updated session.
+export async function setSessionGhost(sessionId: string, ghost: boolean): Promise<Session | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({ is_ghost: ghost })
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .select('*')
+    .maybeSingle()
+
+  if (error) {
+    console.error('[sessions] setSessionGhost error:', error.message)
+    return null
+  }
+  return data
 }
 
 export async function getAfterglowHistory(): Promise<any[]> {

@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { useSessionContext } from '@/contexts/SessionContext'
-import { getActivePeople, updateSessionModes, allSocialModes } from '@/lib/sessions'
+import { getActivePeople, updateSessionModes, allSocialModes, setSessionGhost } from '@/lib/sessions'
 import BackButton from '@/components/BackButton'
 import type { ActivePerson, SocialMode, MoodMode } from '@/lib/sessions'
 import SocialModeBadge from '@/components/SocialModeBadge'
@@ -130,9 +130,9 @@ export default function ZoneScreen() {
   const wmOpacity = useRef(new Animated.Value(0)).current
 
   const isCheckedIn = activeSession?.zone_id === id
-  // Ghost Mode (mood 'not_today'): invisible in the venue, so Pulse + Chat
-  // composing is off (posting would reveal you're here).
-  const isGhosted = isCheckedIn && activeSession?.mood_mode === 'not_today'
+  // Ghost Mode (session is_ghost): invisible in the venue and walled off from the
+  // room. Separate from Mood now — a "Not Today" mood is visible; ghost is not.
+  const isGhosted = isCheckedIn && !!activeSession?.is_ghost
   // The venue owner can view (monitor) their own Pulse + Chat without checking in,
   // since owners never check in as a person (Jacob feedback 6). View-only — the
   // person composers stay gated to checked-in users; venues post Pulse from the dashboard.
@@ -240,10 +240,9 @@ export default function ZoneScreen() {
       fetchBlockedIds(),
     ])
     const blockedSet = new Set(blockedIds)
-    // Not Today = opted out of social discovery — hidden from everyone but themselves
-    const filtered = data.filter(
-      (p) => !blockedSet.has(p.user_id) && (p.mood_mode !== 'not_today' || p.user_id === userId)
-    )
+    // Ghosts are already excluded by the RPC (invisible). "Not Today" people stay
+    // visible here (shown muted, no We Met) — present, just not looking to meet.
+    const filtered = data.filter((p) => !blockedSet.has(p.user_id))
     // Shuffle on each refresh so no one can be stalked by watching position
     const meRow = filtered.filter((p) => p.user_id === userId)
     const others = filtered.filter((p) => p.user_id !== userId)
@@ -445,18 +444,17 @@ export default function ZoneScreen() {
     }
   }
 
-  // In Ghost Mode you're invisible in the venue, so posting is off. Reopen the
-  // vibe editor (in the header) so it's one tap to switch mood and start posting.
-  const openMoodEditor = () => {
+  // Drop Ghost on the spot — you become visible and the room opens back up.
+  const goLive = async () => {
     if (!activeSession) return
-    setEditSocials(allSocialModes(activeSession))
-    setEditMood(activeSession.mood_mode)
-    setVibeEditOpen(true)
+    const updated = await setSessionGhost(activeSession.id, false)
+    if (updated) await refresh()
+    else showToast('Could not go live. Try again.', 'error')
   }
 
   const handlePostPulse = async () => {
     if (!activeSession || (!newPulse.trim() && !vibeTag && !pulsePhotoUrl)) return
-    if (isGhosted) { showToast("You're in Ghost Mode — switch your mood to post.", 'error'); return }
+    if (isGhosted) { showToast("You're in Ghost Mode. Go live to post.", 'error'); return }
     const pulseScreen = screenText(newPulse)
     if (!pulseScreen.ok) { showToast(blockedMessage(pulseScreen.category), 'error'); return }
     setPostingPulse(true)
@@ -485,7 +483,7 @@ export default function ZoneScreen() {
 
   const handleSendChat = async () => {
     if (!chatInput.trim() || sendingChat) return
-    if (isGhosted) { showToast("You're in Ghost Mode — switch your mood to chat.", 'error'); return }
+    if (isGhosted) { showToast("You're in Ghost Mode. Go live to chat.", 'error'); return }
     const chatScreen = screenText(chatInput)
     if (!chatScreen.ok) { showToast(blockedMessage(chatScreen.category), 'error'); return }
     setSendingChat(true)
@@ -517,7 +515,7 @@ export default function ZoneScreen() {
       <Text style={styles.gateSub}>
         You're invisible here, so the room is hidden too. You'll still get updates from the venue. Go live to see who's here and join in.
       </Text>
-      <TouchableOpacity style={styles.gateBtn} onPress={openMoodEditor}>
+      <TouchableOpacity style={styles.gateBtn} onPress={goLive}>
         <Text style={styles.gateBtnText}>Go live →</Text>
       </TouchableOpacity>
     </View>
