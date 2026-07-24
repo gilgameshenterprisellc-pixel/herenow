@@ -34,6 +34,7 @@ interface Profile {
   is_founder: boolean | null
   social_mode: string | null
   mood_mode: string | null
+  ghost_mode: boolean | null
   created_at: string | null
 }
 
@@ -59,7 +60,7 @@ const SOCIAL_MODES = [
 const MOOD_MODES = [
   { value: 'open',       label: 'Open' },
   { value: 'selective',  label: 'Selective' },
-  { value: 'not_today',  label: 'Ghost' },
+  { value: 'not_today',  label: 'Not Today' },
 ]
 
 export default function ProfileScreen() {
@@ -278,8 +279,8 @@ export default function ProfileScreen() {
         </Reanimated.View>
       )}
 
-      {/* Ghost Mode active banner */}
-      {!isVenueOwner && profile?.mood_mode === 'not_today' && (
+      {/* Ghost Mode active banner (ghost is its own toggle now, set in Settings) */}
+      {!isVenueOwner && profile?.ghost_mode === true && (
         <Reanimated.View entering={FadeInDown.delay(100).duration(350)} style={styles.ghostBanner}>
           <Ionicons name="eye-off" size={20} color="#7A93AC" />
           <View style={styles.ghostBannerText}>
@@ -293,7 +294,7 @@ export default function ProfileScreen() {
       {!isVenueOwner && (
       <Reanimated.View entering={FadeInDown.delay(110).duration(450)} style={[
         styles.modeCard,
-        profile?.mood_mode === 'not_today' && styles.modeCardGhost,
+        profile?.ghost_mode === true && styles.modeCardGhost,
       ]}>
         <Text style={styles.modeSectionTitle}>My Mode</Text>
         <Text style={styles.modeSectionSub}>Active now · shown when you check in</Text>
@@ -324,14 +325,12 @@ export default function ProfileScreen() {
                 style={[
                   styles.modePill,
                   profile?.mood_mode === m.value && styles.modePillActive,
-                  m.value === 'not_today' && profile?.mood_mode === m.value && styles.modePillGhost,
                 ]}
                 onPress={() => updateMode('mood_mode', m.value)}
               >
                 <Text style={[
                   styles.modePillText,
                   profile?.mood_mode === m.value && styles.modePillTextActive,
-                  m.value === 'not_today' && profile?.mood_mode === m.value && { color: '#ef4444' },
                 ]}>
                   {m.label}
                 </Text>
