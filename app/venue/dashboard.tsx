@@ -20,6 +20,7 @@ import { fetchPendingVenuePhotos, setVenuePhotoStatus, type PendingVenuePhoto } 
 import { platformConfirm } from '@/lib/confirm'
 import { hideVenueContent, muteVenueUser } from '@/lib/venueModeration'
 import { sendVenueChatMessage } from '@/lib/chat'
+import { scheduleVenueRecapAlert } from '@/lib/notifications'
 import { screenText, blockedMessage } from '@/lib/textModeration'
 import { screenImage } from '@/lib/moderation'
 import { useToast } from '@/contexts/ToastContext'
@@ -268,6 +269,11 @@ export default function VenueDashboard() {
         const prevUserIds  = new Set((allTimeRes.data ?? []).map((r: any) => r.user_id))
         let newVisitors = 0, returningVisitors = 0
         todayUserIds.forEach((uid) => { prevUserIds.has(uid) ? returningVisitors++ : newVisitors++ })
+
+        // If the venue saw anyone today, line up tomorrow morning's "recap ready"
+        // nudge. Owners never check out, so the dashboard load is the trigger.
+        // Deduped, fire-and-forget — reschedules to the same 9:30am slot each load.
+        if (todayUserIds.size > 0) scheduleVenueRecapAlert().catch(() => {})
 
         // Promo performance — view count per promo
         const viewCountMap: Record<string, number> = {}

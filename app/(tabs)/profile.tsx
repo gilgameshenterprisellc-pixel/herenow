@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView, Platform, Image,
@@ -6,8 +6,9 @@ import {
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
+import { hasUnseenAfterglow } from '@/lib/afterglowSeen'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { fetchUserBadges } from '@/lib/badges'
 import { fetchConfirmedWeMets, type WeMet } from '@/lib/weMet'
@@ -67,6 +68,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const { onScroll } = useTabBarScroll()
   const [profile, setProfile]               = useState<Profile | null>(null)
+  const [hasUnseenRecap, setHasUnseenRecap] = useState(false)
   const [loading, setLoading]               = useState(true)
   const [userId, setUserId]                 = useState<string | null>(null)
   const [badgeCount, setBadgeCount]         = useState(0)
@@ -170,6 +172,14 @@ export default function ProfileScreen() {
       </View>
     )
   }
+
+  // Refresh the unseen-recap dot on the "Your Nights" row every time the tab is
+  // focused, so it clears right after the user opens the library and comes back.
+  useFocusEffect(
+    useCallback(() => {
+      hasUnseenAfterglow().then(setHasUnseenRecap)
+    }, [])
+  )
 
   // Build nav items dynamically — only venue owners see the venue item
   const isVenueOwner = !!profile?.is_venue_owner
@@ -441,6 +451,7 @@ export default function ProfileScreen() {
                 <Text style={styles.pendingPillText}>Pending</Text>
               </View>
             )}
+            {item.route === '/afterglow' && hasUnseenRecap && <View style={styles.navDot} />}
             <Ionicons name="chevron-forward" size={18} color="#2A3F55" />
           </TouchableOpacity>
         ))}
@@ -627,6 +638,7 @@ const styles = StyleSheet.create({
   },
   navIcon: { width: 24 },
   navLabel: { flex: 1, fontSize: 15, color: '#f8fafc', fontWeight: '500' },
+  navDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#29B6F6', marginRight: 8 },
   pendingPill: {
     backgroundColor: '#f59e0b20',
     borderRadius: 8,

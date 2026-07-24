@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import BackButton from '@/components/BackButton'
 import { getAfterglowHistory } from '@/lib/sessions'
+import { markAfterglowsSeen } from '@/lib/afterglowSeen'
 
 interface Afterglow {
   id: string
@@ -80,6 +81,8 @@ export default function AfterglowLibraryScreen() {
       .then((rows) => setNights(groupNights(rows as Afterglow[])))
       .catch(() => setNights([]))
       .finally(() => setLoading(false))
+    // Opening the library clears the unseen-recap dot on the profile nav.
+    markAfterglowsSeen()
   }, [])
 
   return (
