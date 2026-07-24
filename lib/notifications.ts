@@ -151,6 +151,56 @@ export async function scheduleMorningRecapAlert(): Promise<void> {
   }
 }
 
+const VENUE_RECAP_ID = 'venue_recap'
+
+// Venue-owner counterpart to the user's morning recap. Owners never check out,
+// so this is scheduled from the venue dashboard whenever the venue saw people
+// that day — a single next-9:30am local nudge to open the nightly recap. Deduped
+// by a fixed identifier, so every dashboard load through the night reschedules to
+// the same slot and only one fires. Respects the afterglow_recap pref (default
+// on). Jacob: "venues should get a little notification on that tab too when the
+// new recap is available."
+export async function scheduleVenueRecapAlert(): Promise<void> {
+  if (Platform.OS === 'web') return
+  try {
+    const Notifications = await import('expo-notifications')
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const prefs = await getUserNotifPrefs(user.id)
+      if (prefs['afterglow_recap'] === false) {
+        await Notifications.cancelScheduledNotificationAsync(VENUE_RECAP_ID).catch(() => {})
+        return
+      }
+    }
+
+    // Next 9:30am local time.
+    const now = new Date()
+    const target = new Date(now)
+    target.setHours(9, 30, 0, 0)
+    if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1)
+    const seconds = Math.floor((target.getTime() - now.getTime()) / 1000)
+    if (seconds <= 0) return
+
+    await Notifications.cancelScheduledNotificationAsync(VENUE_RECAP_ID).catch(() => {})
+    await Notifications.scheduleNotificationAsync({
+      identifier: VENUE_RECAP_ID,
+      content: {
+        title: "Your venue's recap is ready 🌅",
+        body:  'See last night at your spot — who came through, when it peaked, the vibe.',
+        data:  { type: 'venue_recap' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds,
+        repeats: false,
+      } as any,
+    })
+  } catch (e) {
+    console.warn('[notifications] scheduleVenueRecapAlert error:', e)
+  }
+}
+
 // Fires an immediate local notification when a session ends automatically
 // because the user left the venue (background geofence exit or the foreground
 // presence verifier evicting them). This is the counterpart to the check-in
