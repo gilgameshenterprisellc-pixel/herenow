@@ -430,6 +430,9 @@ export default function ZoneScreen() {
   }
 
   const pickPulsePhoto = () => {
+    // Web has no camera action sheet — Alert.alert is a no-op in react-native-web,
+    // so go straight to the library file picker (matches board/gallery/profile).
+    if (Platform.OS === 'web') { attachPulsePhoto('library'); return }
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
@@ -643,6 +646,9 @@ export default function ZoneScreen() {
   }
 
   const handleSubmitPhoto = () => {
+    // Web has no camera action sheet — Alert.alert is a no-op in react-native-web,
+    // so go straight to the library file picker (matches board/gallery/profile).
+    if (Platform.OS === 'web') { pickAndSubmitPhoto('library'); return }
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },

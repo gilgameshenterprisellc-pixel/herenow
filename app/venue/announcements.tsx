@@ -121,6 +121,9 @@ export default function VenueAnnouncementsScreen() {
   }
 
   const pickImage = () => {
+    // Web has no camera action sheet — Alert.alert is a no-op in react-native-web,
+    // so go straight to the library file picker (matches gallery/board/profile).
+    if (Platform.OS === 'web') { doPickImage('library'); return }
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },

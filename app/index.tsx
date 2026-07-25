@@ -314,6 +314,14 @@ function WebLanding() {
           <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
             <Text style={s.footerLink}>Sign in</Text>
           </TouchableOpacity>
+          <Text style={s.footerDot}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/legal/privacy')}>
+            <Text style={s.footerLink}>Privacy</Text>
+          </TouchableOpacity>
+          <Text style={s.footerDot}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/legal/terms')}>
+            <Text style={s.footerLink}>Terms</Text>
+          </TouchableOpacity>
         </View>
         <Text style={s.footerCopy}>© 2026 Gilgamesh Enterprise LLC</Text>
       </View>
@@ -342,7 +350,6 @@ const s = StyleSheet.create({
   badgeText:    { fontSize: 13, color: '#8EADC7', fontWeight: '500' },
 
   // headline + sub
-  headline:     { fontSize: 88, fontWeight: '900', color: '#29B6F6', textAlign: 'center', letterSpacing: -4, lineHeight: 90 },
   heroWordmark: { width: '82%', maxWidth: 360, aspectRatio: 822 / 147, alignSelf: 'center' },
   sub:          { fontSize: 19, color: '#7A93AC', textAlign: 'center', lineHeight: 28, fontWeight: '400' },
 
@@ -384,7 +391,7 @@ const s = StyleSheet.create({
   footer:        { backgroundColor: '#050A15', borderTopWidth: 1, borderTopColor: '#0D1B2E', paddingVertical: 40, paddingHorizontal: 24, alignItems: 'center', gap: 12 },
   footerBrand:   { fontSize: 20, fontWeight: '900', color: '#29B6F6', letterSpacing: -0.5 },
   footerTagline: { fontSize: 13, color: '#3A5570' },
-  footerLinks:   { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  footerLinks:   { flexDirection: 'row', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' },
   footerLink:    { fontSize: 13, color: '#5A7A9A', fontWeight: '600' },
   footerDot:     { color: '#1E3A5F', fontSize: 16 },
   footerCopy:    { fontSize: 11, color: '#1E3A5F', marginTop: 4 },
