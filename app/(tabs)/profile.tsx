@@ -167,6 +167,17 @@ export default function ProfileScreen() {
     }
   }
 
+  // Refresh the unseen-recap dot on the "Your Nights" row every time the tab is
+  // focused, so it clears right after the user opens the library and comes back.
+  // Keep this ABOVE the `if (loading)` early return: a hook after a conditional
+  // return changes the hook count between renders and throws React error #310
+  // (this blanked the whole profile screen on web).
+  useFocusEffect(
+    useCallback(() => {
+      hasUnseenAfterglow().then(setHasUnseenRecap)
+    }, [])
+  )
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -174,14 +185,6 @@ export default function ProfileScreen() {
       </View>
     )
   }
-
-  // Refresh the unseen-recap dot on the "Your Nights" row every time the tab is
-  // focused, so it clears right after the user opens the library and comes back.
-  useFocusEffect(
-    useCallback(() => {
-      hasUnseenAfterglow().then(setHasUnseenRecap)
-    }, [])
-  )
 
   // Build nav items dynamically — only venue owners see the venue item
   const isVenueOwner = !!profile?.is_venue_owner
