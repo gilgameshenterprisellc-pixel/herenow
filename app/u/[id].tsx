@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import BackButton from '@/components/BackButton'
 import FounderBadge from '@/components/FounderBadge'
+import VerifiedBadge from '@/components/VerifiedBadge'
 import { getCircleStatus, sendCircleRequest, respondCircleRequest, type CircleStatus } from '@/lib/circle'
 import { publicName } from '@/lib/format'
 
@@ -23,6 +24,7 @@ interface UserProfile {
   kickoffs: string[] | null
   created_at: string | null
   is_founder: boolean | null
+  is_verified: boolean | null
 }
 
 export default function UserProfileScreen() {
@@ -42,7 +44,7 @@ export default function UserProfileScreen() {
 
       const { data: p } = await supabase
         .from('profiles')
-        .select('id, display_name, username, avatar_url, bio, age_range, interest_tags, kickoffs, created_at, is_founder')
+        .select('id, display_name, username, avatar_url, bio, age_range, interest_tags, kickoffs, created_at, is_founder, is_verified')
         .eq('id', id)
         .maybeSingle()
 
@@ -138,6 +140,7 @@ export default function UserProfileScreen() {
           <View style={styles.nameRow}>
             <Text style={styles.displayName}>{publicName(profile.display_name)}</Text>
             {profile.is_founder && <FounderBadge size={18} />}
+            {profile.is_verified && <VerifiedBadge size={18} />}
           </View>
           {profile.username ? <Text style={styles.username}>@{profile.username}</Text> : null}
           {!!joined && <Text style={styles.joined}>{joined}</Text>}

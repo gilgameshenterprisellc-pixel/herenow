@@ -15,6 +15,7 @@ import { fetchConfirmedWeMets, type WeMet } from '@/lib/weMet'
 import { checkOutActiveOnSignOut } from '@/lib/sessions'
 import AvatarImage from '@/components/AvatarImage'
 import FounderBadge from '@/components/FounderBadge'
+import VerifiedBadge from '@/components/VerifiedBadge'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { useTabBarScroll } from '@/contexts/TabBarScrollContext'
 
@@ -33,6 +34,7 @@ interface Profile {
   venue_status: string | null
   is_admin: boolean | null
   is_founder: boolean | null
+  is_verified: boolean | null
   social_mode: string | null
   mood_mode: string | null
   ghost_mode: boolean | null
@@ -242,6 +244,7 @@ export default function ProfileScreen() {
         <View style={styles.nameRow}>
           <Text style={styles.displayName}>{profile?.display_name}</Text>
           {profile?.is_founder && <FounderBadge size={18} />}
+          {profile?.is_verified && <VerifiedBadge size={18} />}
         </View>
         <Text style={styles.username}>@{profile?.username}</Text>
         {profile?.created_at && (
