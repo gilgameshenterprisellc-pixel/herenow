@@ -139,8 +139,8 @@ export default function UserProfileScreen() {
           <AvatarImage uri={profile.avatar_url} name={profile.display_name} size={96} />
           <View style={styles.nameRow}>
             <Text style={styles.displayName}>{publicName(profile.display_name)}</Text>
-            {profile.is_founder && <FounderBadge size={18} />}
-            {profile.is_verified && <VerifiedBadge size={18} />}
+            {profile.is_founder && <FounderBadge size={20} />}
+            {profile.is_verified && <VerifiedBadge size={20} />}
           </View>
           {profile.username ? <Text style={styles.username}>@{profile.username}</Text> : null}
           {!!joined && <Text style={styles.joined}>{joined}</Text>}

@@ -31,7 +31,7 @@ import { reportUser, reportContent, type ReportReason, type ContentReportReason 
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
 import { successBuzz } from '@/lib/haptics'
-import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFoundingBadge, type VenueBadge } from '@/lib/venueBadges'
+import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFoundingBadge, BADGE_ICON_BY_SLUG, type VenueBadge } from '@/lib/venueBadges'
 import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
@@ -700,9 +700,12 @@ export default function ZoneScreen() {
             keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeStripList}>
             {sortVenueBadges(venueBadges).map((b) => {
               const founding = isFoundingBadge(b.slug)
+              // Icon by slug (source of truth); fall back to a valid stored glyph, else 'medal'.
+              const glyphs = Ionicons.glyphMap as Record<string, number>
+              const iconName = BADGE_ICON_BY_SLUG[b.slug] ?? (b.icon && glyphs[b.icon] ? b.icon : 'medal')
               return (
                 <View key={b.slug} style={[styles.badgeChip, founding && styles.badgeChipFounding]}>
-                  <Ionicons name={(b.icon ?? 'medal') as any} size={13} color={founding ? '#E8B84B' : '#29B6F6'} />
+                  <Ionicons name={iconName as any} size={13} color={founding ? '#E8B84B' : '#29B6F6'} />
                   <Text style={[styles.badgeChipName, founding && styles.badgeChipNameFounding]}>{b.name}</Text>
                 </View>
               )
