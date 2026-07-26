@@ -246,8 +246,8 @@ export default function ProfileScreen() {
         </TouchableOpacity>
         <View style={styles.nameRow}>
           <Text style={styles.displayName}>{profile?.display_name}</Text>
-          {profile?.is_founder && <FounderBadge size={18} />}
-          {profile?.is_verified && <VerifiedBadge size={18} />}
+          {profile?.is_founder && <FounderBadge size={20} />}
+          {profile?.is_verified && <VerifiedBadge size={20} />}
         </View>
         <Text style={styles.username}>@{profile?.username}</Text>
         {profile?.created_at && (

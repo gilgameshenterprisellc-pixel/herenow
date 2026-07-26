@@ -17,7 +17,9 @@ export default function PinBadge({
 }) {
   const width = size * (100 / 128)
   // Check stroke scales with the pin so it stays proportional at every size.
-  const strokeWidth = size * (8.5 / 128)
+  // Kept deliberately bold: at ~8.5/128 the white check was near-invisible inside
+  // the pin at the sizes it renders (Jacob, Jul 2026).
+  const strokeWidth = size * (13 / 128)
   return (
     <Svg width={width} height={size} viewBox="0 0 100 128">
       <Path

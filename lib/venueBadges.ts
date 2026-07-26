@@ -133,6 +133,16 @@ const BADGE_DEFS: {
   },
 ]
 
+// A badge's icon is defined in code (above), keyed by slug — that's the source of
+// truth. The zone_badges.icon column can drift: a hand-seeded row once stored an
+// invalid Ionicons name ('fire' instead of 'flame') and rendered as a "?". The UI
+// resolves the icon by slug first and only falls back to the stored value, so a
+// bad column value can never surface a broken glyph again.
+export const BADGE_ICON_BY_SLUG: Record<string, string> = {
+  ...Object.fromEntries(Object.values(FOUNDING_BADGES).map((b) => [b.slug, b.icon] as [string, string])),
+  ...Object.fromEntries(BADGE_DEFS.map((d) => [d.slug, d.icon] as [string, string])),
+}
+
 export async function fetchVenueBadges(zoneId: string): Promise<VenueBadge[]> {
   const { data, error } = await supabase
     .from('zone_badges')
