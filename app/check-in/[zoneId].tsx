@@ -146,6 +146,20 @@ export default function CheckInScreen() {
       setShowCiAnim(true)
       ciScale.setValue(0.3)
       ciOpacity.setValue(0)
+      // Guard: if the animation's completion callback is ever dropped (interrupted
+      // sequence, backgrounded app), we must still hide the near-black overlay and
+      // resolve — otherwise doCheckIn hangs and the dark overlay sticks on screen,
+      // which reads as a "black screen after check-in" that needs an app restart
+      // (Jacob, Jul 2026). Total anim runtime is ~1.65s; 3s leaves ample margin.
+      let done = false
+      const finish = () => {
+        if (done) return
+        done = true
+        clearTimeout(safety)
+        setShowCiAnim(false)
+        resolve()
+      }
+      const safety = setTimeout(finish, 3000)
       Animated.sequence([
         Animated.parallel([
           Animated.spring(ciScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 6 }),
@@ -153,10 +167,7 @@ export default function CheckInScreen() {
         ]),
         Animated.delay(700),
         Animated.timing(ciOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
-      ]).start(() => {
-        setShowCiAnim(false)
-        resolve()
-      })
+      ]).start(finish)
     })
 
   const handleCheckIn = async () => {

@@ -123,7 +123,7 @@ export default function ZoneScreen() {
 
   // Gallery submission
   const [submittingPhoto, setSubmittingPhoto] = useState(false)
-  const [lightboxUrl, setLightboxUrl]         = useState<string | null>(null)
+  const [lightboxIndex, setLightboxIndex]     = useState<number | null>(null)
 
   // We Met celebration
   const [wemetCelebName, setWemetCelebName] = useState<string | null>(null)
@@ -736,8 +736,8 @@ export default function ZoneScreen() {
           <ScrollView
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryList}>
-            {photos.map((p) => (
-              <TouchableOpacity key={p.id} style={styles.galleryThumb} onPress={() => setLightboxUrl(p.public_url)} activeOpacity={0.85}>
+            {photos.map((p, i) => (
+              <TouchableOpacity key={p.id} style={styles.galleryThumb} onPress={() => setLightboxIndex(i)} activeOpacity={0.85}>
                 <Image source={{ uri: p.public_url }} style={styles.galleryImg} resizeMode="cover" />
               </TouchableOpacity>
             ))}
@@ -994,12 +994,14 @@ export default function ZoneScreen() {
 
       {/* Tab content */}
 
-      {/* Ghost Mode: the room (People/Pulse/Chat/Board) is walled off — you only
-          get venue updates. Events + venue info stay open below. */}
-      {isGhosted && (tab === 'people' || tab === 'pulse' || tab === 'chat' || tab === 'board') && renderGhostGate()}
+      {/* Ghost Mode: the live room (People/Pulse/Chat) is walled off — you only get
+          venue updates. Board, Events + venue info stay viewable (Jacob, Jul 2026:
+          "You should still be able to see the Board in Ghost Mode"). */}
+      {isGhosted && (tab === 'people' || tab === 'pulse' || tab === 'chat') && renderGhostGate()}
 
-      {/* The Board — the venue's community bulletin board (own screen) */}
-      {tab === 'board' && !isGhosted && (
+      {/* The Board — the venue's community bulletin board (own screen). Viewable in
+          ghost mode; posting is gated on the board screen itself. */}
+      {tab === 'board' && (
         <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           {venueInfo}
           <View style={styles.boardCard}>
@@ -1316,11 +1318,38 @@ export default function ZoneScreen() {
         </Animated.View>
       )}
 
-      {/* Gallery photo lightbox (Jacob #11) */}
-      <Modal visible={!!lightboxUrl} transparent animationType="fade" onRequestClose={() => setLightboxUrl(null)}>
-        <TouchableOpacity style={styles.lightboxBg} activeOpacity={1} onPress={() => setLightboxUrl(null)}>
-          {lightboxUrl && <Image source={{ uri: lightboxUrl }} style={styles.lightboxImg} resizeMode="contain" />}
-          <View style={styles.lightboxClose}><Text style={styles.lightboxCloseText}>✕</Text></View>
+      {/* Gallery photo lightbox — swipe-free next/prev so you don't have to exit
+          and re-tap each photo (Jacob, Jul 2026). */}
+      <Modal visible={lightboxIndex !== null} transparent animationType="fade" onRequestClose={() => setLightboxIndex(null)}>
+        <TouchableOpacity style={styles.lightboxBg} activeOpacity={1} onPress={() => setLightboxIndex(null)}>
+          {/* Tapping the image or backdrop closes; the nav/close buttons capture their own taps. */}
+          {lightboxIndex !== null && photos[lightboxIndex] && (
+            <Image source={{ uri: photos[lightboxIndex].public_url }} style={styles.lightboxImg} resizeMode="contain" />
+          )}
+          {photos.length > 1 && lightboxIndex !== null && (
+            <>
+              <TouchableOpacity
+                style={[styles.lightboxNav, styles.lightboxPrev]}
+                onPress={() => setLightboxIndex((i) => (i === null ? i : (i - 1 + photos.length) % photos.length))}
+                hitSlop={{ top: 24, bottom: 24, left: 16, right: 16 }}
+              >
+                <Ionicons name="chevron-back" size={30} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.lightboxNav, styles.lightboxNext]}
+                onPress={() => setLightboxIndex((i) => (i === null ? i : (i + 1) % photos.length))}
+                hitSlop={{ top: 24, bottom: 24, left: 16, right: 16 }}
+              >
+                <Ionicons name="chevron-forward" size={30} color="#fff" />
+              </TouchableOpacity>
+              <View style={styles.lightboxCounter}>
+                <Text style={styles.lightboxCounterText}>{lightboxIndex + 1} / {photos.length}</Text>
+              </View>
+            </>
+          )}
+          <TouchableOpacity style={styles.lightboxClose} onPress={() => setLightboxIndex(null)}>
+            <Text style={styles.lightboxCloseText}>✕</Text>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </KeyboardAvoidingView>
@@ -1636,6 +1665,11 @@ const styles = StyleSheet.create({
   lightboxImg:  { width: '100%', height: '80%' },
   lightboxClose: { position: 'absolute', top: 50, right: 24, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   lightboxCloseText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  lightboxNav:  { position: 'absolute', top: '46%', width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  lightboxPrev: { left: 16 },
+  lightboxNext: { right: 16 },
+  lightboxCounter: { position: 'absolute', bottom: 46, alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.55)' },
+  lightboxCounterText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   photoSubmitWrap: {
     paddingHorizontal: 16,
     paddingVertical: 8,
