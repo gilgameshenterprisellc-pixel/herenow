@@ -18,6 +18,7 @@ import type { ActivePerson, SocialMode, MoodMode } from '@/lib/sessions'
 import SocialModeBadge from '@/components/SocialModeBadge'
 import { fetchOrganizationsAtVenue, type Organization } from '@/lib/organizations'
 import MoodBadge from '@/components/MoodBadge'
+import VerifiedBadge from '@/components/VerifiedBadge'
 import { usePulse } from '@/hooks/usePulse'
 import { useVenueChat } from '@/hooks/useVenueChat'
 import { createPulsePost, VIBE_TAGS } from '@/lib/pulse'
@@ -171,7 +172,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at, chat_enabled, pulse_enabled')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at, chat_enabled, pulse_enabled, is_verified')
         .eq('id', id)
         .maybeSingle()
 
@@ -795,7 +796,10 @@ export default function ZoneScreen() {
               </View>
             )}
             <View style={styles.headerInfo}>
-              <Text style={styles.zoneName} numberOfLines={1}>{zone?.name}</Text>
+              <View style={styles.zoneNameRow}>
+                <Text style={styles.zoneName} numberOfLines={1}>{zone?.name}</Text>
+                {zone?.is_verified && <VerifiedBadge size={20} />}
+              </View>
               <Text style={styles.zoneMeta} numberOfLines={1}>
                 {[zone?.category, zone?.opening_hours].filter(Boolean).join(' · ')
                   || (zone?.chips?.length
@@ -1382,7 +1386,8 @@ const styles = StyleSheet.create({
   backBtn: { padding: 8 },
   backText: { fontSize: 22, color: '#f8fafc' },
   headerInfo: { flex: 1 },
-  zoneName: { fontSize: 18, fontWeight: '800', color: '#f8fafc' },
+  zoneNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  zoneName: { fontSize: 18, fontWeight: '800', color: '#f8fafc', flexShrink: 1 },
   zoneMeta: { fontSize: 12, color: '#7A93AC', marginTop: 2 },
   subBtn: {
     borderWidth: 1,
