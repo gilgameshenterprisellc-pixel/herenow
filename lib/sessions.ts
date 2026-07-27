@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
-import { getCurrentCoords, getBestCoords } from './location'
+import { getBestCoords } from './location'
 import { checkUserInZone } from './zones'
 import { logEvent } from './analytics'
 import { publicName } from './format'
@@ -80,6 +80,18 @@ const REDUCED_ACCURACY_HINT_M = 500
 // How long the check-in fix sampler is allowed to watch for a good reading.
 const CHECKIN_FIX_TIMEOUT_MS = 15_000
 
+// Geofence boundary tolerance (metres). Check-in is tighter than eviction: you
+// must be within CHECKIN_MARGIN_M of the venue to check in, but you're only
+// evicted once you're CLEARLY beyond PRESENCE_MARGIN_M. The gap is a hysteresis
+// band so GPS jitter can't boot a stationary user (Jacob: booted at the bar)
+// while the "actually here" gate stays honest at check-in. Tune against a real
+// venue test — these are the two dials for the whole geofence feel.
+const CHECKIN_MARGIN_M  = 15
+const PRESENCE_MARGIN_M = 30
+// Presence poll watches for a fix for up to this long — shorter than check-in
+// since it runs on a background timer, but still multi-sampled (not one-shot).
+const PRESENCE_FIX_TIMEOUT_MS = 8_000
+
 export async function checkIn(params: {
   zoneId: string
   // All picked modes, in pick order — the first is stored as the primary
@@ -117,7 +129,7 @@ export async function checkIn(params: {
     return fail(coords.accuracy > REDUCED_ACCURACY_HINT_M ? 'precise_off' : 'low_accuracy', coords.accuracy)
   }
 
-  const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude)
+  const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude, CHECKIN_MARGIN_M)
   if (!inZone) {
     // A soft-band fix whose center is OUTSIDE isn't evidence either way — call
     // it low accuracy (retry) rather than "you're not here".
@@ -186,11 +198,17 @@ export type PresenceCheck = 'inside' | 'outside' | 'unknown'
 // tries again next tick. Only a trustworthy, confirmed-outside fix returns
 // 'outside'.
 export async function verifyZonePresence(zoneId: string): Promise<PresenceCheck> {
-  const coords = await getCurrentCoords()
+  // Multi-sample (not one-shot): a single jittery fix near a wall could read
+  // 'outside', and two of those in a row evicted a stationary user (Jacob: booted
+  // at the bar). getBestCoords watches briefly and takes the tightest fix.
+  const coords = await getBestCoords(MAX_CHECKIN_ACCURACY_M, PRESENCE_FIX_TIMEOUT_MS)
   if (!coords) return 'unknown'
   if (coords.accuracy == null || coords.accuracy > MAX_CHECKIN_ACCURACY_M) return 'unknown'
 
-  const inZone = await checkUserInZone(zoneId, coords.latitude, coords.longitude)
+  // Keep-alive margin: only 'outside' when clearly beyond the geofence + buffer,
+  // so edge positions and small drift never boot someone. Wider than the check-in
+  // margin (hysteresis band).
+  const inZone = await checkUserInZone(zoneId, coords.latitude, coords.longitude, PRESENCE_MARGIN_M)
   return inZone ? 'inside' : 'outside'
 }
 
