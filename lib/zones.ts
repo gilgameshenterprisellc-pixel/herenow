@@ -116,12 +116,18 @@ export async function searchZonesByName(query: string): Promise<Zone[]> {
 export async function checkUserInZone(
   zoneId: string,
   lat: number,
-  lng: number
+  lng: number,
+  // Metres of tolerance added to the geofence boundary. Check-in uses a small
+  // margin (edge tolerance); presence verification uses a larger one (only evict
+  // when clearly outside). Requires the margin_m param on user_in_zone (see
+  // supabase/geofence_margin.sql) — must be applied before this ships.
+  marginM = 0
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc('user_in_zone', {
     zone_id: zoneId,
     user_lat: lat,
     user_lng: lng,
+    margin_m: marginM,
   })
 
   if (error) return false
