@@ -456,6 +456,15 @@ export default function ZoneScreen() {
     else showToast('Could not go live. Try again.', 'error')
   }
 
+  // Go Ghost from the venue itself — invisible without digging into Settings
+  // (Jacob: "turning ghost on/off should be accessible without going into settings").
+  const goGhost = async () => {
+    if (!activeSession) return
+    const updated = await setSessionGhost(activeSession.id, true)
+    if (updated) { await refresh(); showToast("Ghost Mode on — you're invisible here.", 'info') }
+    else showToast('Could not go ghost. Try again.', 'error')
+  }
+
   const handlePostPulse = async () => {
     if (!activeSession || (!newPulse.trim() && !vibeTag && !pulsePhotoUrl)) return
     if (isGhosted) { showToast("You're in Ghost Mode. Go live to post.", 'error'); return }
@@ -904,6 +913,13 @@ export default function ZoneScreen() {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text style={styles.vibeEditLink}>Change</Text>
+              </TouchableOpacity>
+              {/* Quick ghost toggle — no trip to Settings needed (Jacob) */}
+              <TouchableOpacity
+                onPress={isGhosted ? goLive : goGhost}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.vibeEditLink}>{isGhosted ? 'Go live' : 'Go ghost'}</Text>
               </TouchableOpacity>
             </View>
           ) : (

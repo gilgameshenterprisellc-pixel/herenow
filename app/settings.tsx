@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
+import { useSessionContext } from '@/contexts/SessionContext'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -73,6 +74,7 @@ const DEFAULT_NOTIF_PREFS = {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets()
+  const { refresh } = useSessionContext()
   const [ghostMode, setGhostMode]       = useState(false)
   const [userId, setUserId]             = useState<string | null>(null)
   const [notifPrefs, setNotifPrefs]     = useState(DEFAULT_NOTIF_PREFS)
@@ -98,6 +100,10 @@ export default function SettingsScreen() {
     // the active session too, so it takes effect immediately if checked in.
     await supabase.from('profiles').update({ ghost_mode: val }).eq('id', userId)
     await supabase.from('sessions').update({ is_ghost: val }).eq('user_id', userId).eq('is_active', true)
+    // Re-pull the active session so the change shows live — otherwise the in-memory
+    // session stays stale and the venue UI doesn't gate until an app restart
+    // (Jacob: "went ghost, UI didn't change until I closed and reopened").
+    await refresh()
   }
 
   const updateNotifPref = async (key: keyof typeof DEFAULT_NOTIF_PREFS, val: boolean) => {
