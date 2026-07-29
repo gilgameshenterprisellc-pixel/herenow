@@ -117,14 +117,14 @@ export default function SettingsScreen() {
 
     if (Platform.OS === 'web') {
       if ((window as any).confirm(
-        'Delete your account? This removes all your data permanently. Email support@herenow.app to complete the request.'
+        'Delete your account? This removes all your data permanently. Email support@herenowsocial.com to complete the request.'
       )) {
         confirmDelete()
       }
     } else {
       Alert.alert(
         'Delete Account',
-        'This permanently removes your profile, sessions, and connections. Email support@herenow.app to complete the request.',
+        'This permanently removes your profile, sessions, and connections. Email support@herenowsocial.com to complete the request.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Continue', style: 'destructive', onPress: confirmDelete },
@@ -188,6 +188,12 @@ export default function SettingsScreen() {
             label="Terms of Service"
             onPress={() => router.push('/legal/terms' as any)}
           />
+          <View style={styles.divider} />
+          <SettingsRow
+            icon="people-outline"
+            label="Community Guidelines"
+            onPress={() => router.push('/legal/community' as any)}
+          />
         </Section>
 
         <Section title="Notifications">
@@ -228,13 +234,13 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="mail-outline"
             label="Contact Support"
-            onPress={() => openMail('mailto:support@herenow.app')}
+            onPress={() => openMail('mailto:support@herenowsocial.com')}
           />
           <View style={styles.divider} />
           <SettingsRow
             icon="bug-outline"
             label="Report a Bug"
-            onPress={() => openMail('mailto:support@herenow.app?subject=Bug%20Report')}
+            onPress={() => openMail('mailto:support@herenowsocial.com?subject=Bug%20Report')}
           />
           <View style={styles.divider} />
           <SettingsRow

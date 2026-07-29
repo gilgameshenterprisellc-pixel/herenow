@@ -41,10 +41,22 @@ interface VenueZone {
   wait_time_minutes: number | null
   chat_enabled: boolean | null
   pulse_enabled: boolean | null
+  checkin_margin_m: number | null
+  presence_margin_m: number | null
 }
 
 
 const WAIT_PRESETS = [0, 5, 15, 30, 45, 60] // minutes; null = not shown
+
+// Per-venue geofence tuning presets (Jacob idea #6). Each is a matched
+// check-in / presence pair so the hysteresis invariant (let in tighter than
+// kicked out) always holds. checkin_margin_m = 15 (or NULL) means Standard.
+const GEOFENCE_PRESETS: { key: string; label: string; hint: string; checkin: number; presence: number }[] = [
+  { key: 'tight',    label: 'Tight',    hint: 'Strict — guests must be well inside before they can check in.',           checkin: 8,  presence: 20 },
+  { key: 'standard', label: 'Standard', hint: 'Recommended for most venues.',                                            checkin: 15, presence: 30 },
+  { key: 'roomy',    label: 'Roomy',    hint: 'Good for big rooms, patios, or corners where guests drift near the edge.', checkin: 30, presence: 50 },
+  { key: 'wide',     label: 'Wide',     hint: 'For large footprints or weak-signal spots where check-in struggles.',     checkin: 50, presence: 80 },
+]
 
 interface AggregateStats {
   total: number
@@ -367,6 +379,13 @@ export default function VenueDashboard() {
     await supabase.from('zones').update({ [field]: value }).eq('id', venue.id)
   }
 
+  // Per-venue geofence tuning — writes a matched check-in/presence margin pair.
+  const setGeofencePreset = async (checkin: number, presence: number) => {
+    if (!venue) return
+    setVenue({ ...venue, checkin_margin_m: checkin, presence_margin_m: presence })
+    await supabase.from('zones').update({ checkin_margin_m: checkin, presence_margin_m: presence }).eq('id', venue.id)
+  }
+
 
   const attachPulsePhoto = async () => {
     if (!venue || pulsePhotoUploading) return
@@ -508,7 +527,7 @@ export default function VenueDashboard() {
           <View style={styles.pendingDivider} />
           <Text style={styles.pendingHint}>
             Questions or want to update your info and reapply?{'\n'}Email{' '}
-            <Text style={styles.pendingEmail}>support@herenow.app</Text>
+            <Text style={styles.pendingEmail}>support@herenowsocial.com</Text>
           </Text>
         </Reanimated.View>
         <Reanimated.View entering={FadeInDown.delay(220).duration(500)} style={{ width: '100%' }}>
@@ -538,7 +557,7 @@ export default function VenueDashboard() {
           <View style={styles.pendingDivider} />
           <Text style={styles.pendingHint}>
             Questions? Email{' '}
-            <Text style={styles.pendingEmail}>support@herenow.app</Text>
+            <Text style={styles.pendingEmail}>support@herenowsocial.com</Text>
           </Text>
         </Reanimated.View>
         <Reanimated.View entering={FadeInDown.delay(220).duration(500)} style={{ width: '100%' }}>
@@ -953,6 +972,34 @@ export default function VenueDashboard() {
                 thumbColor="#f8fafc"
               />
             </View>
+          </View>
+        )}
+
+        {/* Check-in Range — per-venue geofence tuning (Jacob idea #6) */}
+        {venue && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Check-in Range</Text>
+            <Text style={styles.cardHint}>
+              How forgiving check-in is here. Loosen it if guests near your walls or across a big room have trouble
+              checking in or get dropped too early. Most venues are fine on Standard.
+            </Text>
+            <View style={styles.chipWrap}>
+              {GEOFENCE_PRESETS.map((p) => {
+                const active = (venue.checkin_margin_m ?? 15) === p.checkin
+                return (
+                  <TouchableOpacity
+                    key={p.key}
+                    style={[styles.waitChip, active && styles.waitChipOn]}
+                    onPress={() => setGeofencePreset(p.checkin, p.presence)}
+                  >
+                    <Text style={[styles.waitChipText, active && styles.waitChipTextOn]}>{p.label}</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+            <Text style={styles.geoHint}>
+              {GEOFENCE_PRESETS.find((p) => (venue.checkin_margin_m ?? 15) === p.checkin)?.hint ?? GEOFENCE_PRESETS[1].hint}
+            </Text>
           </View>
         )}
 
@@ -1518,6 +1565,7 @@ const styles = StyleSheet.create({
   waitChipText:    { fontSize: 13, fontWeight: '700', color: '#7A93AC' },
   waitChipTextOn:  { color: '#29B6F6' },
   waitChipTextOff: { color: '#cbd5e1' },
+  geoHint: { fontSize: 12, color: '#7A93AC', lineHeight: 17, marginTop: 10 },
   customWaitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   customWaitInput: {
     width: 88, backgroundColor: '#07101F', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,

@@ -31,7 +31,7 @@ export default function AboutScreen() {
   const version = Constants.expoConfig?.version ?? '1.0.0'
 
   const openMail = () => {
-    const url = 'mailto:support@herenow.app'
+    const url = 'mailto:support@herenowsocial.com'
     if (Platform.OS === 'web') window.location.href = url
     else Linking.openURL(url)
   }
@@ -126,11 +126,25 @@ export default function AboutScreen() {
 
         <Section title="A growing network">
           <Para>
-            HereNow is also designed to help local businesses build stronger communities. Every new person
-            strengthens the community, every new venue creates more opportunities to explore, and every new city
-            expands the network. HereNow grows one community at a time, because strong local communities create
-            lasting networks. The goal is not simply to build another social platform. It is to strengthen the
-            social fabric of the places we already share.
+            HereNow is designed to strengthen the connections between people, places, and the communities that
+            bring them together. Every new person strengthens a local community, every new venue creates more
+            opportunities to explore, and every new city expands the network. As HereNow grows, those individual
+            communities become part of something much larger.
+          </Para>
+          <Para>
+            Organizations also play an important role in that ecosystem. Brands, universities, artists, nonprofits,
+            event organizers, sports teams, and other public entities can create Organization accounts to build
+            communities, share updates, promote events, and collaborate with participating venues. With a
+            venue&apos;s authorization, Organizations can communicate with guests through that venue while respecting
+            the privacy and control that are fundamental to HereNow.
+          </Para>
+          <Para>
+            By giving people, venues, and organizations dedicated tools designed for their unique roles, HereNow
+            creates a richer real-world experience for everyone involved.
+          </Para>
+          <Para>
+            The goal is not simply to build another social platform. It is to strengthen the social fabric of the
+            places we already share.
           </Para>
         </Section>
 
@@ -149,6 +163,11 @@ export default function AboutScreen() {
           <View style={styles.divider} />
           <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/legal/terms' as any)}>
             <Text style={styles.linkText}>Terms of Service</Text>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/legal/community' as any)}>
+            <Text style={styles.linkText}>Community Guidelines</Text>
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
           <View style={styles.divider} />

@@ -3,9 +3,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import BackButton from '@/components/BackButton'
 
+// A section body is a list of blocks. A plain string renders as a paragraph;
+// a { bullets } block renders as a bulleted list. This keeps existing
+// string[] bodies working unchanged while letting the new legal docs mix
+// paragraphs and lists the way the source documents do.
+export type LegalBlock = string | { bullets: string[] }
+
 export interface LegalSection {
   heading: string
-  body: string[]
+  body: LegalBlock[]
 }
 
 // Shared shell for the Privacy Policy and Terms screens: back header + a
@@ -42,9 +48,20 @@ export default function LegalDoc({
         {sections.map((s) => (
           <View key={s.heading} style={styles.section}>
             <Text style={styles.heading}>{s.heading}</Text>
-            {s.body.map((p, i) => (
-              <Text key={i} style={styles.paragraph}>{p}</Text>
-            ))}
+            {s.body.map((block, i) =>
+              typeof block === 'string' ? (
+                <Text key={i} style={styles.paragraph}>{block}</Text>
+              ) : (
+                <View key={i} style={styles.bulletList}>
+                  {block.bullets.map((b, j) => (
+                    <View key={j} style={styles.bulletRow}>
+                      <View style={styles.bulletDot} />
+                      <Text style={styles.bulletText}>{b}</Text>
+                    </View>
+                  ))}
+                </View>
+              )
+            )}
           </View>
         ))}
       </ScrollView>
@@ -67,4 +84,8 @@ const styles = StyleSheet.create({
   section: { marginBottom: 20 },
   heading: { fontSize: 16, fontWeight: '800', color: '#f8fafc', marginBottom: 8 },
   paragraph: { fontSize: 14, color: '#8EADC7', lineHeight: 21, marginBottom: 8 },
+  bulletList: { marginBottom: 8, gap: 6 },
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  bulletDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#29B6F6', marginTop: 8 },
+  bulletText: { flex: 1, fontSize: 14, color: '#8EADC7', lineHeight: 21 },
 })

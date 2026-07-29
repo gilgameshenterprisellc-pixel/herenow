@@ -80,6 +80,24 @@ const REDUCED_ACCURACY_HINT_M = 500
 // How long the check-in fix sampler is allowed to watch for a good reading.
 const CHECKIN_FIX_TIMEOUT_MS = 15_000
 
+// Per-venue geofence tuning (Jacob idea #6). A zone may override the global
+// margins via zones.checkin_margin_m / presence_margin_m (see
+// supabase/zone_geofence_margins.sql). NULL/missing column falls back to the
+// defaults above, so this is safe before the migration runs. The venue
+// dashboard only writes matched preset pairs, so presence >= checkin always
+// holds — the hysteresis band is preserved.
+async function getZoneMargins(zoneId: string): Promise<{ checkin: number; presence: number }> {
+  const { data } = await supabase
+    .from('zones')
+    .select('checkin_margin_m, presence_margin_m')
+    .eq('id', zoneId)
+    .maybeSingle()
+  return {
+    checkin:  (data as any)?.checkin_margin_m  ?? CHECKIN_MARGIN_M,
+    presence: (data as any)?.presence_margin_m ?? PRESENCE_MARGIN_M,
+  }
+}
+
 // Geofence boundary tolerance (metres). Check-in is tighter than eviction: you
 // must be within CHECKIN_MARGIN_M of the venue to check in, but you're only
 // evicted once you're CLEARLY beyond PRESENCE_MARGIN_M. The gap is a hysteresis
@@ -129,7 +147,9 @@ export async function checkIn(params: {
     return fail(coords.accuracy > REDUCED_ACCURACY_HINT_M ? 'precise_off' : 'low_accuracy', coords.accuracy)
   }
 
-  const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude, CHECKIN_MARGIN_M)
+  // Use this venue's own check-in margin if it has been tuned, else the default.
+  const margins = await getZoneMargins(params.zoneId)
+  const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude, margins.checkin)
   if (!inZone) {
     // A soft-band fix whose center is OUTSIDE isn't evidence either way — call
     // it low accuracy (retry) rather than "you're not here".
@@ -207,8 +227,9 @@ export async function verifyZonePresence(zoneId: string): Promise<PresenceCheck>
 
   // Keep-alive margin: only 'outside' when clearly beyond the geofence + buffer,
   // so edge positions and small drift never boot someone. Wider than the check-in
-  // margin (hysteresis band).
-  const inZone = await checkUserInZone(zoneId, coords.latitude, coords.longitude, PRESENCE_MARGIN_M)
+  // margin (hysteresis band). Uses this venue's tuned presence margin if set.
+  const margins = await getZoneMargins(zoneId)
+  const inZone = await checkUserInZone(zoneId, coords.latitude, coords.longitude, margins.presence)
   return inZone ? 'inside' : 'outside'
 }
 
