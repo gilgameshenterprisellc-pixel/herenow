@@ -40,6 +40,18 @@ export function applyPresenceReading(
   return { strikes: next, evict: false }
 }
 
+// Background auto-checkout rule. The OS geofence Exit event (a ~150m wake ring)
+// is only a hint; the background task re-verifies with a fresh, accuracy-gated
+// fix and checks the user out ONLY on a confirmed 'outside'. 'inside' and
+// 'unknown' (bad fix, no fix, or RPC error) must never end a session in the
+// background — the foreground verifier and the server staleness net handle a
+// genuine departure. Named + tested so this can't regress into evicting on
+// 'unknown'. Note this is a single confirmed read (no strike count): it already
+// requires the OS to have fired Exit on the 150m ring first.
+export function shouldBackgroundCheckout(reading: PresenceReading): boolean {
+  return reading === 'outside'
+}
+
 // Map a raw location outcome to a presence reading. Pure and total, so every
 // branch of the "should we trust this?" gate is testable:
 //   fix === null              -> 'unknown' (no fix at all)

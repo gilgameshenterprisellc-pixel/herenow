@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Platform } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import { checkOut, verifyZonePresence } from '@/lib/sessions'
+import { shouldBackgroundCheckout } from '@/lib/presence'
 import { notifyAutoCheckout } from '@/lib/notifications'
 
 export const GEOFENCE_TASK = 'HERENOW_GEOFENCE_TASK'
@@ -39,7 +40,7 @@ if (Platform.OS !== 'web') {
       // trust) leaves the session alone — the foreground verifier and the 30-min
       // server staleness net will catch a genuine departure.
       const presence = await verifyZonePresence(zoneId).catch(() => 'unknown' as const)
-      if (presence !== 'outside') return
+      if (!shouldBackgroundCheckout(presence)) return
 
       // Confirmed out of the venue — auto-checkout active session
       const { data: session } = await supabase
