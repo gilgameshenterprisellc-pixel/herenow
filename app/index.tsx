@@ -322,6 +322,10 @@ function WebLanding() {
           <TouchableOpacity onPress={() => router.push('/legal/terms')}>
             <Text style={s.footerLink}>Terms</Text>
           </TouchableOpacity>
+          <Text style={s.footerDot}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/legal/community' as any)}>
+            <Text style={s.footerLink}>Guidelines</Text>
+          </TouchableOpacity>
         </View>
         <Text style={s.footerCopy}>© 2026 Gilgamesh Enterprise LLC</Text>
       </View>

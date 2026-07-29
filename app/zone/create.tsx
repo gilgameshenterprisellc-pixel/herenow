@@ -165,7 +165,7 @@ export default function CreateZoneScreen() {
           <View style={styles.pendingDivider} />
           <Text style={styles.pendingHint}>
             Questions? Reach out at{' '}
-            <Text style={styles.pendingEmail}>support@herenow.app</Text>
+            <Text style={styles.pendingEmail}>support@herenowsocial.com</Text>
           </Text>
         </Reanimated.View>
         <Reanimated.View entering={FadeInDown.delay(250).duration(500)}>
