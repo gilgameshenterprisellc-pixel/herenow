@@ -2,6 +2,7 @@ import { Platform } from 'react-native'
 import { supabase } from './supabase'
 import { getBestCoords } from './location'
 import { checkUserInZone } from './zones'
+import { presenceFromFix, type PresenceReading } from './presence'
 import { logEvent } from './analytics'
 import { publicName } from './format'
 import { scheduleMorningRecapAlert } from './notifications'
@@ -150,6 +151,9 @@ export async function checkIn(params: {
   // Use this venue's own check-in margin if it has been tuned, else the default.
   const margins = await getZoneMargins(params.zoneId)
   const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude, margins.checkin)
+  // null = the RPC itself failed. Don't tell the user "you're not here" on a
+  // server error — let them retry.
+  if (inZone === null) return { ok: false, reason: 'failed' }
   if (!inZone) {
     // A soft-band fix whose center is OUTSIDE isn't evidence either way — call
     // it low accuracy (retry) rather than "you're not here".
@@ -206,8 +210,9 @@ export async function checkIn(params: {
 }
 
 // Presence verdict for an active session. 'unknown' means we couldn't get a fix
-// we trust — treat it as "stay checked in", never as grounds to evict.
-export type PresenceCheck = 'inside' | 'outside' | 'unknown'
+// we trust — treat it as "stay checked in", never as grounds to evict. The type
+// and the mapping live in ./presence so they can be unit-tested in isolation.
+export type PresenceCheck = PresenceReading
 
 // Re-verify that a user is physically in a zone, using the SAME accuracy bar as
 // check-in. This is the guard that was missing on the eviction paths: a fuzzy
@@ -222,15 +227,19 @@ export async function verifyZonePresence(zoneId: string): Promise<PresenceCheck>
   // 'outside', and two of those in a row evicted a stationary user (Jacob: booted
   // at the bar). getBestCoords watches briefly and takes the tightest fix.
   const coords = await getBestCoords(MAX_CHECKIN_ACCURACY_M, PRESENCE_FIX_TIMEOUT_MS)
-  if (!coords) return 'unknown'
-  if (coords.accuracy == null || coords.accuracy > MAX_CHECKIN_ACCURACY_M) return 'unknown'
 
-  // Keep-alive margin: only 'outside' when clearly beyond the geofence + buffer,
-  // so edge positions and small drift never boot someone. Wider than the check-in
-  // margin (hysteresis band). Uses this venue's tuned presence margin if set.
-  const margins = await getZoneMargins(zoneId)
-  const inZone = await checkUserInZone(zoneId, coords.latitude, coords.longitude, margins.presence)
-  return inZone ? 'inside' : 'outside'
+  // Only spend an RPC call on a fix we'd actually trust. An untrusted fix (none,
+  // or accuracy worse than the check-in bar) short-circuits to 'unknown' with no
+  // query. Keep-alive margin: only 'outside' when clearly beyond the geofence +
+  // buffer, so edge positions and small drift never boot someone (hysteresis
+  // band). Uses this venue's tuned presence margin if set. inZone is null when
+  // the RPC errors, which presenceFromFix maps to 'unknown' — never an eviction.
+  let inZone: boolean | null = null
+  if (coords && coords.accuracy != null && coords.accuracy <= MAX_CHECKIN_ACCURACY_M) {
+    const margins = await getZoneMargins(zoneId)
+    inZone = await checkUserInZone(zoneId, coords.latitude, coords.longitude, margins.presence)
+  }
+  return presenceFromFix(coords, inZone, MAX_CHECKIN_ACCURACY_M)
 }
 
 export async function updateSessionModes(

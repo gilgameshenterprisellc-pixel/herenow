@@ -5,6 +5,7 @@ import type { Session, CheckInResult } from '@/lib/sessions'
 import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut, touchSession, verifyZonePresence } from '@/lib/sessions'
 import type { SocialMode, MoodMode } from '@/lib/sessions'
 import { notifyAutoCheckout } from '@/lib/notifications'
+import { applyPresenceReading } from '@/lib/presence'
 
 interface SessionContextValue {
   activeSession: Session | null
@@ -25,13 +26,10 @@ const SessionContext = createContext<SessionContextValue>({
 const AUTO_CHECKOUT_MS = 3 * 60 * 1000  // 3 minutes — prompt leave detection
 const HEARTBEAT_MS     = 2 * 60 * 1000  // 2 minutes — keeps presence fresh
 
-// Require this many CONSECUTIVE trustworthy "outside" reads before evicting.
-// A single fix is not enough: indoor GPS glitches produce one-off outside reads
-// even when the person hasn't moved, which was booting people mid-visit. Any
-// confirmed inside read (or an untrusted fix) resets the count. At the 3-min
-// cadence, 2 strikes means ~6 minutes of continuous confirmed absence — long
-// enough to mean "actually left", short enough to drop a real departure.
-const EVICT_STRIKES = 2
+// The eviction rule (how many consecutive confirmed-outside reads it takes to
+// boot someone, and how 'inside'/'unknown' reset it) lives in lib/presence.ts
+// via applyPresenceReading, so it can be unit-tested against simulated GPS
+// traces. This provider just holds the running strike count between reads.
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<Session | null>(null)
@@ -92,14 +90,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!activeSession || Platform.OS === 'web') return
     try {
       const presence = await verifyZonePresence(activeSession.zone_id)
-      if (presence === 'inside' || presence === 'unknown') {
-        outsideStrikes.current = 0
-        return
-      }
-      // presence === 'outside' — trustworthy fix, confirmed out of the zone
-      outsideStrikes.current += 1
-      if (outsideStrikes.current >= EVICT_STRIKES) {
-        outsideStrikes.current = 0
+      // Single source of truth for the eviction rule (tested in isolation):
+      // 'inside'/'unknown' reset the count, 'outside' strikes, evict at the cap.
+      const { strikes, evict } = applyPresenceReading(outsideStrikes.current, presence)
+      outsideStrikes.current = strikes
+      if (evict) {
         const evictedId = activeSession.id
         const zoneName = await doCheckOut(evictedId)
         setActiveSession(null)

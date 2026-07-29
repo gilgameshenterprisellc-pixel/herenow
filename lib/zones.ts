@@ -122,7 +122,13 @@ export async function checkUserInZone(
   // when clearly outside). Requires the margin_m param on user_in_zone (see
   // supabase/geofence_margin.sql) — must be applied before this ships.
   marginM = 0
-): Promise<boolean> {
+): Promise<boolean | null> {
+  // Returns null (not false) when the RPC itself fails. This distinction is
+  // load-bearing: the presence verifier must treat "we couldn't determine it"
+  // as 'unknown' and NOT as grounds to evict. Collapsing an error to false is
+  // exactly what caused users to be booted mid-visit on a transient DB/SRID
+  // error before (see supabase/fix_user_in_zone_srid.sql). A confirmed false
+  // (data === false) still means "outside".
   const { data, error } = await supabase.rpc('user_in_zone', {
     zone_id: zoneId,
     user_lat: lat,
@@ -130,6 +136,9 @@ export async function checkUserInZone(
     margin_m: marginM,
   })
 
-  if (error) return false
-  return !!data
+  if (error) {
+    console.warn('[zones] user_in_zone RPC error:', error.message)
+    return null
+  }
+  return data === true
 }
