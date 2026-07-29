@@ -140,3 +140,42 @@ test('radius fallback respects radius + margin', () => {
   assert.equal(withinZone(offsetMeters(ANCHOR, 55, 0), circle, 0), false)  // 55 > 40
   assert.equal(withinZone(offsetMeters(ANCHOR, 55, 0), circle, 30), true)  // 55 < 40 + 30
 })
+
+// ── Harder real-world traces ────────────────────────────────────────────────
+
+test('cold GPS warm-up: several fuzzy fixes then a good inside fix never evicts', () => {
+  // Old phones return low-accuracy fixes for the first several seconds. Those
+  // are 'unknown' (>60m) and must not accumulate toward an eviction.
+  const ticks = [...stay(ANCHOR, 90, 4), ...stay(ANCHOR, 12, 6)]
+  assert.equal(runTrace(VENUE, ticks, PRESENCE_MARGIN).evicted, false)
+})
+
+test('phone in pocket: accuracy oscillating between trusted-inside and untrusted never evicts', () => {
+  const ticks: TickSpec[] = []
+  for (let i = 0; i < 24; i++) ticks.push({ pos: ANCHOR, accuracy: i % 2 ? 75 : 22 })
+  assert.equal(runTrace(VENUE, ticks, PRESENCE_MARGIN).evicted, false)
+})
+
+test('two separate multipath spikes (not consecutive) never evict', () => {
+  const out = offsetMeters(ANCHOR, 65, 0)
+  const ticks = [
+    ...stay(ANCHOR, 12, 1), ...stay(out, 10, 1),
+    ...stay(ANCHOR, 12, 1), ...stay(out, 10, 1),
+    ...stay(ANCHOR, 12, 2),
+  ]
+  assert.equal(runTrace(VENUE, ticks, PRESENCE_MARGIN).evicted, false)
+})
+
+test('slow drift outward eventually evicts once two consecutive reads clear the margin', () => {
+  // East offsets from inside to well beyond the wall (15m) + presence margin (30m).
+  const easts = [0, 10, 25, 40, 60, 80]
+  const ticks: TickSpec[] = easts.map((e) => ({ pos: offsetMeters(ANCHOR, e, 0), accuracy: 10 }))
+  assert.equal(runTrace(VENUE, ticks, PRESENCE_MARGIN).evicted, true)
+})
+
+test('walking out past a neighbor venue still evicts from the active venue (no bleed keeps you in)', () => {
+  // Straight walk north, through/near a neighbor centered 60m north, and beyond.
+  const norths = [0, 20, 55, 80, 105]
+  const ticks: TickSpec[] = norths.map((n) => ({ pos: offsetMeters(ANCHOR, 0, n), accuracy: 10 }))
+  assert.equal(runTrace(VENUE, ticks, PRESENCE_MARGIN).evicted, true)
+})

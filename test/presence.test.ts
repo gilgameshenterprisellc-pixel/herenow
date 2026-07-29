@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   applyPresenceReading,
   presenceFromFix,
+  shouldBackgroundCheckout,
   EVICT_STRIKES,
   MAX_PRESENCE_ACCURACY_M,
   type PresenceReading,
@@ -98,4 +99,12 @@ test('outside is only reachable via a trusted, confirmed-false fix', () => {
   // The only 'outside' entries must correspond to a trusted fix with inZone=false.
   assert.ok(readings.includes('outside'))
   assert.equal(presenceFromFix({ accuracy: 10 }, false), 'outside')
+})
+
+// ── shouldBackgroundCheckout: the background auto-checkout rule ──────────────
+
+test('background checkout fires ONLY on a confirmed outside, never on inside/unknown', () => {
+  assert.equal(shouldBackgroundCheckout('outside'), true)
+  assert.equal(shouldBackgroundCheckout('inside'), false)
+  assert.equal(shouldBackgroundCheckout('unknown'), false)
 })

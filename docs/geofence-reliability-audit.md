@@ -27,15 +27,18 @@ verification, and the eviction/hysteresis rules.
 | Concave / L-shaped footprint | geography `ST_DWithin` is concave-correct | OK (tested) |
 | Check-in edge tolerance vs false check-in | 15m in / 30m out hysteresis band | OK (tested) |
 | Cold GPS fix on old iPhones | `getBestCoords` waits up to 15s for convergence | OK (pre-existing) |
-| Multi-part venue (patio + interior) | `building_polygon` is single POLYGON | **Recommendation below** |
-| Invalid OSM polygon (self-intersecting) | no `ST_MakeValid` on insert | **Recommendation below** |
-| Wide default fallback radius | `auto_approve_venue` defaults 75m | **Recommendation below** |
+| Background OS Exit while still inside | re-verifies with an accuracy-gated fix; checks out ONLY on confirmed 'outside' | OK (rule named + tested) |
+| Multi-part venue (patio + interior) | `building_polygon` was single POLYGON | FIXED via `geofence_hardening.sql` (generic geography) |
+| Invalid OSM polygon (self-intersecting) | no repair on insert | FIXED via `geofence_hardening.sql` (ST_MakeValid trigger) |
+| Wide default fallback radius | `auto_approve_venue` defaults 75m | Recommendation (see below) |
 
 ## What changed (this pass)
 
 - **False-eviction on a server error is fixed.** `checkUserInZone` now returns `boolean | null` (`null` when the RPC itself fails) instead of collapsing an error to `false`. The presence verifier maps `null` to `'unknown'`, which never evicts. This is the exact class of bug called out in `fix_user_in_zone_srid.sql` (an SRID error once booted people); now *any* transient RPC error is safe.
 - **The eviction rule lives in one tested place.** `lib/presence.ts` (`applyPresenceReading`, `presenceFromFix`, `EVICT_STRIKES`) is pure and imported by both `sessions.ts` and `SessionContext.tsx`. The rule (2 consecutive confirmed-outside reads; inside/unknown reset; unknown never evicts) can no longer be changed by accident without a test noticing.
 - **Presence check-in no longer wastes an RPC on an untrusted fix** and treats a genuine RPC error as unknown.
+- **The background auto-checkout rule is named and test-locked.** `useGeofenceTask` now calls `shouldBackgroundCheckout(presence)` (only `'outside'` checks out); a future edit can't regress it into booting on `'unknown'`. Its containment decision already runs through the same tested `verifyZonePresence`.
+- **Server-side hardening is applied** in `supabase/geofence_hardening.sql`: `building_polygon` widened to generic geography (multi-part venues) + a repair-on-write trigger (`ST_MakeValid`), with no RPC or `user_in_zone` change. Run it once, then re-run `geofence_tests.sql`.
 
 ## What was tested, and how
 
@@ -48,27 +51,44 @@ Zero-dependency harness runnable with `npm test` (Node's built-in test runner, n
 
 26 client tests pass; app `tsc --noEmit` is clean.
 
-## Recommended server-side hardening (review + test before running)
+## Server-side hardening (migration provided)
 
-I could not execute PostGIS in this environment, so these are proposed, not applied. Test on a staging copy first.
+`supabase/geofence_hardening.sql` is written to be run once in Supabase. It is
+constructed to be low-risk and idempotent, and it changes no RPC body and no
+`user_in_zone` logic:
 
-1. **Repair OSM polygons on insert** (guards against self-intersecting/invalid geometry giving wrong containment). In `admin_setup_zone` and `auto_approve_venue`, replace `ST_GeogFromText(p_polygon_wkt)` with:
-   ```sql
-   ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeogFromText(p_polygon_wkt)::geometry), 3))::geography
-   ```
-2. **Support multi-part venues** (patio + interior, upstairs/downstairs). Change the column and let `user_in_zone` keep working unchanged (`ST_DWithin` accepts multipolygons):
-   ```sql
-   ALTER TABLE zones
-     ALTER COLUMN building_polygon TYPE geography(MULTIPOLYGON,4326)
-     USING ST_Multi(building_polygon::geometry)::geography;
-   ```
-   (Judgment call: a schema migration. Do it only if multi-part venues are actually needed for the soft launch.)
-3. **Tighten the default fallback radius.** `auto_approve_venue` defaults to 75m, which is wide for dense blocks and is the main adjacent-venue-bleed risk for venues with no polygon. Prefer a real polygon at approval; if a circle is unavoidable, default to ~30-40m.
+1. **Widen `building_polygon` to generic `geography`** so multi-part footprints
+   (patio + interior) are allowed. Generic geography accepts both polygons and
+   multipolygons, so the existing insert RPCs keep working with no type-mismatch.
+2. **Repair-on-write trigger** (`ST_MakeValid` + `ST_CollectionExtract(...,3)`) so
+   a self-intersecting/invalid OSM outline can never reach the containment check.
+3. **Coverage query** listing active venues with no polygon (circle fallback).
 
-## Honest open items (not yet closed)
+Still a recommendation, not in the migration: **tighten the 75m default fallback
+radius** in `auto_approve_venue` (change the `p_radius int DEFAULT 75` default to
+~30-40m). Left out to avoid reproducing the RPC body; it only affects venues
+approved with neither an explicit radius nor a polygon.
 
-- **Background-task GPS reliability.** `verifyZonePresence` uses `getBestCoords` (a brief watch). In a headless background task, watch behavior differs by OS/device and is hard to simulate; this needs real-device testing (backgrounded, phone in pocket) at Martha's, not just the simulator.
-- **PostGIS assertions are unrun here.** `supabase/geofence_tests.sql` is written to be correct but has not been executed against a live PostGIS in this pass. Run it once in Supabase to confirm.
-- **Polygon coverage.** The strongest guarantee (no adjacent-venue bleed, tight edges) comes from every venue having a real footprint polygon. Coverage of the actual soft-launch venues should be verified.
-- **Real-world margin tuning.** The 15m/30m defaults are reasonable but should be confirmed against the actual Martha's building, then per-venue tuned where needed (the #215 control).
+## Confidence + genuinely-open items
+
+Confident (closed in code + tests): the entire client-side decision path — no
+false eviction (server error, bad accuracy, jitter, spikes, flapping, cold-fix
+warm-up, phone-in-pocket), correct real-departure timing, adjacent-venue
+non-bleed, concave footprints, edge tolerance, and the background auto-checkout
+rule. Covered by the harness (`npm test`) and the PostGIS assertion script.
+
+Two things cannot be closed from this environment — they need a device or your
+Supabase, not more code:
+
+- **OS background-delivery timing.** The background *decision* is now tested, but
+  whether iOS/Android actually fire the Exit event promptly and deliver a fix in
+  the background window (phone in pocket, app killed) is inherently a real-device
+  test. Do one walk-out at Martha's with the app closed.
+- **Running the two SQL files once.** `geofence_hardening.sql` then
+  `geofence_tests.sql` in the Supabase SQL editor — I have no PostGIS here to
+  execute them. They are built to be safe and to raise loudly on any problem.
+
+Also worth a look before soft launch: **polygon coverage** (run the coverage
+query; give every soft-launch venue a real footprint) and **margin tuning**
+(confirm 15m/30m against the actual Martha's building; per-venue tune via #215).
 ```
