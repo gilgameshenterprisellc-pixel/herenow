@@ -49,7 +49,7 @@ Zero-dependency harness runnable with `npm test` (Node's built-in test runner, n
 - `test/geofence-sim.test.ts` - end-to-end simulated traces asserting the matrix above (no false eviction, no flapping, degraded-accuracy safety, RPC-error safety, real-departure eviction timing, adjacent-venue non-bleed, concave handling, edge tolerance, radius fallback).
 - `supabase/geofence_tests.sql` - server-side assertions (run in Supabase; writes nothing, raises on failure) proving boundary-inclusive containment, the two margins, clearly-outside rejection, and concave correctness on real PostGIS.
 
-26 client tests pass; app `tsc --noEmit` is clean.
+32 client tests pass; app `tsc --noEmit` is clean.
 
 ## Server-side hardening (migration provided)
 
@@ -69,26 +69,30 @@ radius** in `auto_approve_venue` (change the `p_radius int DEFAULT 75` default t
 ~30-40m). Left out to avoid reproducing the RPC body; it only affects venues
 approved with neither an explicit radius nor a polygon.
 
-## Confidence + genuinely-open items
+## Confidence + open items
 
-Confident (closed in code + tests): the entire client-side decision path — no
+Confident (closed in code + tests): the entire client-side decision path. No
 false eviction (server error, bad accuracy, jitter, spikes, flapping, cold-fix
 warm-up, phone-in-pocket), correct real-departure timing, adjacent-venue
 non-bleed, concave footprints, edge tolerance, and the background auto-checkout
-rule. Covered by the harness (`npm test`) and the PostGIS assertion script.
+rule. Covered by the harness (`npm test`, 32 passing) and, on the server, by the
+PostGIS assertion script.
 
-Two things cannot be closed from this environment — they need a device or your
-Supabase, not more code:
+Server side is confirmed on production (Jul 29, 2026): `geofence_tests.sql` ran
+green ("all assertions passed") and `geofence_hardening.sql` was applied
+(building_polygon widened to generic geography, repair trigger installed). The
+coverage query returned no rows, so no active venue is on the circle fallback.
 
-- **OS background-delivery timing.** The background *decision* is now tested, but
-  whether iOS/Android actually fire the Exit event promptly and deliver a fix in
-  the background window (phone in pocket, app killed) is inherently a real-device
-  test. Do one walk-out at Martha's with the app closed.
-- **Running the two SQL files once.** `geofence_hardening.sql` then
-  `geofence_tests.sql` in the Supabase SQL editor — I have no PostGIS here to
-  execute them. They are built to be safe and to raise loudly on any problem.
+One thing genuinely cannot be closed from code. It needs a phone:
 
-Also worth a look before soft launch: **polygon coverage** (run the coverage
-query; give every soft-launch venue a real footprint) and **margin tuning**
-(confirm 15m/30m against the actual Martha's building; per-venue tune via #215).
+- **OS background-delivery timing.** The background decision is tested, but
+  whether iOS actually fires the geofence Exit event promptly and delivers a fix
+  in the background window (phone in pocket, app killed) is a real-device test.
+  Do one walk-out at a venue with the app closed.
+
+Still worth doing before soft launch: **margin tuning** (confirm 15m/30m against
+the real venue buildings; per-venue tune via #215) and keeping **polygon
+coverage** at 100% as venues are added (re-run the coverage query). Still a
+recommendation, not applied: tighten the 75m default fallback radius in
+`auto_approve_venue`.
 ```
