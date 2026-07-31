@@ -68,16 +68,29 @@ export async function fetchBuildingPolygon(
   lat: number,
   lng: number,
 ): Promise<BuildingPolygon | null> {
-  // Broad search: catches buildings tagged with building=*, amenity=*, or leisure=*,
-  // and closed ways with any tags (catches polygons the editor drew without a specific tag).
-  // 200m radius handles Mapbox street-center geocoding offsets on dense city blocks.
+  // Broad search near the venue point. We catch the real building footprint
+  // (building=* ways/relations) plus the common venue area tags (amenity, shop,
+  // leisure, office, tourism, craft), AND any *named* closed way in a tight
+  // radius. That last clause is the important one: it catches a footprint an
+  // editor hand-drew for this venue and named (e.g. "Martha My Dear") even if
+  // they never added a building tag. The previous query's comment claimed to do
+  // this but the query only matched building/amenity/leisure, so a hand-drawn or
+  // shop/office-tagged outline was silently missed. All POI radii now match the
+  // building radius so a footprint isn't dropped for sitting past a tighter ring
+  // when Mapbox geocodes to the street center. pickBestPolygon() below rejects
+  // roads/parcels/neighbors by size + containment, so casting a wide net is safe.
   const query =
-    `[out:json][timeout:15];` +
+    `[out:json][timeout:25];` +
     `(` +
-    `  way["building"](around:200,${lat},${lng});` +
-    `  relation["building"](around:200,${lat},${lng});` +
-    `  way["amenity"](around:100,${lat},${lng});` +
-    `  way["leisure"](around:100,${lat},${lng});` +
+    `  way["building"](around:220,${lat},${lng});` +
+    `  relation["building"](around:220,${lat},${lng});` +
+    `  way["amenity"](around:200,${lat},${lng});` +
+    `  way["shop"](around:200,${lat},${lng});` +
+    `  way["leisure"](around:200,${lat},${lng});` +
+    `  way["office"](around:200,${lat},${lng});` +
+    `  way["tourism"](around:200,${lat},${lng});` +
+    `  way["craft"](around:200,${lat},${lng});` +
+    `  way["name"](around:80,${lat},${lng});` +
     `);out geom;`
 
   try {

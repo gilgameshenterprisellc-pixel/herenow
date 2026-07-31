@@ -33,6 +33,11 @@ function parseWktRing(wkt?: string | null): [number, number][] {
 export function PolygonDrawMap({ lat, lng, onPolygon, onClear, existingWkt }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const existingRing = parseWktRing(existingWkt)
+  // Mapbox satellite tiles when a token is configured (licensed — the org already
+  // pays for Mapbox), falling back to Esri World Imagery if it is missing. Avoids
+  // leaning on Esri's public basemap, whose terms aren't a clean fit for a
+  // commercial product.
+  const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? ''
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -83,10 +88,16 @@ export function PolygonDrawMap({ lat, lng, onPolygon, onClear, existingWkt }: Pr
 </div>
 <script>
 var map=L.map('map',{zoomControl:true,maxZoom:22}).setView([${lat},${lng}],20)
-// Satellite base so the building roofline is actually visible to trace.
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Imagery © Esri'}).addTo(map)
-// Street + place labels on top for orientation.
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,opacity:0.85}).addTo(map)
+// Satellite base so the building roofline is actually visible to trace. Mapbox
+// (licensed) when a token is present; Esri World Imagery as a fallback so the
+// tool still works if the token is ever missing.
+var MBTOKEN=${JSON.stringify(mapboxToken)}
+if(MBTOKEN){
+  L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token='+MBTOKEN,{tileSize:512,zoomOffset:-1,maxZoom:22,attribution:'© Mapbox © OpenStreetMap'}).addTo(map)
+}else{
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Imagery © Esri'}).addTo(map)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,opacity:0.85}).addTo(map)
+}
 // Draw the currently-saved zone in red so you can see if it is off the building.
 var existing=${JSON.stringify(existingRing)}
 if(existing.length>=3){
