@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { Platform, View } from 'react-native'
 import { Stack, router } from 'expo-router'
+import type { ErrorBoundaryProps } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import AppErrorFallback from '@/components/AppErrorFallback'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { useGeofenceTask } from '@/hooks/useGeofenceTask'
 import { useNotificationTaps } from '@/hooks/useNotificationTaps'
@@ -116,6 +118,13 @@ function RootLayout() {
       </View>
     </ToastProvider>
   )
+}
+
+// Root error boundary — catches any render error a screen throws so the app
+// shows a recoverable card instead of a permanent black screen. Expo Router
+// picks this up automatically from the root layout's `ErrorBoundary` export.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <AppErrorFallback error={error} retry={retry} />
 }
 
 // Wrap so Sentry captures render errors and attaches navigation/context to
