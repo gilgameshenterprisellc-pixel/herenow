@@ -10,7 +10,9 @@ import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
+import type { ErrorBoundaryProps } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import AppErrorFallback from '@/components/AppErrorFallback'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { getActivePeople, updateSessionModes, allSocialModes, setSessionGhost } from '@/lib/sessions'
 import BackButton from '@/components/BackButton'
@@ -63,6 +65,15 @@ const VIBE_MOOD_OPTIONS: { mode: MoodMode; label: string; color: string }[] = [
   { mode: 'selective', label: 'Selective', color: '#29B6F6' },
   { mode: 'not_today', label: 'Not Today', color: '#7A93AC' },
 ]
+
+// Local error boundary for the venue screen. This is the screen the app lands on
+// right after check-in, and a render error here used to black-screen the whole
+// app (Jacob, Jul 2026). Catching it here keeps the rest of navigation alive and
+// gives the user a way back to the map. Expo Router wires this up from the
+// route's `ErrorBoundary` export.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <AppErrorFallback error={error} retry={retry} />
+}
 
 export default function ZoneScreen() {
   const { id }                     = useLocalSearchParams<{ id: string }>()

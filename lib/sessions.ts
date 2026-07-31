@@ -84,18 +84,29 @@ const CHECKIN_FIX_TIMEOUT_MS = 15_000
 // Per-venue geofence tuning (Jacob idea #6). A zone may override the global
 // margins via zones.checkin_margin_m / presence_margin_m (see
 // supabase/zone_geofence_margins.sql). NULL/missing column falls back to the
-// defaults above, so this is safe before the migration runs. The venue
+// defaults below, so this is safe before the migration runs. The venue
 // dashboard only writes matched preset pairs, so presence >= checkin always
 // holds — the hysteresis band is preserved.
+//
+// Polygon-aware defaults: a venue with a real building footprint (polygon_source
+// set at OSM fetch / manual trace) uses the TIGHT polygon margins; a circle-only
+// venue uses the looser circle margins. This is the fix for checking in from the
+// street (Jacob, Jul 2026): the footprint is already the true shape of the place,
+// so it needs almost no buffer, whereas a flat 15m buffer on a real footprint
+// pushes the effective geofence back out to the sidewalk. Explicit per-venue
+// overrides always win over both defaults.
 async function getZoneMargins(zoneId: string): Promise<{ checkin: number; presence: number }> {
   const { data } = await supabase
     .from('zones')
-    .select('checkin_margin_m, presence_margin_m')
+    .select('checkin_margin_m, presence_margin_m, polygon_source')
     .eq('id', zoneId)
     .maybeSingle()
+  const hasPolygon = !!(data as any)?.polygon_source
+  const checkinDefault  = hasPolygon ? POLYGON_CHECKIN_MARGIN_M  : CHECKIN_MARGIN_M
+  const presenceDefault = hasPolygon ? POLYGON_PRESENCE_MARGIN_M : PRESENCE_MARGIN_M
   return {
-    checkin:  (data as any)?.checkin_margin_m  ?? CHECKIN_MARGIN_M,
-    presence: (data as any)?.presence_margin_m ?? PRESENCE_MARGIN_M,
+    checkin:  (data as any)?.checkin_margin_m  ?? checkinDefault,
+    presence: (data as any)?.presence_margin_m ?? presenceDefault,
   }
 }
 
@@ -107,6 +118,13 @@ async function getZoneMargins(zoneId: string): Promise<{ checkin: number; presen
 // venue test — these are the two dials for the whole geofence feel.
 const CHECKIN_MARGIN_M  = 15
 const PRESENCE_MARGIN_M = 30
+// Polygon margins (metres) — used when the venue has a real building footprint.
+// Much tighter than the circle margins: the polygon is already the true shape of
+// the place, so check-in needs only a small wall-jitter buffer, not a 15m ring
+// that reaches the street. Hysteresis preserved (presence 25 > checkin 8). These
+// two are the dials to tune on Jacob's on-site polygon test.
+const POLYGON_CHECKIN_MARGIN_M  = 8
+const POLYGON_PRESENCE_MARGIN_M = 25
 // Presence poll watches for a fix for up to this long — shorter than check-in
 // since it runs on a background timer, but still multi-sampled (not one-shot).
 const PRESENCE_FIX_TIMEOUT_MS = 8_000
