@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import type { Session, CheckInResult } from '@/lib/sessions'
 import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut, touchSession, verifyZonePresence } from '@/lib/sessions'
 import type { SocialMode, MoodMode } from '@/lib/sessions'
-import { notifyAutoCheckout } from '@/lib/notifications'
+import { notifyAutoCheckout, notifyLeavingGeofence } from '@/lib/notifications'
 import { applyPresenceReading } from '@/lib/presence'
 
 interface SessionContextValue {
@@ -102,6 +102,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // returns null when it was already checked out (e.g. the geofence task
         // beat us to it), so the user never gets two "checked out" alerts.
         if (zoneName) await notifyAutoCheckout(zoneName, evictedId)
+      } else if (strikes === 1) {
+        // First confirmed 'outside' read. Warn before the next strike checks them
+        // out, so someone who just stepped outside can head back (Jacob's ask: a
+        // grace window and a heads-up, not an instant boot at the perimeter).
+        // Eviction still needs the second strike, so this never ends a session.
+        const { data: z } = await supabase
+          .from('zones').select('name').eq('id', activeSession.zone_id).maybeSingle()
+        await notifyLeavingGeofence((z as any)?.name ?? null)
       }
     } catch {
       // Location unavailable — skip, try again next tick
