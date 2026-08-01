@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase'
 import ZoneCard from '@/components/ZoneCard'
 import NearbyMap from '@/components/NearbyMap'
 import AnimatedBackground from '@/components/AnimatedBackground'
+import AttributionPrompt from '@/components/AttributionPrompt'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import type { Zone } from '@/lib/zones'
 
@@ -106,6 +107,7 @@ export default function NearbyScreen() {
   const [loading, setLoading]           = useState(false)
   const [selectedId, setSelectedId]     = useState<string | null>(null)
   const [isVenueOwner, setIsVenueOwner] = useState(false)
+  const [showAttribution, setShowAttribution] = useState(false)
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery]   = useState('')
   const [searchResults, setSearchResults] = useState<Zone[]>([])
@@ -152,6 +154,16 @@ export default function NearbyScreen() {
       supabase.from('profiles').select('is_venue_owner').eq('id', user.id)
         .maybeSingle().then(({ data }) => {
           setIsVenueOwner(data?.is_venue_owner ?? false)
+        })
+      // Separate query on purpose: if the attribution columns aren't migrated yet
+      // this select can error without breaking owner detection above. Shows the
+      // one-time "which venue brought you" prompt to regular users who haven't
+      // answered it (venue owners are skipped — they weren't brought in by a venue).
+      supabase.from('profiles').select('attribution_done, is_venue_owner').eq('id', user.id)
+        .maybeSingle().then(({ data }) => {
+          if (data && data.attribution_done === false && !data.is_venue_owner) {
+            setShowAttribution(true)
+          }
         })
     })
   }, [])
@@ -273,6 +285,7 @@ export default function NearbyScreen() {
   return (
     <View style={styles.container}>
       <AnimatedBackground />
+      <AttributionPrompt visible={showAttribution} onDone={() => setShowAttribution(false)} />
 
       <NearbyMap
         zones={filteredZones}

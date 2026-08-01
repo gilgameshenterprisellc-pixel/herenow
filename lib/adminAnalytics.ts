@@ -34,6 +34,7 @@ export interface VenuePerformance {
   unique_visitors:    number
   returning_visitors: number
   scans:              number
+  attributed_signups: number
   subscriptions:      number
 }
 
