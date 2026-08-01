@@ -139,6 +139,17 @@ export default function AdminOverview() {
               <Text style={styles.arrow}>›</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/analytics' as any)}>
+              <View style={styles.actionLeft}>
+                <Ionicons name={'stats-chart-outline' as any} size={22} color="#29B6F6" style={styles.actionEmoji} />
+                <View>
+                  <Text style={styles.actionTitle}>Pilot Dashboard</Text>
+                  <Text style={styles.actionSub}>Funnel, active users, venue performance, QR conversion</Text>
+                </View>
+              </View>
+              <Text style={styles.arrow}>›</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/qr' as any)}>
               <View style={styles.actionLeft}>
                 <Ionicons name={'qr-code-outline' as any} size={22} color="#29B6F6" style={styles.actionEmoji} />
