@@ -87,27 +87,34 @@ export default function AdminAnalytics() {
           {/* Venue performance */}
           <Text style={styles.section}>Venue performance</Text>
           <View style={styles.panel}>
-            <View style={[styles.vRow, styles.vHead]}>
-              <Text style={[styles.vName, styles.vHeadText]}>Venue</Text>
-              <Text style={[styles.vCell, styles.vHeadText]}>Chk</Text>
-              <Text style={[styles.vCell, styles.vHeadText]}>Uniq</Text>
-              <Text style={[styles.vCell, styles.vHeadText]}>Ret</Text>
-              <Text style={[styles.vCell, styles.vHeadText]}>Scan</Text>
-              <Text style={[styles.vCell, styles.vHeadText]}>Sub</Text>
-            </View>
-            {venues.length === 0 ? (
-              <Text style={styles.empty}>No venues yet.</Text>
-            ) : venues.map((v) => (
-              <View key={v.zone_id} style={styles.vRow}>
-                <Text style={styles.vName} numberOfLines={1}>{v.name}</Text>
-                <Text style={styles.vCell}>{v.checkins}</Text>
-                <Text style={styles.vCell}>{v.unique_visitors}</Text>
-                <Text style={styles.vCell}>{v.returning_visitors}</Text>
-                <Text style={styles.vCell}>{v.scans}</Text>
-                <Text style={styles.vCell}>{v.subscriptions}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View>
+                <View style={[styles.vRow, styles.vHead]}>
+                  <Text style={[styles.vName, styles.vHeadText]}>Venue</Text>
+                  <Text style={[styles.vCell, styles.vHeadText]}>Chk</Text>
+                  <Text style={[styles.vCell, styles.vHeadText]}>Uniq</Text>
+                  <Text style={[styles.vCell, styles.vHeadText]}>Ret</Text>
+                  <Text style={[styles.vCell, styles.vHeadText]}>Scan</Text>
+                  <Text style={[styles.vCell, styles.vHeadText]}>Sgn</Text>
+                  <Text style={[styles.vCell, styles.vHeadText]}>Sub</Text>
+                </View>
+                {venues.length === 0 ? (
+                  <Text style={styles.empty}>No venues yet.</Text>
+                ) : venues.map((v) => (
+                  <View key={v.zone_id} style={styles.vRow}>
+                    <Text style={styles.vName} numberOfLines={1}>{v.name}</Text>
+                    <Text style={styles.vCell}>{v.checkins}</Text>
+                    <Text style={styles.vCell}>{v.unique_visitors}</Text>
+                    <Text style={styles.vCell}>{v.returning_visitors}</Text>
+                    <Text style={styles.vCell}>{v.scans}</Text>
+                    <Text style={styles.vCell}>{v.attributed_signups}</Text>
+                    <Text style={styles.vCell}>{v.subscriptions}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
+            </ScrollView>
           </View>
+          <Text style={styles.legend}>Chk check-ins · Uniq unique visitors · Ret returning · Scan QR scans · Sgn signups driven · Sub subscriptions</Text>
 
           <Text style={styles.footnote}>
             Check-ins come from the sessions table. Retention curves (D1/D7/D30) and
@@ -168,7 +175,8 @@ const styles = StyleSheet.create({
   vRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#0A1626' },
   vHead: { borderBottomColor: '#1A2E4A' },
   vHeadText: { color: '#5b7089', fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  vName: { flex: 1, color: '#f8fafc', fontSize: 13, fontWeight: '600' },
-  vCell: { width: 40, textAlign: 'center', color: '#cde0f0', fontSize: 13 },
+  vName: { width: 130, color: '#f8fafc', fontSize: 13, fontWeight: '600' },
+  vCell: { width: 44, textAlign: 'center', color: '#cde0f0', fontSize: 13 },
+  legend: { color: '#5b7089', fontSize: 10, marginTop: 6, lineHeight: 14 },
   footnote: { color: '#5b7089', fontSize: 11, lineHeight: 16, marginTop: 12 },
 })
