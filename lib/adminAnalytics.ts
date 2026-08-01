@@ -54,3 +54,18 @@ export async function fetchPlacementStats(): Promise<PlacementStat[]> {
   if (error) { console.warn('[analytics] placements:', error.message); return [] }
   return (data as PlacementStat[]) ?? []
 }
+
+export interface Retention {
+  d1:                    number  // rolling retention %, see admin_retention.sql
+  d7:                    number
+  d30:                   number
+  avg_checkins_per_user: number
+  avg_venues_per_user:   number
+  avg_session_minutes:   number
+}
+
+export async function fetchRetention(): Promise<Retention | null> {
+  const { data, error } = await supabase.rpc('admin_retention')
+  if (error) { console.warn('[analytics] retention:', error.message); return null }
+  return data as Retention
+}
