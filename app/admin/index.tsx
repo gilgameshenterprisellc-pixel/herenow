@@ -139,6 +139,17 @@ export default function AdminOverview() {
               <Text style={styles.arrow}>›</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/qr' as any)}>
+              <View style={styles.actionLeft}>
+                <Ionicons name={'qr-code-outline' as any} size={22} color="#29B6F6" style={styles.actionEmoji} />
+                <View>
+                  <Text style={styles.actionTitle}>QR Codes</Text>
+                  <Text style={styles.actionSub}>Generate per-placement codes and track scans</Text>
+                </View>
+              </View>
+              <Text style={styles.arrow}>›</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/admin/reports' as any)}>
               <View style={styles.actionLeft}>
                 <Ionicons name={UI.reports} size={22} color="#29B6F6" style={styles.actionEmoji} />
