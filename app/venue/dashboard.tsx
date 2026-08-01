@@ -27,6 +27,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { useVenueChat } from '@/hooks/useVenueChat'
 import PulsePostCard from '@/components/PulsePostCard'
 import ChatMessage from '@/components/ChatMessage'
+import { listQrCodes, qrScanCounts, placementLabel } from '@/lib/qr'
 
 interface VenueZone {
   id: string
@@ -106,6 +107,7 @@ export default function VenueDashboard() {
   const [wemetsToday, setWemetsToday] = useState(0)
   const [pendingPhotos, setPendingPhotos] = useState<PendingVenuePhoto[]>([])
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [venueQr, setVenueQr] = useState<{ id: string; placement: string; label: string | null; scans: number }[]>([])
   const [isClosed, setIsClosed]           = useState(false)
   const [closureMessage, setClosureMessage] = useState('')
   const [closureEditing, setClosureEditing] = useState(false)
@@ -160,6 +162,19 @@ export default function VenueDashboard() {
     pulse.start()
     return () => pulse.stop()
   }, [])
+
+  // This venue's own QR scan performance (owner-readable via RLS). Shown in the
+  // Analytics tab so a venue can see which printed placement is actually working.
+  useEffect(() => {
+    if (!venue?.id) return
+    let cancelled = false
+    ;(async () => {
+      const [codes, counts] = await Promise.all([listQrCodes(venue.id), qrScanCounts(venue.id)])
+      if (cancelled) return
+      setVenueQr(codes.map((c) => ({ id: c.id, placement: c.placement, label: c.label, scans: counts[c.id] ?? 0 })))
+    })()
+    return () => { cancelled = true }
+  }, [venue?.id])
 
   const load = useCallback(async () => {
     try {
@@ -1036,6 +1051,18 @@ export default function VenueDashboard() {
         </>)}
 
         {dashTab === 'analytics' && (<>
+        {/* QR performance — which printed placement is actually getting scanned */}
+        {venueQr.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>QR Code Performance</Text>
+            {venueQr.map((q) => (
+              <View key={q.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#0A1626' }}>
+                <Text style={{ color: '#cde0f0', fontSize: 14 }}>{q.label ?? placementLabel(q.placement)}</Text>
+                <Text style={{ color: '#29B6F6', fontSize: 14, fontWeight: '700' }}>{q.scans} scans</Text>
+              </View>
+            ))}
+          </View>
+        )}
         {/* Age breakdown */}
         {stats.total > 0 && Object.keys(stats.ageRanges).length > 0 && (
           <View style={styles.card}>
