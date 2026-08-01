@@ -2,10 +2,23 @@
 // Mirrors the WebMap.web.tsx props contract exactly so NearbyMap doesn't branch.
 // Metro resolves WebMap.web.tsx on web and this file on native.
 import { useEffect, useRef, useMemo } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
-import MapView, { Marker, Circle, Polygon, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native'
+import MapView, { Marker, Circle, Polygon, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
+import Constants from 'expo-constants'
 import type { Zone } from '@/lib/zones'
+import { BLACK_MAP_STYLE } from '@/lib/mapStyle'
+
+// Use Google Maps (pitch-black custom style, and heatmap-capable for later) only
+// when a Maps API key is configured in app.json. Otherwise fall back to Apple Maps
+// in dark mode. This is safe to ship BEFORE the key exists: the map never goes
+// blank, it just stays on the current Apple dark map until the key is added and
+// the app is rebuilt.
+const GOOGLE_MAPS_KEY =
+  Platform.OS === 'ios'
+    ? (Constants.expoConfig as any)?.ios?.config?.googleMapsApiKey
+    : (Constants.expoConfig as any)?.android?.config?.googleMaps?.apiKey
+const USE_GOOGLE = !!GOOGLE_MAPS_KEY
 
 interface Props {
   zones: Zone[]
@@ -142,7 +155,7 @@ export default function WebMap({
     <View style={styles.wrap}>
       <MapView
         ref={mapRef}
-        provider={PROVIDER_DEFAULT}
+        provider={USE_GOOGLE ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
         showsUserLocation
@@ -150,7 +163,10 @@ export default function WebMap({
         userInterfaceStyle="dark"
         // Keep the map app-specific: only participating venues should be
         // identifiable, not real-world businesses (Jacob — no Shell station).
-        mapType="mutedStandard"
+        // Google uses 'standard' + the pitch-black customMapStyle; Apple uses
+        // 'mutedStandard' dark (its darkest — customMapStyle is a no-op on Apple).
+        mapType={USE_GOOGLE ? 'standard' : 'mutedStandard'}
+        customMapStyle={USE_GOOGLE ? BLACK_MAP_STYLE : undefined}
         showsPointsOfInterest={false}
         showsBuildings={false}
         onRegionChangeComplete={(r) => onMapMove?.(r.latitude, r.longitude)}
