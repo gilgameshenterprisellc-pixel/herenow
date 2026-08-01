@@ -1,0 +1,55 @@
+import { supabase } from './supabase'
+
+// Admin analytics for the Neighborhood Pilot dashboard. Thin wrappers over the
+// SECURITY DEFINER RPCs in supabase/admin_analytics.sql — all admin-gated in the
+// DB, so a non-admin call just errors and we return an empty result.
+
+export interface PilotOverview {
+  total_scans:         number
+  scans_7d:            number
+  total_accounts:      number
+  accounts_7d:         number
+  profiles_completed:  number
+  total_checkins:      number
+  checkins_7d:         number
+  checked_in_users:    number
+  repeat_users:        number
+  multi_venue_users:   number
+  wau:                 number
+  mau:                 number
+  total_subscriptions: number
+  total_venues:        number
+}
+
+export async function fetchPilotOverview(): Promise<PilotOverview | null> {
+  const { data, error } = await supabase.rpc('admin_pilot_overview')
+  if (error) { console.warn('[analytics] overview:', error.message); return null }
+  return data as PilotOverview
+}
+
+export interface VenuePerformance {
+  zone_id:            string
+  name:               string
+  checkins:           number
+  unique_visitors:    number
+  returning_visitors: number
+  scans:              number
+  subscriptions:      number
+}
+
+export async function fetchVenuePerformance(): Promise<VenuePerformance[]> {
+  const { data, error } = await supabase.rpc('admin_venue_performance')
+  if (error) { console.warn('[analytics] venues:', error.message); return [] }
+  return (data as VenuePerformance[]) ?? []
+}
+
+export interface PlacementStat {
+  placement: string
+  scans:     number
+}
+
+export async function fetchPlacementStats(): Promise<PlacementStat[]> {
+  const { data, error } = await supabase.rpc('admin_qr_placement_stats')
+  if (error) { console.warn('[analytics] placements:', error.message); return [] }
+  return (data as PlacementStat[]) ?? []
+}
