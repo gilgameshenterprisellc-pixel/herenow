@@ -226,6 +226,29 @@ export async function notifyAutoCheckout(zoneName: string | null, sessionId?: st
   }
 }
 
+// Heads-up fired on the FIRST confirmed 'outside' read, before the next strike
+// actually checks the user out. Jacob's ask (Jul 2026): don't boot instantly at
+// the perimeter, warn first and give a grace window to head back in. The actual
+// check-out still needs a second confirmed 'outside' read (EVICT_STRIKES), so
+// this is a warning, not the eviction. Native only.
+export async function notifyLeavingGeofence(zoneName: string | null): Promise<void> {
+  if (Platform.OS === 'web') return
+  try {
+    const Notifications = await import('expo-notifications')
+    const where = zoneName ?? 'the venue'
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `Still at ${where}?`,
+        body:  "Looks like you stepped away. Head back soon or we'll check you out.",
+        data:  { type: 'geofence_warning' },
+      },
+      trigger: null, // fire immediately
+    })
+  } catch (e) {
+    console.warn('[notifications] notifyLeavingGeofence error:', e)
+  }
+}
+
 // Unified helper: always inserts in-app row; fires push only if user has that type enabled
 export async function sendNotification(params: {
   userId: string
