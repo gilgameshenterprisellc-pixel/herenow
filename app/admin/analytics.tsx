@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import BackButton from '@/components/BackButton'
 import { placementLabel } from '@/lib/qr'
 import {
-  fetchPilotOverview, fetchVenuePerformance, fetchPlacementStats,
-  type PilotOverview, type VenuePerformance, type PlacementStat,
+  fetchPilotOverview, fetchVenuePerformance, fetchPlacementStats, fetchRetention,
+  type PilotOverview, type VenuePerformance, type PlacementStat, type Retention,
 } from '@/lib/adminAnalytics'
 
 const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0)
@@ -17,16 +17,18 @@ export default function AdminAnalytics() {
   const [overview, setOverview]   = useState<PilotOverview | null>(null)
   const [venues, setVenues]       = useState<VenuePerformance[]>([])
   const [placements, setPlacements] = useState<PlacementStat[]>([])
+  const [retention, setRetention]   = useState<Retention | null>(null)
   const [loading, setLoading]     = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const load = useCallback(async () => {
-    const [o, v, p] = await Promise.all([
-      fetchPilotOverview(), fetchVenuePerformance(), fetchPlacementStats(),
+    const [o, v, p, r] = await Promise.all([
+      fetchPilotOverview(), fetchVenuePerformance(), fetchPlacementStats(), fetchRetention(),
     ])
     setOverview(o)
     setVenues(v)
     setPlacements(p)
+    setRetention(r)
     setLoading(false)
     setRefreshing(false)
   }, [])
@@ -69,6 +71,18 @@ export default function AdminAnalytics() {
             {funnelRow('Checked in (activated)', o?.checked_in_users ?? 0, pct(o?.checked_in_users ?? 0, o?.total_accounts ?? 0))}
             {funnelRow('Repeat check-in', o?.repeat_users ?? 0, pct(o?.repeat_users ?? 0, o?.checked_in_users ?? 0))}
             {funnelRow('Multi-venue', o?.multi_venue_users ?? 0, pct(o?.multi_venue_users ?? 0, o?.checked_in_users ?? 0))}
+          </View>
+
+          {/* Retention & activation */}
+          <Text style={styles.section}>Retention &amp; activation</Text>
+          <View style={styles.panel}>
+            <View style={styles.row}><Text style={styles.rowLabel}>Day 1 retention</Text><Text style={styles.rowValue}>{retention?.d1 ?? 0}%</Text></View>
+            <View style={styles.row}><Text style={styles.rowLabel}>Day 7 retention</Text><Text style={styles.rowValue}>{retention?.d7 ?? 0}%</Text></View>
+            <View style={styles.row}><Text style={styles.rowLabel}>Day 30 retention</Text><Text style={styles.rowValue}>{retention?.d30 ?? 0}%</Text></View>
+            <View style={styles.row}><Text style={styles.rowLabel}>Avg check-ins per user</Text><Text style={styles.rowValue}>{retention?.avg_checkins_per_user ?? 0}</Text></View>
+            <View style={styles.row}><Text style={styles.rowLabel}>Avg venues per user</Text><Text style={styles.rowValue}>{retention?.avg_venues_per_user ?? 0}</Text></View>
+            <View style={styles.row}><Text style={styles.rowLabel}>Avg time checked in</Text><Text style={styles.rowValue}>{retention?.avg_session_minutes ?? 0} min</Text></View>
+            <View style={styles.row}><Text style={styles.rowLabel}>Never checked in</Text><Text style={styles.rowValue}>{pct((o?.total_accounts ?? 0) - (o?.checked_in_users ?? 0), o?.total_accounts ?? 0)}%</Text></View>
           </View>
 
           {/* QR placement conversion */}
