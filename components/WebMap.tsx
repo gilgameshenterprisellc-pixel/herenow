@@ -2,23 +2,17 @@
 // Mirrors the WebMap.web.tsx props contract exactly so NearbyMap doesn't branch.
 // Metro resolves WebMap.web.tsx on web and this file on native.
 import { useEffect, useRef, useMemo } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native'
-import MapView, { Marker, Circle, Polygon, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region } from 'react-native-maps'
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
+import MapView, { Marker, Circle, Polygon, UrlTile, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
-import Constants from 'expo-constants'
 import type { Zone } from '@/lib/zones'
-import { BLACK_MAP_STYLE } from '@/lib/mapStyle'
 
-// Use Google Maps (pitch-black custom style, and heatmap-capable for later) only
-// when a Maps API key is configured in app.json. Otherwise fall back to Apple Maps
-// in dark mode. This is safe to ship BEFORE the key exists: the map never goes
-// blank, it just stays on the current Apple dark map until the key is added and
-// the app is rebuilt.
-const GOOGLE_MAPS_KEY =
-  Platform.OS === 'ios'
-    ? (Constants.expoConfig as any)?.ios?.config?.googleMapsApiKey
-    : (Constants.expoConfig as any)?.android?.config?.googleMaps?.apiKey
-const USE_GOOGLE = !!GOOGLE_MAPS_KEY
+// Pitch-black basemap: the same free CartoDB dark tiles the web build already uses,
+// so native matches web exactly. No API key, no billing — Google Maps would force a
+// paid billing account even for its "free" tier, so it's out. These opaque tiles
+// replace the base map content, so real-world businesses/labels don't show through
+// (keeps the abstract look) and a future heat layer will pop on the black.
+const DARK_TILE_URL = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
 
 interface Props {
   zones: Zone[]
@@ -155,22 +149,28 @@ export default function WebMap({
     <View style={styles.wrap}>
       <MapView
         ref={mapRef}
-        provider={USE_GOOGLE ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
+        provider={PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
         showsUserLocation
         showsMyLocationButton={false}
+        // Dark fallback base in case tiles are slow to load; the CartoDB overlay
+        // below sits on top and is what you actually see.
         userInterfaceStyle="dark"
-        // Keep the map app-specific: only participating venues should be
-        // identifiable, not real-world businesses (Jacob — no Shell station).
-        // Google uses 'standard' + the pitch-black customMapStyle; Apple uses
-        // 'mutedStandard' dark (its darkest — customMapStyle is a no-op on Apple).
-        mapType={USE_GOOGLE ? 'standard' : 'mutedStandard'}
-        customMapStyle={USE_GOOGLE ? BLACK_MAP_STYLE : undefined}
+        mapType="mutedStandard"
         showsPointsOfInterest={false}
         showsBuildings={false}
         onRegionChangeComplete={(r) => onMapMove?.(r.latitude, r.longitude)}
       >
+        {/* Free CartoDB dark basemap — matches the web build. shouldReplaceMapContent
+            makes iOS drop the Apple base entirely so only these black tiles + our
+            venues show. */}
+        <UrlTile
+          urlTemplate={DARK_TILE_URL}
+          maximumZ={20}
+          shouldReplaceMapContent
+          zIndex={-1}
+        />
         {validZones.map(zone => {
           const tier = getTier(zone, subscribedIds)
           const { color, heatOpacity } = TIER_STYLE[tier]
