@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl,
+  View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import BackButton from '@/components/BackButton'
@@ -12,6 +12,13 @@ import {
 
 const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0)
 
+const RANGES: { label: string; days: number | null }[] = [
+  { label: '7 days',   days: 7 },
+  { label: '30 days',  days: 30 },
+  { label: '90 days',  days: 90 },
+  { label: 'All time', days: null },
+]
+
 export default function AdminAnalytics() {
   const insets = useSafeAreaInsets()
   const [overview, setOverview]   = useState<PilotOverview | null>(null)
@@ -20,10 +27,11 @@ export default function AdminAnalytics() {
   const [retention, setRetention]   = useState<Retention | null>(null)
   const [loading, setLoading]     = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [days, setDays]           = useState<number | null>(null)  // null = all time
 
   const load = useCallback(async () => {
     const [o, v, p, r] = await Promise.all([
-      fetchPilotOverview(), fetchVenuePerformance(), fetchPlacementStats(), fetchRetention(),
+      fetchPilotOverview(days), fetchVenuePerformance(days), fetchPlacementStats(days), fetchRetention(),
     ])
     setOverview(o)
     setVenues(v)
@@ -31,7 +39,7 @@ export default function AdminAnalytics() {
     setRetention(r)
     setLoading(false)
     setRefreshing(false)
-  }, [])
+  }, [days])
 
   useEffect(() => { load() }, [load])
 
@@ -51,6 +59,21 @@ export default function AdminAnalytics() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor="#29B6F6" />}
         >
+          {/* Date range */}
+          <View style={styles.filterRow}>
+            {RANGES.map((r) => (
+              <TouchableOpacity
+                key={r.label}
+                style={[styles.filterPill, days === r.days && styles.filterPillActive]}
+                onPress={() => setDays(r.days)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterText, days === r.days && styles.filterTextActive]}>{r.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.filterNote}>Range applies to totals, funnel, placements and venues. WAU/MAU and retention are fixed windows.</Text>
+
           {/* Headline cards */}
           <View style={styles.cards}>
             {stat('QR scans', o?.total_scans ?? 0, `${o?.scans_7d ?? 0} in 7d`)}
@@ -131,9 +154,8 @@ export default function AdminAnalytics() {
           <Text style={styles.legend}>Chk check-ins · Uniq unique visitors · Ret returning · Scan QR scans · Sgn signups driven · Sub subscriptions</Text>
 
           <Text style={styles.footnote}>
-            Check-ins come from the sessions table. Retention curves (D1/D7/D30) and
-            activation timing land in the next pass once there's pilot data to make
-            them meaningful.
+            Check-ins come from the sessions table. Retention is rolling: the share
+            of signups still active on or after day 1 / 7 / 30.
           </Text>
         </ScrollView>
       )}
@@ -169,6 +191,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800', color: '#f8fafc' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 10, paddingBottom: 48 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterPill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#0D1B2E' },
+  filterPillActive: { backgroundColor: '#29B6F622', borderColor: '#29B6F6' },
+  filterText: { color: '#8EADC7', fontSize: 13, fontWeight: '700' },
+  filterTextActive: { color: '#29B6F6' },
+  filterNote: { color: '#5b7089', fontSize: 11, lineHeight: 15 },
   cards: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   card: { flexGrow: 1, flexBasis: '30%', minWidth: 100, backgroundColor: '#0D1B2E', borderRadius: 14, padding: 14 },
   cardValue: { color: '#f8fafc', fontSize: 24, fontWeight: '800' },

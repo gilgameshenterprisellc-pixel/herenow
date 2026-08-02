@@ -21,8 +21,9 @@ export interface PilotOverview {
   total_venues:        number
 }
 
-export async function fetchPilotOverview(): Promise<PilotOverview | null> {
-  const { data, error } = await supabase.rpc('admin_pilot_overview')
+// days: null = all time, or 7 / 30 / 90 for a rolling window.
+export async function fetchPilotOverview(days: number | null = null): Promise<PilotOverview | null> {
+  const { data, error } = await supabase.rpc('admin_pilot_overview', { p_days: days })
   if (error) { console.warn('[analytics] overview:', error.message); return null }
   return data as PilotOverview
 }
@@ -38,8 +39,8 @@ export interface VenuePerformance {
   subscriptions:      number
 }
 
-export async function fetchVenuePerformance(): Promise<VenuePerformance[]> {
-  const { data, error } = await supabase.rpc('admin_venue_performance')
+export async function fetchVenuePerformance(days: number | null = null): Promise<VenuePerformance[]> {
+  const { data, error } = await supabase.rpc('admin_venue_performance', { p_days: days })
   if (error) { console.warn('[analytics] venues:', error.message); return [] }
   return (data as VenuePerformance[]) ?? []
 }
@@ -49,8 +50,8 @@ export interface PlacementStat {
   scans:     number
 }
 
-export async function fetchPlacementStats(): Promise<PlacementStat[]> {
-  const { data, error } = await supabase.rpc('admin_qr_placement_stats')
+export async function fetchPlacementStats(days: number | null = null): Promise<PlacementStat[]> {
+  const { data, error } = await supabase.rpc('admin_qr_placement_stats', { p_days: days })
   if (error) { console.warn('[analytics] placements:', error.message); return [] }
   return (data as PlacementStat[]) ?? []
 }
