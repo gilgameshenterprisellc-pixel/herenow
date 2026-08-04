@@ -33,6 +33,7 @@ import { checkAndAwardBadges } from '@/lib/badges'
 import { reportUser, reportContent, type ReportReason, type ContentReportReason } from '@/lib/reports'
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
+import { openDirections } from '@/lib/directions'
 import { successBuzz } from '@/lib/haptics'
 import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFoundingBadge, BADGE_ICON_BY_SLUG, type VenueBadge } from '@/lib/venueBadges'
 import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
@@ -845,6 +846,18 @@ export default function ZoneScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Directions — concierge for out-of-towners: route to the venue in
+                the phone's maps app. Shown to everyone, checked in or not. */}
+            {typeof zone?.center_lat === 'number' && typeof zone?.center_lng === 'number' && (
+              <TouchableOpacity
+                style={styles.dirBtn}
+                onPress={() => openDirections(zone.center_lat, zone.center_lng)}
+              >
+                <Ionicons name="navigate" size={14} color="#8EADC7" />
+                <Text style={styles.dirBtnText}>Directions</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Message the venue — followers/subscribers only, no We Met, no expiry */}
             {!isOwner && isSubscribed && (
               <TouchableOpacity
@@ -1445,6 +1458,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5,
   },
   msgVenueBtnText: { color: '#8EADC7', fontWeight: '700', fontSize: 12 },
+  dirBtn: {
+    borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#0D1B2E',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+  },
+  dirBtnText: { color: '#8EADC7', fontWeight: '700', fontSize: 12 },
   patronBtn: {
     borderWidth: 1, borderColor: '#f59e0b', borderRadius: 20,
     paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#f59e0b12',
