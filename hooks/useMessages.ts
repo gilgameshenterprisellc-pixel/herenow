@@ -16,8 +16,11 @@ export function useDmThread(wemetId: string, _currentUserId?: string) {
   useEffect(() => {
     refresh()
 
+    // Unique per-mount topic — supabase-js dedupes by topic, so reusing
+    // `dm:<wemetId>` on a fast remount can throw "cannot add ... after
+    // subscribe()". See usePulse. The we_met_id filter scopes the data.
     const channel = supabase
-      .channel(`dm:${wemetId}`)
+      .channel(`dm:${wemetId}:${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `we_met_id=eq.${wemetId}` },

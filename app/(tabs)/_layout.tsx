@@ -210,12 +210,16 @@ export default function TabsLayout() {
         if (mounted) setIsVenue(!!profile?.is_venue_owner)
       }
 
-      notifSub = supabase.channel('badge-notif')
+      // Unique per-mount topics — supabase-js dedupes by topic, so the fixed
+      // 'badge-notif'/'badge-dm' names could hand back an already-subscribed
+      // channel on a remount and throw "cannot add ... after subscribe()".
+      const rnd = Math.random().toString(36).slice(2)
+      notifSub = supabase.channel(`badge-notif:${rnd}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications',
           ...(uid ? { filter: `user_id=eq.${uid}` } : {}) }, fetchUnread)
         .subscribe()
 
-      dmSub = supabase.channel('badge-dm')
+      dmSub = supabase.channel(`badge-dm:${rnd}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages',
           ...(uid ? { filter: `recipient_id=eq.${uid}` } : {}) }, fetchUnread)
         .subscribe()

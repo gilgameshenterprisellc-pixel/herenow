@@ -60,8 +60,11 @@ export default function VenueThreadScreen() {
 
       await load(user.id, other)
 
+      // Unique per-mount topic — supabase-js dedupes by topic, so reusing
+      // `venue-dm:<zone>:<other>` on a remount can throw "cannot add ... after
+      // subscribe()". See usePulse. The venue_zone_id filter scopes the data.
       sub = supabase
-        .channel(`venue-dm:${zoneId}:${other}`)
+        .channel(`venue-dm:${zoneId}:${other}:${Math.random().toString(36).slice(2)}`)
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `venue_zone_id=eq.${zoneId}` },
           () => load(user.id, other))

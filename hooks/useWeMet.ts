@@ -26,8 +26,11 @@ export function useWeMet() {
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_, sess) => {
       if (!sess) return
       if (channel) return // already subscribed
+      // Unique per-mount topic — this global fixed name is the most collision-
+      // prone: any two mounts (or a remount) reuse `we_met_realtime` and the
+      // .on() below throws "cannot add ... after subscribe()". See usePulse.
       channel = supabase
-        .channel('we_met_realtime')
+        .channel(`we_met_realtime:${Math.random().toString(36).slice(2)}`)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'we_met' },
