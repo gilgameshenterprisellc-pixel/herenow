@@ -125,6 +125,21 @@ const PRESENCE_MARGIN_M = 30
 // two are the dials to tune on Jacob's on-site polygon test.
 const POLYGON_CHECKIN_MARGIN_M  = 8
 const POLYGON_PRESENCE_MARGIN_M = 25
+// GPS never pins an indoor position to the metre — the OS-reported horizontal
+// accuracy IS the radius of where the user actually might be. A fix whose CENTER
+// lands just outside a tight building polygon can easily be a patron standing at
+// the bar (Joshua at Martha My Dear: bounced with "not at this venue yet" while
+// sitting inside, though the open-sky parking lot worked). So before testing the
+// fence, widen it by the fix's own accuracy: "might be inside" counts as inside
+// for check-in, and only "clearly outside even after allowing for GPS slop"
+// counts as outside for eviction — which also stops the "booted at the bar"
+// flip-flop, since a fuzzy indoor fix no longer reads as gone. Capped so a
+// worst-case soft-band fix can't blow the fence wide open. This cap is the one
+// dial to turn: lower it if street check-ins get too easy, raise it if real
+// patrons inside still get bounced.
+const ACCURACY_MARGIN_CAP_M = 35
+const accuracyAllowanceM = (accuracy: number | null): number =>
+  Math.min(Math.max(accuracy ?? 0, 0), ACCURACY_MARGIN_CAP_M)
 // Presence poll watches for a fix for up to this long — shorter than check-in
 // since it runs on a background timer, but still multi-sampled (not one-shot).
 const PRESENCE_FIX_TIMEOUT_MS = 8_000
@@ -167,8 +182,15 @@ export async function checkIn(params: {
   }
 
   // Use this venue's own check-in margin if it has been tuned, else the default.
+  // Widen it by the fix's horizontal accuracy so a real patron inside a building
+  // — whose GPS center drifts past a tight polygon margin — isn't turned away.
   const margins = await getZoneMargins(params.zoneId)
-  const inZone = await checkUserInZone(params.zoneId, coords.latitude, coords.longitude, margins.checkin)
+  const inZone = await checkUserInZone(
+    params.zoneId,
+    coords.latitude,
+    coords.longitude,
+    margins.checkin + accuracyAllowanceM(coords.accuracy),
+  )
   // null = the RPC itself failed. Don't tell the user "you're not here" on a
   // server error — let them retry.
   if (inZone === null) return { ok: false, reason: 'failed' }
@@ -255,7 +277,14 @@ export async function verifyZonePresence(zoneId: string): Promise<PresenceCheck>
   let inZone: boolean | null = null
   if (coords && coords.accuracy != null && coords.accuracy <= MAX_CHECKIN_ACCURACY_M) {
     const margins = await getZoneMargins(zoneId)
-    inZone = await checkUserInZone(zoneId, coords.latitude, coords.longitude, margins.presence)
+    // Same accuracy widening as check-in — keeps entry and eviction consistent
+    // so a fuzzy indoor fix that let someone in can't immediately boot them out.
+    inZone = await checkUserInZone(
+      zoneId,
+      coords.latitude,
+      coords.longitude,
+      margins.presence + accuracyAllowanceM(coords.accuracy),
+    )
   }
   return presenceFromFix(coords, inZone, MAX_CHECKIN_ACCURACY_M)
 }
