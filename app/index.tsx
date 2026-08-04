@@ -299,6 +299,9 @@ function WebLanding() {
             <Text style={s.venueBtnText}>Partner with us</Text>
             <Ionicons name="arrow-forward-outline" size={14} color="#29B6F6" style={{ marginLeft: 6 }} />
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/pricing' as any)} activeOpacity={0.7} style={{ marginTop: 4 }}>
+            <Text style={s.venuePricingLink}>See plans & pricing →</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -313,6 +316,10 @@ function WebLanding() {
           <Text style={s.footerDot}>·</Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
             <Text style={s.footerLink}>Sign in</Text>
+          </TouchableOpacity>
+          <Text style={s.footerDot}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/pricing' as any)}>
+            <Text style={s.footerLink}>Pricing</Text>
           </TouchableOpacity>
           <Text style={s.footerDot}>·</Text>
           <TouchableOpacity onPress={() => router.push('/legal/privacy')}>
@@ -390,6 +397,7 @@ const s = StyleSheet.create({
   venueSub:      { fontSize: 15, color: '#7A93AC', lineHeight: 23 },
   venueBtn:      { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' as const, marginTop: 8, backgroundColor: '#29B6F612', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 11, borderWidth: 1, borderColor: '#29B6F630' },
   venueBtnText:  { color: '#29B6F6', fontWeight: '700', fontSize: 14 },
+  venuePricingLink: { color: '#5A7A9A', fontWeight: '600', fontSize: 13 },
 
   // FOOTER
   footer:        { backgroundColor: '#050A15', borderTopWidth: 1, borderTopColor: '#0D1B2E', paddingVertical: 40, paddingHorizontal: 24, alignItems: 'center', gap: 12 },

@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: 'row', gap: 8, padding: 12,
     borderBottomWidth: 1, borderBottomColor: '#0D1B2E',
+    width: '100%', maxWidth: 760, alignSelf: 'center',
   },
   tab: {
     flex: 1, paddingVertical: 9, borderRadius: 12,
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
   tabText: { color: '#8EADC7', fontWeight: '700', fontSize: 12 },
   tabTextActive: { color: '#29B6F6' },
   scroll: { flex: 1 },
-  content: { padding: 16, gap: 16 },
+  content: { padding: 16, gap: 16, width: '100%', maxWidth: 760, alignSelf: 'center' },
 
   card: {
     backgroundColor: '#0D1B2E', borderRadius: 18, borderWidth: 1, borderColor: '#1A2E4A',
