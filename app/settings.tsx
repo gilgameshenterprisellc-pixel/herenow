@@ -232,6 +232,12 @@ export default function SettingsScreen() {
 
         <Section title="Help">
           <SettingsRow
+            icon="pricetags-outline"
+            label="Plans & Pricing"
+            onPress={() => router.push('/pricing' as any)}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
             icon="mail-outline"
             label="Contact Support"
             onPress={() => openMail('mailto:support@herenowsocial.com')}
