@@ -26,11 +26,13 @@ if (Platform.OS !== 'web') {
     const zoneId = region.identifier
 
     if (isEntering) {
-      await supabase
-        .from('zone_members')
-        .update({ is_present: true, last_seen_at: new Date().toISOString() })
-        .eq('zone_id', zoneId)
-        .eq('user_id', user.id)
+      // No-op on Enter. Crossing the coarse ~150m wake ring is NOT proof the user
+      // is inside the venue (parking lot, sidewalk, next door, driving past).
+      // Marking is_present here flipped zones.member_count up via the presence
+      // trigger, inflating the live "people here" count with people the polygon
+      // check-in would reject, and left a "present but no active session" ghost.
+      // Presence is only ever set by a real, polygon-verified check-in; the
+      // background geofence exists solely for the Exit auto-checkout below.
     } else {
       // OS says the user left the ~150m region. These background Exit events are
       // noisy indoors (wifi/cell fallback, multipath) and were ending sessions
