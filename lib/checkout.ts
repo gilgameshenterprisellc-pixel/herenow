@@ -1,4 +1,5 @@
 import { Platform } from 'react-native'
+import { router } from 'expo-router'
 import { supabase } from './supabase'
 
 export type BillingInterval = 'month' | 'year'
@@ -19,6 +20,14 @@ export async function startCheckout(
 ): Promise<string | null> {
   if (Platform.OS !== 'web') {
     return 'Checkout runs on the web for now.'
+  }
+
+  // Subscribing requires an account. A logged-out visitor gets sent to sign up
+  // rather than a silent no-op (the Edge Function would just 401 them).
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    router.push('/(auth)/signup' as any)
+    return null
   }
 
   const { data, error } = await supabase.functions.invoke('create-checkout', {

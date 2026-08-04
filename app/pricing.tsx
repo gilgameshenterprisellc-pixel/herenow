@@ -45,7 +45,13 @@ function cta(plan: Plan): { label: string; onPress: (() => void) | null; disable
     // requires in-app digital subscriptions to use Apple IAP, so the app binary
     // stays purchase-free (and App-Review-safe). Keep the native label neutral.
     if (Platform.OS === 'web') {
-      return { label: 'Get HereNow Plus', onPress: () => { void startCheckout('plus', 'month') } }
+      return {
+        label: 'Get HereNow Plus',
+        onPress: async () => {
+          const err = await startCheckout('plus', 'month')
+          if (err && typeof window !== 'undefined') window.alert(err)
+        },
+      }
     }
     return { label: 'Available at launch', onPress: null, disabled: true }
   }
