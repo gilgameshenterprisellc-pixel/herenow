@@ -4,11 +4,12 @@
 // are locked; feature lists may keep evolving. Both the /pricing screen and the
 // eventual Stripe checkout read from THIS file so they can never drift apart.
 //
-// STRIPE: intentionally not wired yet — the HereNow Stripe account is being set
-// up. Each paid plan carries a `stripe` block with null price IDs. When Stripe
-// is live, paste the real IDs here (never guess them) and the checkout can go
-// live without touching any UI. Free / custom (contact-sales) plans have no
-// Stripe block.
+// STRIPE: the price IDs below are SANDBOX / TEST-mode IDs (created by
+// scripts/seed-stripe-products.mjs against the HereNow test account). They let
+// us build and test the whole checkout flow before the account is activated for
+// live payments. At launch, re-run that seed script with the sk_live_ key and
+// replace each id below with the live one — nothing else changes. Free / custom
+// (contact-sales) plans have no Stripe block.
 
 export type Audience = 'venue' | 'organization' | 'consumer'
 
@@ -44,8 +45,6 @@ export interface Plan {
   stripe?: StripeRefs
 }
 
-const EMPTY_STRIPE: StripeRefs = { productId: null, monthlyPriceId: null, annualPriceId: null }
-
 // ── VENUES ────────────────────────────────────────────────────────────────────
 export const VENUE_PLANS: Plan[] = [
   {
@@ -75,7 +74,7 @@ export const VENUE_PLANS: Plan[] = [
     tagline: 'Everything in Free, plus:',
     price: { kind: 'fixed', monthlyUsd: 99 },
     highlight: true,
-    stripe: { ...EMPTY_STRIPE },
+    stripe: { productId: 'prod_V0q3ULrgnXFzQE', monthlyPriceId: 'price_1U0oNeC684risSmJZlNy0N6G', annualPriceId: null },
     featureGroups: [
       {
         heading: 'Advanced Analytics',
@@ -100,7 +99,7 @@ export const VENUE_PLANS: Plan[] = [
     name: 'Growth',
     tagline: 'Everything in Professional, plus:',
     price: { kind: 'fixed', monthlyUsd: 249 },
-    stripe: { ...EMPTY_STRIPE },
+    stripe: { productId: 'prod_V0q3oM95kjuxmq', monthlyPriceId: 'price_1U0oNeC684risSmJDg4jRdTu', annualPriceId: null },
     featureGroups: [
       {
         heading: 'Business Intelligence',
@@ -152,7 +151,7 @@ export const ORGANIZATION_PLANS: Plan[] = [
     tagline: 'Everything in Free, plus:',
     price: { kind: 'fixed', monthlyUsd: 29 },
     highlight: true,
-    stripe: { ...EMPTY_STRIPE },
+    stripe: { productId: 'prod_V0q3UsPHQxkh9R', monthlyPriceId: 'price_1U0oNfC684risSmJrJtWZ3lo', annualPriceId: null },
     featureGroups: [
       {
         heading: 'Included',
@@ -166,7 +165,7 @@ export const ORGANIZATION_PLANS: Plan[] = [
     name: 'Pro',
     tagline: 'Everything in Plus, plus:',
     price: { kind: 'fixed', monthlyUsd: 99 },
-    stripe: { ...EMPTY_STRIPE },
+    stripe: { productId: 'prod_V0q38EYqoERqDx', monthlyPriceId: 'price_1U0oNfC684risSmJCix3uGXk', annualPriceId: null },
     featureGroups: [
       {
         heading: 'Included',
@@ -198,7 +197,7 @@ export const CONSUMER_PLANS: Plan[] = [
     name: 'HereNow Plus',
     price: { kind: 'fixed', monthlyUsd: 7.99, annualUsd: 69 },
     highlight: true,
-    stripe: { ...EMPTY_STRIPE },
+    stripe: { productId: 'prod_V0q34IKRVIp9cj', monthlyPriceId: 'price_1U0oNgC684risSmJbwQA4k1L', annualPriceId: 'price_1U0oNgC684risSmJ5aJ8ahBz' },
     featureGroups: [
       {
         heading: 'Profile',
