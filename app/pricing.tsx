@@ -22,40 +22,46 @@ const TABS: { key: Audience; label: string }[] = [
 
 function openMail(subject: string) {
   const url = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(subject)}`
-  if (Platform.OS === 'web') window.location.href = url
-  else Linking.openURL(url).catch(() => {})
+  if (Platform.OS === 'web') {
+    // A mailto silently no-ops on a machine with no default mail app, which reads
+    // as a dead button — so always surface the address, then try to open mail.
+    window.alert(`Reach us at ${SALES_EMAIL} and we'll get you set up.`)
+    window.location.href = url
+  } else {
+    Linking.openURL(url).catch(() => {})
+  }
 }
 
-// CTA for a plan. Stripe isn't live yet, so paid B2B plans route to a real
-// human (Jacob onboards venues/orgs manually during the pilot — this is also
-// exactly the Founding Venue path) and consumer Plus shows a launch note.
-// When Stripe goes live and a plan's stripe.monthlyPriceId is set, wire the
-// checkout at the marked spot below and it lights up with no UI change.
+// CTA for a plan. Every fixed-price paid plan (Venue, Org, and HereNow Plus)
+// runs real Stripe checkout on the WEB: logged out sends the visitor to sign up,
+// logged in opens Stripe. Apple requires in-app digital subscriptions to use
+// Apple IAP, so on native the app stays purchase-free (App-Review-safe) and the
+// B2B tiers fall back to contacting sales. Free = nothing to buy; Enterprise =
+// custom pricing, a real sales conversation.
 function cta(plan: Plan): { label: string; onPress: (() => void) | null; disabled?: boolean } {
-  // TODO(stripe): when plan.stripe?.monthlyPriceId is set, start Stripe checkout
-  // here instead of the contact/launch fallbacks below.
   if (plan.price.kind === 'free') {
     return { label: 'Included', onPress: null, disabled: true }
   }
   if (plan.price.kind === 'custom') {
     return { label: 'Contact sales', onPress: () => openMail(`HereNow Enterprise — ${plan.name}`) }
   }
-  if (plan.audience === 'consumer') {
-    // Web: real Stripe checkout. iOS/native: no external purchase — Apple
-    // requires in-app digital subscriptions to use Apple IAP, so the app binary
-    // stays purchase-free (and App-Review-safe). Keep the native label neutral.
-    if (Platform.OS === 'web') {
-      return {
-        label: 'Get HereNow Plus',
-        onPress: async () => {
-          const err = await startCheckout('plus', 'month')
-          if (err && typeof window !== 'undefined') window.alert(err)
-        },
-      }
+
+  // Fixed-price paid plan.
+  if (Platform.OS === 'web') {
+    const label = plan.audience === 'consumer' ? 'Get HereNow Plus' : 'Get started'
+    return {
+      label,
+      onPress: async () => {
+        const err = await startCheckout(plan.id, 'month')
+        if (err && typeof window !== 'undefined') window.alert(err)
+      },
     }
+  }
+
+  // Native.
+  if (plan.audience === 'consumer') {
     return { label: 'Available at launch', onPress: null, disabled: true }
   }
-  // Paid venue / organization plan — contact to get set up now.
   return { label: 'Get started', onPress: () => openMail(`HereNow ${plan.name} plan`) }
 }
 
