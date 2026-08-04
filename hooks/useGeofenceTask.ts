@@ -73,45 +73,74 @@ if (Platform.OS !== 'web') {
   })
 }
 
+// Build the OS exit-ring set from the user's current zone memberships and
+// (re)start background monitoring. startGeofencingAsync REPLACES the prior set
+// for this task, so calling it again is exactly how we re-sync after a new
+// check-in. Assumes background-location permission is already granted — callers
+// gate that. iOS monitors at most 20 regions; the pilot is well under that.
+async function startGeofencingForMemberZones(): Promise<void> {
+  const Location = require('expo-location')
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: memberships } = await supabase
+    .from('zone_members')
+    .select('zone_id')
+    .eq('user_id', user.id)
+
+  if (!memberships?.length) return
+
+  const zoneIds = memberships.map((m: any) => m.zone_id)
+  const { data: zones } = await supabase
+    .from('zones')
+    .select('id, center_lat, center_lng, radius_meters')
+    .in('id', zoneIds)
+
+  if (!zones?.length) return
+
+  const regions = zones.map((z: any) => ({
+    identifier: z.id,
+    latitude:   z.center_lat,
+    longitude:  z.center_lng,
+    // Use at least 150m for background wake-up so the OS fires the event
+    // before the user reaches the door. The precise polygon check happens
+    // when the user taps Check In — via user_in_zone() in the DB.
+    radius: Math.max(z.radius_meters ?? 10, 150),
+  }))
+
+  await Location.startGeofencingAsync(GEOFENCE_TASK, regions)
+}
+
+// Re-sync background geofence monitoring to the user's CURRENT venues. Call this
+// after every successful check-in so the venue just joined gets its exit ring
+// registered immediately. Without it, a first-ever check-in at a venue (a
+// brand-new pilot user, e.g. someone testing at Martha for the first time) had
+// no background exit ring until the next app restart — so closing the app and
+// walking away never auto-checked them out. Never prompts: if background
+// permission isn't granted yet it no-ops (the mount-time hook does the asking).
+// Fire-and-forget; failures are logged, never thrown.
+export async function refreshGeofences(): Promise<void> {
+  if (Platform.OS === 'web') return
+  try {
+    const Location = require('expo-location')
+    const { status } = await Location.getBackgroundPermissionsAsync()
+    if (status !== 'granted') return
+    await startGeofencingForMemberZones()
+  } catch (e) {
+    console.error('[geofence] refreshGeofences failed:', e)
+  }
+}
+
 export function useGeofenceTask() {
   useEffect(() => {
     if (Platform.OS === 'web') return
 
-    const Location = require('expo-location')
-
     const register = async () => {
+      const Location = require('expo-location')
       const { status } = await Location.requestBackgroundPermissionsAsync()
       if (status !== 'granted') return
-
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: memberships } = await supabase
-        .from('zone_members')
-        .select('zone_id')
-        .eq('user_id', user.id)
-
-      if (!memberships?.length) return
-
-      const zoneIds = memberships.map((m: any) => m.zone_id)
-      const { data: zones } = await supabase
-        .from('zones')
-        .select('id, center_lat, center_lng, radius_meters')
-        .in('id', zoneIds)
-
-      if (!zones?.length) return
-
-      const regions = zones.map((z: any) => ({
-        identifier: z.id,
-        latitude:   z.center_lat,
-        longitude:  z.center_lng,
-        // Use at least 150m for background wake-up so the OS fires the event
-        // before the user reaches the door. The precise polygon check happens
-        // when the user taps Check In — via user_in_zone() in the DB.
-        radius: Math.max(z.radius_meters ?? 10, 150),
-      }))
-
-      await Location.startGeofencingAsync(GEOFENCE_TASK, regions)
+      await startGeofencingForMemberZones()
     }
 
     register().catch(console.error)

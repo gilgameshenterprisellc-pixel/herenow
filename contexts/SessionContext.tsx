@@ -6,6 +6,7 @@ import { getActiveSession, checkIn as doCheckIn, checkOut as doCheckOut, touchSe
 import type { SocialMode, MoodMode } from '@/lib/sessions'
 import { notifyAutoCheckout, notifyLeavingGeofence } from '@/lib/notifications'
 import { applyPresenceReading } from '@/lib/presence'
+import { refreshGeofences } from '@/hooks/useGeofenceTask'
 
 interface SessionContextValue {
   activeSession: Session | null
@@ -74,6 +75,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (result.ok) {
       outsideStrikes.current = 0
       setActiveSession(result.session)
+      // Re-sync the background exit rings so THIS venue is monitored right away.
+      // Without it a first-ever check-in here has no background ring until the
+      // next app restart, so auto-checkout wouldn't fire if the app is closed.
+      refreshGeofences().catch(() => {})
     }
     return result
   }, [])
