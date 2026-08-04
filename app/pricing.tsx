@@ -10,6 +10,7 @@ import {
   plansFor, formatPrice, formatAnnual, FOUNDING_VENUE_PROGRAM,
   type Audience, type Plan,
 } from '@/lib/pricing'
+import { startCheckout } from '@/lib/checkout'
 
 const SALES_EMAIL = 'support@herenowsocial.com'
 
@@ -40,6 +41,12 @@ function cta(plan: Plan): { label: string; onPress: (() => void) | null; disable
     return { label: 'Contact sales', onPress: () => openMail(`HereNow Enterprise — ${plan.name}`) }
   }
   if (plan.audience === 'consumer') {
+    // Web: real Stripe checkout. iOS/native: no external purchase — Apple
+    // requires in-app digital subscriptions to use Apple IAP, so the app binary
+    // stays purchase-free (and App-Review-safe). Keep the native label neutral.
+    if (Platform.OS === 'web') {
+      return { label: 'Get HereNow Plus', onPress: () => { void startCheckout('plus', 'month') } }
+    }
     return { label: 'Available at launch', onPress: null, disabled: true }
   }
   // Paid venue / organization plan — contact to get set up now.
