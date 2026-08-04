@@ -16,8 +16,12 @@ export function useVenueChat(zoneId: string) {
   useEffect(() => {
     refresh()
 
+    // Unique per-mount topic: supabase-js dedupes channels by topic, so a fast
+    // remount reusing `chat:<zone>` can hand back an already-subscribed channel
+    // and make the .on() below throw "cannot add ... after subscribe()". See
+    // usePulse for the full write-up. The zone_id filter scopes the data.
     const channel = supabase
-      .channel(`chat:${zoneId}`)
+      .channel(`chat:${zoneId}:${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'venue_chat', filter: `zone_id=eq.${zoneId}` },

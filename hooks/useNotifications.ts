@@ -22,8 +22,11 @@ export function useNotifications() {
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
+      // Unique per-mount topic — supabase-js dedupes by topic, so reusing
+      // `notifications:<uid>` on a remount can throw "cannot add ... after
+      // subscribe()". See usePulse. The user_id filter scopes the data.
       channel = supabase
-        .channel(`notifications:${user.id}`)
+        .channel(`notifications:${user.id}:${Math.random().toString(36).slice(2)}`)
         .on(
           'postgres_changes',
           {
