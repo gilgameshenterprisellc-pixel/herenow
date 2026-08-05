@@ -1,5 +1,11 @@
 -- Mapbox precision upgrade + auto-approval
 -- Run in Supabase SQL editor before deploying feat/mapbox-precision.
+--
+-- ⚠️  SUPERSEDED — DO NOT RE-RUN. The `venue_geocode_confidence` column below is
+--     already applied. The auto_approve_venue in THIS file is the OLD 6-arg
+--     version (75m radius, no polygon param) and re-running it re-creates a bad
+--     overload. The canonical polygon writers live in
+--     supabase/venue_polygon_canonical.sql — run that instead.
 
 -- 1. Store geocoding confidence so admin can see quality of each submission
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS venue_geocode_confidence FLOAT;
