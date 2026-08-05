@@ -86,10 +86,18 @@ async function startGeofencingForMemberZones(): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
+  // Most-recently-visited venues first, capped at the iOS limit of 20 monitored
+  // regions. Beyond 20, iOS silently ignores the extras — which could be the venue
+  // the user just checked into. Ordering by last_seen_at (refreshGeofences runs
+  // right after check-in, so the current venue has the newest timestamp) keeps the
+  // relevant venues in the set. NULLS LAST so pre-heartbeat rows don't crowd out
+  // real recent visits.
   const { data: memberships } = await supabase
     .from('zone_members')
-    .select('zone_id')
+    .select('zone_id, last_seen_at')
     .eq('user_id', user.id)
+    .order('last_seen_at', { ascending: false, nullsFirst: false })
+    .limit(20)
 
   if (!memberships?.length) return
 
@@ -101,16 +109,22 @@ async function startGeofencingForMemberZones(): Promise<void> {
 
   if (!zones?.length) return
 
-  const regions = zones.map((z: any) => ({
-    identifier: z.id,
-    latitude:   z.center_lat,
-    longitude:  z.center_lng,
-    // Use at least 150m for background wake-up so the OS fires the event
-    // before the user reaches the door. The precise polygon check happens
-    // when the user taps Check In — via user_in_zone() in the DB.
-    radius: Math.max(z.radius_meters ?? 10, 150),
-  }))
+  const regions = zones
+    // Drop any zone with a missing/invalid center. A single bad row makes
+    // startGeofencingAsync throw and register NOTHING, silently killing background
+    // auto-checkout for ALL of the user's venues.
+    .filter((z: any) => Number.isFinite(z.center_lat) && Number.isFinite(z.center_lng))
+    .map((z: any) => ({
+      identifier: z.id,
+      latitude:   z.center_lat,
+      longitude:  z.center_lng,
+      // Use at least 150m for background wake-up so the OS fires the event
+      // before the user reaches the door. The precise polygon check happens
+      // when the user taps Check In — via user_in_zone() in the DB.
+      radius: Math.max(z.radius_meters ?? 10, 150),
+    }))
 
+  if (!regions.length) return
   await Location.startGeofencingAsync(GEOFENCE_TASK, regions)
 }
 
