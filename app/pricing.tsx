@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import BackButton from '@/components/BackButton'
 import {
   plansFor, formatPrice, formatAnnual, FOUNDING_VENUE_PROGRAM,
@@ -141,7 +141,12 @@ function FoundingCard() {
 
 export default function PricingScreen() {
   const insets = useSafeAreaInsets()
-  const [tab, setTab] = useState<Audience>('venue')
+  // Allow deep-linking to a tab, e.g. /pricing?tab=consumer from the profile.
+  const params = useLocalSearchParams<{ tab?: string }>()
+  const initialTab: Audience =
+    params.tab === 'consumer' ? 'consumer' :
+    params.tab === 'organization' ? 'organization' : 'venue'
+  const [tab, setTab] = useState<Audience>(initialTab)
   const plans = plansFor(tab)
 
   return (
