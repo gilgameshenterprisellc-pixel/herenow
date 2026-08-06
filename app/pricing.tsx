@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking,
 } from 'react-native'
@@ -11,6 +11,7 @@ import {
   type Audience, type Plan,
 } from '@/lib/pricing'
 import { startCheckout } from '@/lib/checkout'
+import { SHOW_PRICING } from '@/lib/flags'
 
 const SALES_EMAIL = 'support@herenowsocial.com'
 
@@ -147,6 +148,13 @@ export default function PricingScreen() {
     params.tab === 'consumer' ? 'consumer' :
     params.tab === 'organization' ? 'organization' : 'venue'
   const [tab, setTab] = useState<Audience>(initialTab)
+
+  // Pricing is hidden during the beta. Bounce any direct navigation here.
+  useEffect(() => {
+    if (!SHOW_PRICING) router.replace('/(tabs)')
+  }, [])
+  if (!SHOW_PRICING) return null
+
   const plans = plansFor(tab)
 
   return (

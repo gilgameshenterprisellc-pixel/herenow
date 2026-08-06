@@ -40,6 +40,37 @@ export function applyPresenceReading(
   return { strikes: next, evict: false }
 }
 
+// Unified foreground presence tick. Replaces the old "always refresh the
+// heartbeat, verify separately" split, which was the root cause of ghost
+// check-ins: the heartbeat refreshed last_seen_at on the mere fact the app was
+// open, so a user who left (or opened the app at home under "While Using"
+// location) kept counting as present. Here presence and liveness are one
+// decision — we only assert "still here" (touch) when a fix actually confirms
+// it, and we boot on repeated confirmed-outside reads.
+//
+//   'inside'  -> here: reset strikes, refresh last_seen_at (touch).
+//   'outside' -> confirmed gone: +1 strike (never touch); evict at EVICT_STRIKES.
+//   'unknown' -> can't tell (bad/absent fix, RPC error). Never strike, never
+//                evict. Touch ONLY while there's no recent outside evidence
+//                (strikes === 0) so a real patron with a briefly-fuzzy fix isn't
+//                dropped, but a fix that already read 'outside' can't be rescued
+//                by a following 'unknown'. Once strikes > 0 we stop touching and
+//                let the server staleness net take over if the outside read
+//                doesn't confirm.
+export function applyPresenceTick(
+  strikes: number,
+  reading: PresenceReading,
+): { strikes: number; evict: boolean; touch: boolean } {
+  if (reading === 'inside') return { strikes: 0, evict: false, touch: true }
+  if (reading === 'outside') {
+    const next = strikes + 1
+    if (next >= EVICT_STRIKES) return { strikes: 0, evict: true, touch: false }
+    return { strikes: next, evict: false, touch: false }
+  }
+  // unknown
+  return { strikes, evict: false, touch: strikes === 0 }
+}
+
 // Background auto-checkout rule. The OS geofence Exit event (a ~150m wake ring)
 // is only a hint; the background task re-verifies with a fresh, accuracy-gated
 // fix and checks the user out ONLY on a confirmed 'outside'. 'inside' and

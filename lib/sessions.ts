@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import { getBestCoords } from './location'
 import { checkUserInZone } from './zones'
 import { presenceFromFix, type PresenceReading } from './presence'
+import { effectiveCheckinMargin, effectivePresenceMargin } from './geofenceTuning'
 import { logEvent } from './analytics'
 import { publicName } from './format'
 import { scheduleMorningRecapAlert } from './notifications'
@@ -95,7 +96,7 @@ const CHECKIN_FIX_TIMEOUT_MS = 15_000
 // so it needs almost no buffer, whereas a flat 15m buffer on a real footprint
 // pushes the effective geofence back out to the sidewalk. Explicit per-venue
 // overrides always win over both defaults.
-async function getZoneMargins(zoneId: string): Promise<{ checkin: number; presence: number }> {
+async function getZoneMargins(zoneId: string): Promise<{ checkin: number; presence: number; hasPolygon: boolean }> {
   const { data } = await supabase
     .from('zones')
     .select('checkin_margin_m, presence_margin_m, polygon_source')
@@ -107,6 +108,9 @@ async function getZoneMargins(zoneId: string): Promise<{ checkin: number; presen
   return {
     checkin:  (data as any)?.checkin_margin_m  ?? checkinDefault,
     presence: (data as any)?.presence_margin_m ?? presenceDefault,
+    // Whether this venue has a real footprint — selects the tight vs generous
+    // check-in accuracy cushion above.
+    hasPolygon,
   }
 }
 
@@ -137,9 +141,10 @@ const POLYGON_PRESENCE_MARGIN_M = 25
 // worst-case soft-band fix can't blow the fence wide open. This cap is the one
 // dial to turn: lower it if street check-ins get too easy, raise it if real
 // patrons inside still get bounced.
-const ACCURACY_MARGIN_CAP_M = 35
-const accuracyAllowanceM = (accuracy: number | null): number =>
-  Math.min(Math.max(accuracy ?? 0, 0), ACCURACY_MARGIN_CAP_M)
+// The accuracy cushion math (how far the fix's own uncertainty widens the fence,
+// tight for polygon check-in, generous for circles and for eviction) lives in
+// lib/geofenceTuning.ts so it can be unit-tested against the geo-model. See
+// effectiveCheckinMargin / effectivePresenceMargin below.
 // Presence poll watches for a fix for up to this long — shorter than check-in
 // since it runs on a background timer, but still multi-sampled (not one-shot).
 const PRESENCE_FIX_TIMEOUT_MS = 8_000
@@ -153,6 +158,26 @@ export async function checkIn(params: {
 }): Promise<CheckInResult> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, reason: 'failed' }
+
+  // One profile read up front: the Ghost default carried into this session, and
+  // whether this is the App Store review / demo account (is_demo). select('*') on
+  // purpose — if the is_demo migration hasn't run yet, this still returns
+  // ghost_mode instead of erroring on a missing column (is_demo just reads
+  // undefined -> no bypass). Non-fatal.
+  const { data: pref } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  // Demo/review account bypass: the App Store reviewer is not physically at the
+  // venue (they test from Cupertino or a simulator), so the GPS gate would make
+  // the core feature untestable and fail review. A dedicated is_demo account —
+  // and only that account — checks in without the geofence. Real users always
+  // pass the fence below. See supabase/apple_demo_account.sql.
+  if (pref?.is_demo) {
+    return finalizeCheckIn(user.id, params, pref?.ghost_mode ?? false)
+  }
 
   // Every failure is logged with the accuracy we saw and the device OS so we
   // can see patterns like "old iPhones fail the gate" in the data instead of
@@ -184,12 +209,14 @@ export async function checkIn(params: {
   // Use this venue's own check-in margin if it has been tuned, else the default.
   // Widen it by the fix's horizontal accuracy so a real patron inside a building
   // — whose GPS center drifts past a tight polygon margin — isn't turned away.
+  // The cushion is capped tighter for polygon venues (footprint is precise, keep
+  // the fence off the street) than for circle venues (no shape, stay generous).
   const margins = await getZoneMargins(params.zoneId)
   const inZone = await checkUserInZone(
     params.zoneId,
     coords.latitude,
     coords.longitude,
-    margins.checkin + accuracyAllowanceM(coords.accuracy),
+    effectiveCheckinMargin(margins.checkin, margins.hasPolygon, coords.accuracy),
   )
   // null = the RPC itself failed. Don't tell the user "you're not here" on a
   // server error — let them retry.
@@ -203,31 +230,34 @@ export async function checkIn(params: {
     return fail('not_in_zone', coords.accuracy)
   }
 
+  return finalizeCheckIn(user.id, params, pref?.ghost_mode ?? false)
+}
+
+// Write the session + zone_member rows once the entry gate (geofence, or the
+// demo bypass) has passed. Shared by both paths so they can never drift.
+async function finalizeCheckIn(
+  userId: string,
+  params: { zoneId: string; socialModes: SocialMode[]; moodMode: MoodMode },
+  ghost: boolean,
+): Promise<CheckInResult> {
   // Check out of any existing active session first
   await supabase
     .from('sessions')
     .update({ is_active: false, checked_out_at: new Date().toISOString() })
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('is_active', true)
 
-  // Carry the user's Ghost default into this check-in. If it's on, they arrive
-  // invisible until they hit "Go live". Non-fatal: default to not ghosted.
-  const { data: pref } = await supabase
-    .from('profiles')
-    .select('ghost_mode')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  // Create new session
+  // Create new session. is_ghost carries the user's Ghost default (on = arrive
+  // invisible until they hit "Go live").
   const { data, error } = await supabase
     .from('sessions')
     .insert({
       zone_id: params.zoneId,
-      user_id: user.id,
+      user_id: userId,
       social_mode: params.socialModes[0],
       social_modes: params.socialModes,
       mood_mode: params.moodMode,
-      is_ghost: pref?.ghost_mode ?? false,
+      is_ghost: ghost,
     })
     .select('*')
     .single()
@@ -241,7 +271,7 @@ export async function checkIn(params: {
   await supabase
     .from('zone_members')
     .upsert(
-      { zone_id: params.zoneId, user_id: user.id, is_present: true, last_seen_at: new Date().toISOString() },
+      { zone_id: params.zoneId, user_id: userId, is_present: true, last_seen_at: new Date().toISOString() },
       { onConflict: 'zone_id,user_id' }
     )
 
@@ -277,13 +307,15 @@ export async function verifyZonePresence(zoneId: string): Promise<PresenceCheck>
   let inZone: boolean | null = null
   if (coords && coords.accuracy != null && coords.accuracy <= MAX_CHECKIN_ACCURACY_M) {
     const margins = await getZoneMargins(zoneId)
-    // Same accuracy widening as check-in — keeps entry and eviction consistent
-    // so a fuzzy indoor fix that let someone in can't immediately boot them out.
+    // Eviction keeps the generous cushion for both venue types (loose out): a
+    // fuzzy indoor fix that let someone in must not immediately boot them. This
+    // is the wide end of the hysteresis band, so it stays at the full cap even
+    // for polygon venues where check-in tightened.
     inZone = await checkUserInZone(
       zoneId,
       coords.latitude,
       coords.longitude,
-      margins.presence + accuracyAllowanceM(coords.accuracy),
+      effectivePresenceMargin(margins.presence, coords.accuracy),
     )
   }
   return presenceFromFix(coords, inZone, MAX_CHECKIN_ACCURACY_M)

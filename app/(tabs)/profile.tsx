@@ -13,6 +13,7 @@ import { useSessionContext } from '@/contexts/SessionContext'
 import { fetchUserBadges } from '@/lib/badges'
 import { fetchConfirmedWeMets, type WeMet } from '@/lib/weMet'
 import { checkOutActiveOnSignOut } from '@/lib/sessions'
+import { SHOW_PRICING } from '@/lib/flags'
 import AvatarImage from '@/components/AvatarImage'
 import FounderBadge from '@/components/FounderBadge'
 import VerifiedBadge from '@/components/VerifiedBadge'
@@ -442,7 +443,8 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </Reanimated.View>
 
-      {/* HereNow Plus upgrade — the in-app entry point to premium */}
+      {/* HereNow Plus upgrade — the in-app entry point to premium. Hidden in beta. */}
+      {SHOW_PRICING && (
       <Reanimated.View entering={FadeInDown.delay(190).duration(450)}>
         <TouchableOpacity
           style={styles.plusCard}
@@ -459,6 +461,7 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={18} color="#f5b301" />
         </TouchableOpacity>
       </Reanimated.View>
+      )}
 
       {/* Nav links */}
       <Reanimated.View entering={FadeInDown.delay(220).duration(450)} style={styles.navList}>

@@ -88,6 +88,10 @@ export default function ZoneScreen() {
 
   // People
   const [people, setPeople]           = useState<ActivePerson[]>([])
+  // True room size (everyone present, not just the 10 shown). The people list is
+  // capped at 10 for display, so people.length undercounts a busy room — the
+  // count comes from the full pre-slice result instead.
+  const [hereCount, setHereCount]     = useState(0)
   const [peopleLoading, setPeopleLoading] = useState(false)
 
   // Mid-session vibe editor
@@ -265,6 +269,11 @@ export default function ZoneScreen() {
     }
     // Show at most 10 at a time — your card always pinned first if present
     setPeople([...meRow, ...others].slice(0, 10))
+    // Room size = everyone the RPC returned (self included), NOT the capped list
+    // and NOT list-length + 1. Self is already in `filtered`, so adding 1 for the
+    // active session double-counted you — that's why "4 here now" showed with only
+    // Jacob, Alex and a stale Olivia actually present.
+    setHereCount(filtered.length)
     setPeopleLoading(false)
   }
 
@@ -907,7 +916,7 @@ export default function ZoneScreen() {
       {/* Heat bar — only when checked in */}
       {isCheckedIn && (
         <View style={styles.heatBarWrap}>
-          <HeatBar count={people.length + (activeSession ? 1 : 0)} />
+          <HeatBar count={hereCount} />
         </View>
       )}
 
@@ -1134,7 +1143,7 @@ export default function ZoneScreen() {
           }
           ListFooterComponent={
             people.length >= 10 ? (
-              <Text style={styles.peopleFooter}>Showing 10 of {zone?.member_count ?? people.length} — list refreshes every 15s</Text>
+              <Text style={styles.peopleFooter}>Showing {Math.min(10, hereCount)} of {hereCount} — list refreshes every 15s</Text>
             ) : null
           }
         />
