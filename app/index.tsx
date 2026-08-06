@@ -8,6 +8,7 @@ import { Redirect, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { SHOW_PRICING } from '@/lib/flags'
 
 // Resolve where a logged-in user should land: venue owners go straight to the
 // venue dashboard, everyone else to the map. Returns null while resolving.
@@ -299,9 +300,11 @@ function WebLanding() {
             <Text style={s.venueBtnText}>Partner with us</Text>
             <Ionicons name="arrow-forward-outline" size={14} color="#29B6F6" style={{ marginLeft: 6 }} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/pricing' as any)} activeOpacity={0.7} style={{ marginTop: 4 }}>
-            <Text style={s.venuePricingLink}>See plans & pricing →</Text>
-          </TouchableOpacity>
+          {SHOW_PRICING && (
+            <TouchableOpacity onPress={() => router.push('/pricing' as any)} activeOpacity={0.7} style={{ marginTop: 4 }}>
+              <Text style={s.venuePricingLink}>See plans & pricing →</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -317,10 +320,14 @@ function WebLanding() {
           <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
             <Text style={s.footerLink}>Sign in</Text>
           </TouchableOpacity>
-          <Text style={s.footerDot}>·</Text>
-          <TouchableOpacity onPress={() => router.push('/pricing' as any)}>
-            <Text style={s.footerLink}>Pricing</Text>
-          </TouchableOpacity>
+          {SHOW_PRICING && (
+            <>
+              <Text style={s.footerDot}>·</Text>
+              <TouchableOpacity onPress={() => router.push('/pricing' as any)}>
+                <Text style={s.footerLink}>Pricing</Text>
+              </TouchableOpacity>
+            </>
+          )}
           <Text style={s.footerDot}>·</Text>
           <TouchableOpacity onPress={() => router.push('/legal/privacy')}>
             <Text style={s.footerLink}>Privacy</Text>

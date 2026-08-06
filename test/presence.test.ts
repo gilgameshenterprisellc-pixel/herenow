@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   applyPresenceReading,
+  applyPresenceTick,
   presenceFromFix,
   shouldBackgroundCheckout,
   EVICT_STRIKES,
@@ -56,6 +57,46 @@ test('an unknown between two outsides also prevents eviction', () => {
   s = applyPresenceReading(s, 'unknown').strikes            // reset
   const after = applyPresenceReading(s, 'outside')
   assert.equal(after.evict, false)
+})
+
+// ── applyPresenceTick: heartbeat + eviction in one (the ghost-check-in fix) ──
+
+test('inside refreshes the heartbeat (touch) and resets strikes', () => {
+  assert.deepEqual(applyPresenceTick(0, 'inside'), { strikes: 0, evict: false, touch: true })
+  assert.deepEqual(applyPresenceTick(1, 'inside'), { strikes: 0, evict: false, touch: true })
+})
+
+test('outside NEVER touches — a departed user stops being refreshed', () => {
+  const first = applyPresenceTick(0, 'outside')
+  assert.deepEqual(first, { strikes: 1, evict: false, touch: false })
+  const second = applyPresenceTick(first.strikes, 'outside')
+  assert.deepEqual(second, { strikes: 0, evict: true, touch: false })
+})
+
+test('unknown with no recent outside evidence still touches (fuzzy fix, real patron)', () => {
+  // A patron inside whose fix is briefly too fuzzy to trust must not be dropped.
+  assert.deepEqual(applyPresenceTick(0, 'unknown'), { strikes: 0, evict: false, touch: true })
+})
+
+test('unknown does NOT touch once there is outside evidence (no rescuing a leaver)', () => {
+  // Read outside once (strikes=1), then a fuzzy fix: must not refresh presence,
+  // so an "outside then unknown then gone" trace can't keep a ghost alive.
+  const afterOutside = applyPresenceTick(0, 'outside')
+  assert.equal(afterOutside.strikes, 1)
+  assert.deepEqual(applyPresenceTick(afterOutside.strikes, 'unknown'), { strikes: 1, evict: false, touch: false })
+})
+
+test('the "reopened at home" trace evicts and never re-touches', () => {
+  // Home fixes read outside (home has decent GPS). Two ticks -> evicted, zero touches.
+  let s = 0, touches = 0, evicted = false
+  for (let i = 0; i < 2; i++) {
+    const r = applyPresenceTick(s, 'outside')
+    s = r.strikes
+    if (r.touch) touches++
+    if (r.evict) evicted = true
+  }
+  assert.equal(evicted, true)
+  assert.equal(touches, 0)
 })
 
 // ── presenceFromFix: the trust gate ────────────────────────────────────────
