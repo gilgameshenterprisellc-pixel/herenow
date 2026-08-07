@@ -3,7 +3,12 @@ import { supabase } from './supabase'
 import { getBestCoords } from './location'
 import { checkUserInZone } from './zones'
 import { presenceFromFix, type PresenceReading } from './presence'
-import { effectiveCheckinMargin, effectivePresenceMargin } from './geofenceTuning'
+import {
+  effectiveCheckinMargin,
+  effectivePresenceMargin,
+  checkinAccuracyCeiling,
+  POLYGON_MAX_CHECKIN_ACCURACY_M,
+} from './geofenceTuning'
 import { logEvent } from './analytics'
 import { publicName } from './format'
 import { scheduleMorningRecapAlert } from './notifications'
@@ -66,18 +71,41 @@ export type CheckInResult =
 // Reject it and ask the user to try again rather than allow a false check-in.
 const MAX_CHECKIN_ACCURACY_M = 60
 
-// Older iPhones (single-frequency GPS) often bottom out at 60–90m indoors even
-// after sampling — three people at the July venue test couldn't check in at
-// all. A fix in this band is accepted for CHECK-IN only when its center lands
-// inside the venue geofence: the reported center is usually near the true
-// position even when the confidence radius is wide, and eviction still uses
-// the strict 60m bar, so a rare street-side false positive self-corrects.
-const SOFT_CHECKIN_ACCURACY_M = 90
+// The old 60–90m "soft band" (added because single-frequency iPhones bottom out
+// indoors) now lives in lib/geofenceTuning.ts as CIRCLE_SOFT_CHECKIN_ACCURACY_M
+// and applies to CIRCLE venues only — see checkinAccuracyCeiling(). It is not
+// duplicated here on purpose: two copies of this number is exactly how a "fix"
+// gets edited in one place and silently does nothing.
 
 // Accuracy this bad isn't GPS noise — it's iOS "Precise Location" turned off
 // (reduced accuracy is ~1–5km on purpose). Tell the user exactly that instead
 // of a generic "try again".
 const REDUCED_ACCURACY_HINT_M = 500
+
+// POLYGON VENUES ONLY: the fix must be precise enough to actually resolve the
+// building before we let it decide anything.
+//
+// This is the hole that let Jacob check in from his parked car out front. A
+// real footprint is small — Martha My Dear is 5,260 sq ft, roughly 29m x 16m —
+// but check-in was accepting fixes in the 60–90m soft band. A 90m-accuracy fix
+// means "the user is somewhere in a 90m-radius circle": that circle is 3–5x the
+// whole building, so its CENTER lands inside the footprint by chance from the
+// parking lot, the sidewalk, or the street. Tightening the boundary cushion
+// (now 0 + 3m) could never fix that, because the error is in the INPUT, not the
+// fence — we were feeding a precise shape a position that couldn't resolve it.
+//
+// So for polygon venues we require a fix meaningfully smaller than the building
+// itself, and the soft band does not apply. A rejected fix is not a dead end:
+// getBestCoords keeps sampling toward this target for the full window, so the
+// usual outcome is the phone converging, not a failed check-in. Circle venues
+// keep the old generous behavior (no footprint to resolve, and a wide radius
+// makes a fuzzy fix far less consequential).
+//
+// Tuning: raise this if real patrons deep inside a building get bounced (indoor
+// GPS degrades); lower it for stricter door-level gating. Below ~10m you are
+// fighting the hardware floor and will start rejecting people who are inside.
+// The value + the shape-aware ceiling live in lib/geofenceTuning.ts so they are
+// unit-tested against the geo-model (see checkinAccuracyCeiling).
 
 // How long the check-in fix sampler is allowed to watch for a good reading.
 const CHECKIN_FIX_TIMEOUT_MS = 15_000
@@ -191,19 +219,35 @@ export async function checkIn(params: {
     return { ok: false, reason }
   }
 
+  // Resolve the venue's shape BEFORE sampling location: a polygon venue needs a
+  // materially more precise fix than a circle one, and that target is what the
+  // sampler chases below.
+  const margins = await getZoneMargins(params.zoneId)
+
   // Geofence verification — must be physically at the venue to check in.
   // Without this, check-in is just a button anyone can tap from anywhere,
   // which breaks the whole "only visible to people actually here" promise.
   // Sample fixes for up to 15s and take the best — older phones need a few
-  // seconds to converge from a coarse cell/wifi estimate to real GPS.
-  const coords = await getBestCoords(MAX_CHECKIN_ACCURACY_M, CHECKIN_FIX_TIMEOUT_MS)
+  // seconds to converge from a coarse cell/wifi estimate to real GPS. For a
+  // polygon venue we chase the tighter target, so the sampler keeps working
+  // instead of settling the moment it clears the loose circle bar.
+  const accuracyTarget = margins.hasPolygon ? POLYGON_MAX_CHECKIN_ACCURACY_M : MAX_CHECKIN_ACCURACY_M
+  const coords = await getBestCoords(accuracyTarget, CHECKIN_FIX_TIMEOUT_MS)
   if (!coords) return fail('location_unavailable', null)
 
   // Don't trust a fuzzy fix to prove presence — a poor reading on the street can
-  // fall inside the building footprint. Better to ask for a retry than to let
-  // someone check in from outside the venue. Fixes in the 60–90m band get one
-  // more chance below: they pass only if their center is inside the geofence.
-  if (coords.accuracy != null && coords.accuracy > SOFT_CHECKIN_ACCURACY_M) {
+  // fall inside the building footprint.
+  //
+  // Polygon venues: hard gate at POLYGON_MAX_CHECKIN_ACCURACY_M, and the 60–90m
+  // soft band deliberately does NOT apply. A fix wider than the building cannot
+  // tell "inside" from "parked out front", so accepting it just launders a guess
+  // into a check-in. Ask for a retry instead — the sampler above has usually
+  // already converged by the time a patron taps again.
+  //
+  // Circle venues: unchanged. No footprint to resolve and a wide radius, so the
+  // soft band still earns its keep for old phones indoors.
+  const accuracyCeiling = checkinAccuracyCeiling(margins.hasPolygon)
+  if (coords.accuracy != null && coords.accuracy > accuracyCeiling) {
     return fail(coords.accuracy > REDUCED_ACCURACY_HINT_M ? 'precise_off' : 'low_accuracy', coords.accuracy)
   }
 
@@ -212,7 +256,6 @@ export async function checkIn(params: {
   // — whose GPS center drifts past a tight polygon margin — isn't turned away.
   // The cushion is capped tighter for polygon venues (footprint is precise, keep
   // the fence off the street) than for circle venues (no shape, stay generous).
-  const margins = await getZoneMargins(params.zoneId)
   const inZone = await checkUserInZone(
     params.zoneId,
     coords.latitude,
@@ -231,7 +274,7 @@ export async function checkIn(params: {
     return fail('not_in_zone', coords.accuracy)
   }
 
-  return finalizeCheckIn(user.id, params, pref?.ghost_mode ?? false)
+  return finalizeCheckIn(user.id, params, pref?.ghost_mode ?? false, coords)
 }
 
 // Write the session + zone_member rows once the entry gate (geofence, or the
@@ -240,6 +283,10 @@ async function finalizeCheckIn(
   userId: string,
   params: { zoneId: string; socialModes: SocialMode[]; moodMode: MoodMode },
   ghost: boolean,
+  // The fix that passed the gate, recorded on the success event so an
+  // "I checked in from the parking lot" report is a measurable distance
+  // instead of a guess. Absent on the demo-account bypass (no fix taken).
+  fix?: { latitude: number; longitude: number; accuracy: number | null } | null,
 ): Promise<CheckInResult> {
   // Check out of any existing active session first
   await supabase
@@ -276,7 +323,17 @@ async function finalizeCheckIn(
       { onConflict: 'zone_id,user_id' }
     )
 
-  logEvent('check_in', { zoneId: params.zoneId, socialModes: params.socialModes.join(','), moodMode: params.moodMode })
+  logEvent('check_in', {
+    zoneId: params.zoneId,
+    socialModes: params.socialModes.join(','),
+    moodMode: params.moodMode,
+    // Geofence forensics: with these we can measure exactly how far a given
+    // check-in was from the venue footprint (ST_Distance against the zone)
+    // rather than relying on "I think I was about ten feet out".
+    accuracy: fix?.accuracy ?? null,
+    lat: fix?.latitude ?? null,
+    lng: fix?.longitude ?? null,
+  })
   return { ok: true, session: data }
 }
 

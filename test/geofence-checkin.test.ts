@@ -6,6 +6,10 @@ import {
   effectivePresenceMargin,
   CHECKIN_ACCURACY_CAP_POLYGON_M,
   CHECKIN_ACCURACY_CAP_CIRCLE_M,
+  checkinAccuracyCeiling,
+  fixPreciseEnoughForCheckin,
+  POLYGON_MAX_CHECKIN_ACCURACY_M,
+  CIRCLE_SOFT_CHECKIN_ACCURACY_M,
 } from '../lib/geofenceTuning.ts'
 
 // This proves the "you could check in from ~50 ft out" fix end to end: it runs
@@ -88,4 +92,72 @@ test('polygon: presence/eviction stays loose — 30m out is still "present", onl
   assert.equal(withinZone(acrossLot, POLY_VENUE, effectiveCheckinMargin(POLY_CHECKIN_BASE, true, 35)), false)
   // But if already inside, NOT evicted from here: presence margin 25 + 35 = 60.
   assert.equal(withinZone(acrossLot, POLY_VENUE, effectivePresenceMargin(POLY_PRESENCE_BASE, 35)), true)
+})
+
+// ── Fix precision gate: the parked-car hole ──────────────────────────────────
+// Tightening the boundary could never close this one. The fence was already
+// hugging the walls (base 0 + 3m), but check-in was still accepting fixes in the
+// 60-90m soft band. At a venue the size of a bar, a 90m-accuracy fix is a circle
+// several times larger than the building, so its center lands inside the
+// footprint from the parking lot as readily as from the bar. These pin the rule
+// that a fix must be able to resolve the venue before it may decide anything.
+
+test('polygon: a soft-band fix is refused outright — this is the parked-car case', () => {
+  // Previously: 60-90m passed the gate, and if its center happened to land in
+  // the footprint the check-in succeeded from the lot. Now it never decides.
+  for (const fuzzy of [26, 40, 60, 75, 90]) {
+    assert.equal(fixPreciseEnoughForCheckin(fuzzy, true), false)
+  }
+})
+
+test('polygon: a fix that can actually resolve the building is accepted', () => {
+  // Typical open-sky phone accuracy (3-10m) and the boundary case all pass.
+  for (const good of [3, 5, 10, 20, POLYGON_MAX_CHECKIN_ACCURACY_M]) {
+    assert.equal(fixPreciseEnoughForCheckin(good, true), true)
+  }
+})
+
+test('polygon: the ceiling is well under the size of a real venue', () => {
+  // Martha My Dear's OSM footprint is ~29m x 16m. A fix allowed to decide must
+  // be smaller than the building, otherwise "inside" is a coin flip.
+  const shortestWallM = 16
+  assert.ok(
+    POLYGON_MAX_CHECKIN_ACCURACY_M < 29,
+    'ceiling must be tighter than the long wall of a typical venue',
+  )
+  assert.ok(
+    POLYGON_MAX_CHECKIN_ACCURACY_M <= shortestWallM * 2,
+    'a fix more than 2x the short wall cannot resolve the footprint',
+  )
+})
+
+test('circle venues keep the generous soft band (old phones indoors still get in)', () => {
+  assert.equal(checkinAccuracyCeiling(false), CIRCLE_SOFT_CHECKIN_ACCURACY_M)
+  for (const fuzzy of [40, 60, 90]) {
+    assert.equal(fixPreciseEnoughForCheckin(fuzzy, false), true)
+  }
+  // Still not a blank cheque: "Precise Location off" (~1-5km) is refused.
+  assert.equal(fixPreciseEnoughForCheckin(500, false), false)
+})
+
+test('the two shapes really do get different bars', () => {
+  assert.equal(checkinAccuracyCeiling(true), POLYGON_MAX_CHECKIN_ACCURACY_M)
+  assert.ok(checkinAccuracyCeiling(true) < checkinAccuracyCeiling(false))
+})
+
+test('a fix with no reported accuracy is not rejected by THIS gate', () => {
+  // Platform didn't report a value; other gates handle it. This function is
+  // only about a reported number being too fuzzy to mean anything.
+  assert.equal(fixPreciseEnoughForCheckin(null, true), true)
+  assert.equal(fixPreciseEnoughForCheckin(null, false), true)
+})
+
+test('regression: the exact hole — fuzzy fix whose CENTER sits inside the walls', () => {
+  // Geometrically this point IS inside the polygon, so the fence says yes...
+  const insideByGeometry = ANCHOR
+  assert.equal(withinZone(insideByGeometry, POLY_VENUE, effectiveCheckinMargin(POLY_CHECKIN_BASE, true, 80)), true)
+  // ...but an 80m fix is not allowed to make that call at a polygon venue, so
+  // check-in is refused before the geometry is ever consulted. That ordering is
+  // the whole fix: precision gate first, fence second.
+  assert.equal(fixPreciseEnoughForCheckin(80, true), false)
 })
