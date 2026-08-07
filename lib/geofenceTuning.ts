@@ -31,6 +31,36 @@ export function checkinAccuracyCap(hasPolygon: boolean): number {
   return hasPolygon ? CHECKIN_ACCURACY_CAP_POLYGON_M : CHECKIN_ACCURACY_CAP_CIRCLE_M
 }
 
+// ── How precise a fix has to be before it may decide anything ─────────────────
+// Separate from the cushion above. The cushion asks "how far past the boundary
+// do we forgive?"; this asks "is this fix even capable of resolving this venue?"
+//
+// A polygon venue is small (Martha My Dear: ~29m x 16m). A fix reported at 60–90m
+// accuracy describes a circle several times larger than the whole building, so
+// its center falls inside the footprint from the parking lot as easily as from
+// the bar. That is what let a parked car check in, and no amount of boundary
+// tightening fixes it, because the imprecision is in the input. Require a fix
+// materially smaller than the building, and refuse rather than guess.
+//
+// Circle venues keep the generous soft band: there is no footprint to resolve,
+// and the radius is wide enough that a fuzzy fix is far less consequential.
+export const POLYGON_MAX_CHECKIN_ACCURACY_M = 25
+export const CIRCLE_SOFT_CHECKIN_ACCURACY_M = 90
+
+// The worst accuracy (metres) this venue shape will accept for a check-in.
+export function checkinAccuracyCeiling(hasPolygon: boolean): number {
+  return hasPolygon ? POLYGON_MAX_CHECKIN_ACCURACY_M : CIRCLE_SOFT_CHECKIN_ACCURACY_M
+}
+
+// True when a fix is precise enough to be allowed to decide a check-in at this
+// venue. A null accuracy (platform didn't report one) is treated as acceptable
+// here and handled by the caller's other gates — this function is only about a
+// reported value being too fuzzy to mean anything.
+export function fixPreciseEnoughForCheckin(accuracy: number | null, hasPolygon: boolean): boolean {
+  if (accuracy == null) return true
+  return accuracy <= checkinAccuracyCeiling(hasPolygon)
+}
+
 // Effective margin passed to user_in_zone() for a CHECK-IN attempt: the venue's
 // base check-in margin plus the (shape-aware, capped) accuracy cushion.
 export function effectiveCheckinMargin(baseMargin: number, hasPolygon: boolean, accuracy: number | null): number {
