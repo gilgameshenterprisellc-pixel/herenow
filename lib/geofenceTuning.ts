@@ -17,7 +17,7 @@
 //     60–90m indoors; too tight and real patrons can't get in.
 //   • Presence/eviction: GENEROUS for both — you get breathing room once in, and
 //     only a clearly-outside fix (well past this) ever strikes toward eviction.
-export const CHECKIN_ACCURACY_CAP_POLYGON_M = 12
+export const CHECKIN_ACCURACY_CAP_POLYGON_M = 3
 export const CHECKIN_ACCURACY_CAP_CIRCLE_M  = 35
 export const PRESENCE_ACCURACY_CAP_M         = 35
 
