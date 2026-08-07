@@ -21,7 +21,7 @@ const POLY_VENUE: ZoneModel = { center: ANCHOR, radiusMeters: 10, polygon: rectV
 const CIRCLE_VENUE: ZoneModel = { center: ANCHOR, radiusMeters: 35 } // no polygon
 
 // Base margins from getZoneMargins() defaults.
-const POLY_CHECKIN_BASE = 8
+const POLY_CHECKIN_BASE = 0
 const POLY_PRESENCE_BASE = 25
 const CIRCLE_CHECKIN_BASE = 15
 
@@ -39,9 +39,16 @@ test('polygon: a patron inside always checks in, even with a fuzzy indoor fix', 
   }
 })
 
-test('polygon: right by the door (10m past the wall) with a good fix still checks in', () => {
-  const nearDoor = eastOf(25) // 10m beyond the east wall
-  assert.equal(withinZone(nearDoor, POLY_VENUE, effectiveCheckinMargin(POLY_CHECKIN_BASE, true, 8)), true)
+test('polygon: at the entrance (just inside the wall) still checks in', () => {
+  const atEntrance = eastOf(14) // 1m INSIDE the east wall (wall at +15m)
+  assert.equal(withinZone(atEntrance, POLY_VENUE, effectiveCheckinMargin(POLY_CHECKIN_BASE, true, 8)), true)
+})
+
+test('polygon: strict border — 10m past the wall no longer checks in', () => {
+  const pastWall = eastOf(25) // 10m beyond the east wall
+  // base 0 + cap 3 => at most 3m of GPS slack, so a point clearly outside the
+  // drawn footprint is rejected. The geofence hugs the lines now.
+  assert.equal(withinZone(pastWall, POLY_VENUE, effectiveCheckinMargin(POLY_CHECKIN_BASE, true, 8)), false)
 })
 
 // ── Polygon venue: the actual bug is fixed ───────────────────────────────────
@@ -52,8 +59,8 @@ test('polygon: a fuzzy fix ~30m past the wall NO LONGER checks in (was the 50ft 
   // point (30m out) fell inside it — you could check in from across the lot.
   const oldMargin = POLY_CHECKIN_BASE + 35
   assert.equal(withinZone(acrossLot, POLY_VENUE, oldMargin), true, 'sanity: the old cushion would have allowed it')
-  // New behavior: polygon cushion caps at 12, so margin is 8 + 12 = 20 and 30m
-  // out is now rejected.
+  // New behavior: base 0 and the cushion caps at 3, so margin is 3 and a point
+  // 30m out is firmly rejected — the fence hugs the drawn lines.
   assert.equal(withinZone(acrossLot, POLY_VENUE, effectiveCheckinMargin(POLY_CHECKIN_BASE, true, 35)), false)
 })
 
@@ -77,7 +84,7 @@ test('circle: the generous cushion is unchanged (old iPhones still get in)', () 
 
 test('polygon: presence/eviction stays loose — 30m out is still "present", only check-in tightened', () => {
   const acrossLot = eastOf(45) // 30m past the wall
-  // Cannot check in from here (tight): margin 8 + 12 = 20, dist 30 -> out.
+  // Cannot check in from here (tight): margin 0 + 3 = 3, dist 30 -> out.
   assert.equal(withinZone(acrossLot, POLY_VENUE, effectiveCheckinMargin(POLY_CHECKIN_BASE, true, 35)), false)
   // But if already inside, NOT evicted from here: presence margin 25 + 35 = 60.
   assert.equal(withinZone(acrossLot, POLY_VENUE, effectivePresenceMargin(POLY_PRESENCE_BASE, 35)), true)

@@ -123,11 +123,12 @@ async function getZoneMargins(zoneId: string): Promise<{ checkin: number; presen
 const CHECKIN_MARGIN_M  = 15
 const PRESENCE_MARGIN_M = 30
 // Polygon margins (metres) — used when the venue has a real building footprint.
-// Much tighter than the circle margins: the polygon is already the true shape of
-// the place, so check-in needs only a small wall-jitter buffer, not a 15m ring
-// that reaches the street. Hysteresis preserved (presence 25 > checkin 8). These
-// two are the dials to tune on Jacob's on-site polygon test.
-const POLYGON_CHECKIN_MARGIN_M  = 8
+// Check-in is STRICT: base 0 means the geofence IS the drawn footprint, with only
+// the capped GPS-accuracy cushion (CHECKIN_ACCURACY_CAP_POLYGON_M = 3) on top — no
+// fixed ring that reaches past the walls. You must read as at/inside the lines to
+// check in. Presence stays generous (25) so a stationary patron inside is never
+// evicted on jitter; hysteresis preserved (presence 25 > checkin 0).
+const POLYGON_CHECKIN_MARGIN_M  = 0
 const POLYGON_PRESENCE_MARGIN_M = 25
 // GPS never pins an indoor position to the metre — the OS-reported horizontal
 // accuracy IS the radius of where the user actually might be. A fix whose CENTER
