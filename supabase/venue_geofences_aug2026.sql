@@ -7,9 +7,10 @@
 --     check-in cushion (lib/sessions.ts: CHECKIN_ACCURACY_CAP_POLYGON_M = 12),
 --     check-in is tight — you must be at/inside the building, not across the lot.
 --     This is the venue where the "checked in from ~50 ft" complaint came from.
---   • Lost and Found / The 5 Spot → CIRCLE 35m. Jacob is demoing these live in
---     front of prospects tomorrow; a circle guarantees the check-in succeeds.
---     "Doesn't need to be precise, may be temporary" — exactly the circle case.
+--   • Lost and Found → CIRCLE 120m. Open-air food-truck lot, so patrons gather
+--     past a tight circle around the street-address pin; keep the radius generous.
+--     "Doesn't need to be precise, may be temporary" is exactly this case.
+--   • The 5 Spot → CIRCLE 35m (indoor room; the address pin sits on the building).
 --   • HereNow Demo (Apple Park) → CIRCLE 120m for App Store review (see
 --     apple_demo_account.sql — the demo account also bypasses the fence).
 --
@@ -38,28 +39,49 @@ WHERE name = 'Martha My Dear';
 --   FROM zones WHERE name = 'Martha My Dear';
 
 -- ── Lost and Found — 3104 Gallatin Pike (circle) ─────────────────────────────
+-- zones.name has no unique constraint, so ON CONFLICT DO NOTHING is a no-op that
+-- would mint a duplicate on re-run. Upsert by name: UPDATE if present, INSERT if
+-- missing. building_polygon forced NULL so the reliable circle path is used, and
+-- the radius is generous because this is an open-air lot.
+UPDATE zones SET
+  center           = ST_GeographyFromText('POINT(-86.7374263 36.2051208)'),
+  center_lat       = 36.2051208,
+  center_lng       = -86.7374263,
+  radius_meters    = 120,
+  is_active        = true,
+  building_polygon = NULL
+WHERE name = 'Lost and Found';
 INSERT INTO zones (name, description, center, center_lat, center_lng, radius_meters, is_active)
-VALUES (
-  'Lost and Found', NULL,
-  ST_GeographyFromText('POINT(-86.7374263 36.2051208)'), 36.2051208, -86.7374263,
-  35, true
-)
-ON CONFLICT DO NOTHING;
+SELECT 'Lost and Found', NULL,
+       ST_GeographyFromText('POINT(-86.7374263 36.2051208)'), 36.2051208, -86.7374263,
+       120, true
+WHERE NOT EXISTS (SELECT 1 FROM zones WHERE name = 'Lost and Found');
 
 -- ── The 5 Spot — 1008 Forest Ave (circle) ────────────────────────────────────
+UPDATE zones SET
+  center           = ST_GeographyFromText('POINT(-86.7507137 36.1785202)'),
+  center_lat       = 36.1785202,
+  center_lng       = -86.7507137,
+  radius_meters    = 35,
+  is_active        = true,
+  building_polygon = NULL
+WHERE name = 'The 5 Spot';
 INSERT INTO zones (name, description, center, center_lat, center_lng, radius_meters, is_active)
-VALUES (
-  'The 5 Spot', NULL,
-  ST_GeographyFromText('POINT(-86.7507137 36.1785202)'), 36.1785202, -86.7507137,
-  35, true
-)
-ON CONFLICT DO NOTHING;
+SELECT 'The 5 Spot', NULL,
+       ST_GeographyFromText('POINT(-86.7507137 36.1785202)'), 36.1785202, -86.7507137,
+       35, true
+WHERE NOT EXISTS (SELECT 1 FROM zones WHERE name = 'The 5 Spot');
 
 -- ── HereNow Demo (Apple Park) — for App Store review (circle, generous) ───────
+UPDATE zones SET
+  center        = ST_GeographyFromText('POINT(-122.008972 37.334606)'),
+  center_lat    = 37.334606,
+  center_lng    = -122.008972,
+  radius_meters = 120,
+  is_active     = true
+WHERE name = 'HereNow Demo (Apple Park)';
 INSERT INTO zones (name, description, center, center_lat, center_lng, radius_meters, is_active)
-VALUES (
-  'HereNow Demo (Apple Park)', 'Demo venue for App Store review',
-  ST_GeographyFromText('POINT(-122.008972 37.334606)'), 37.334606, -122.008972,
-  120, true
-)
-ON CONFLICT DO NOTHING;
+SELECT 'HereNow Demo (Apple Park)', 'Demo venue for App Store review',
+       ST_GeographyFromText('POINT(-122.008972 37.334606)'), 37.334606, -122.008972,
+       120, true
+WHERE NOT EXISTS (SELECT 1 FROM zones WHERE name = 'HereNow Demo (Apple Park)');
