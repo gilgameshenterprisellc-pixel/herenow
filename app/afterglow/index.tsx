@@ -9,6 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import BackButton from '@/components/BackButton'
 import { getAfterglowHistory } from '@/lib/sessions'
 import { markAfterglowsSeen } from '@/lib/afterglowSeen'
+// Grouping check-outs into "a night out" lives in lib/ so it is unit-tested and
+// shares one night boundary with the venue Pulse recap.
+import { nightBucket } from '@/lib/nights'
 
 interface Afterglow {
   id: string
@@ -35,22 +38,6 @@ function formatDuration(mins: number): string {
   const h = Math.floor(mins / 60)
   const m = mins % 60
   return m > 0 ? `${h}h ${m}m` : `${h}h`
-}
-
-// Group check-outs into "a night out". A night runs until 6am Nashville
-// (America/Chicago) — the same boundary the venue Pulse recap uses — so an 8pm
-// check-in and a 1am one land in the same night. Venues are Nashville for now;
-// per-venue timezones come with multi-city.
-function nightBucket(iso: string): { key: string; label: string } {
-  const d = new Date(iso)
-  // Wall-clock time in Nashville, held in a runtime-local Date so the date parts
-  // below read the Nashville values. Shift back 6h so pre-6am counts as the
-  // night before.
-  const nash = new Date(d.toLocaleString('en-US', { timeZone: 'America/Chicago' }))
-  nash.setHours(nash.getHours() - 6)
-  const key = `${nash.getFullYear()}-${nash.getMonth()}-${nash.getDate()}`
-  const label = nash.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-  return { key, label }
 }
 
 function groupNights(glows: Afterglow[]): Night[] {
