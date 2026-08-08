@@ -155,16 +155,61 @@ function buildWkt(nodes) {
 // ── SQL emitters ──────────────────────────────────────────────────────────────
 const esc = (s) => s.replace(/'/g, "''")
 
+// Every emitter upserts BY NAME: update the row if it's there, insert if it
+// isn't. Never `INSERT ... ON CONFLICT DO NOTHING`.
+//
+// zones.name has no unique constraint, so there is no conflict for ON CONFLICT
+// to catch — the clause is a silent no-op and the INSERT just runs, minting a
+// second zone with the same name. That is how The 5 Spot ended up listed twice
+// with different settings, splitting patrons between two rooms at the same bar.
+// supabase/venue_geofences_aug2026.sql was fixed for that in PR #244; this
+// generator, which is what WROTE that file, was not — so the next venue added
+// this way would have duplicated all over again.
+function sqlUpsertZone({ name, desc, lat, lng, radius, comment, polygon }) {
+  const cols = ['name', 'description', 'center', 'center_lat', 'center_lng', 'radius_meters', 'is_active']
+  const vals = [
+    `'${esc(name)}'`,
+    desc ? `'${esc(desc)}'` : 'NULL',
+    `ST_GeographyFromText('POINT(${lng} ${lat})')`,
+    `${lat}`, `${lng}`, `${radius}`, 'true',
+  ]
+  const sets = [
+    `center           = ST_GeographyFromText('POINT(${lng} ${lat})')`,
+    `center_lat       = ${lat}`,
+    `center_lng       = ${lng}`,
+    `radius_meters    = ${radius}`,
+    `is_active        = true`,
+  ]
+  if (polygon) {
+    cols.push('building_polygon', 'polygon_source', 'polygon_wkt')
+    vals.push(`ST_GeogFromText('${polygon}')`, `'osm'`, `'${polygon}'`)
+    sets.push(
+      `building_polygon = ST_GeogFromText('${polygon}')`,
+      `polygon_source   = 'osm'`,
+      `polygon_wkt      = '${polygon}'`,
+    )
+  } else {
+    // Force the circle path — a stale footprint left on the row would otherwise
+    // keep gating check-in after we deliberately fell back to a circle.
+    sets.push(`building_polygon = NULL`, `polygon_source   = NULL`, `polygon_wkt      = NULL`)
+  }
+  return `-- ${comment}
+UPDATE zones SET
+  ${sets.join(',\n  ')}
+WHERE name = '${esc(name)}';
+INSERT INTO zones (${cols.join(', ')})
+SELECT ${vals.join(', ')}
+WHERE NOT EXISTS (SELECT 1 FROM zones WHERE name = '${esc(name)}');`
+}
+
 function sqlPolygonZone(v, lat, lng, wkt) {
-  return `-- ${esc(v.name)} — polygon geofence (tight check-in). points=${v._points}, footprint diag=${v._diag}m, contains=${v._contains}
-INSERT INTO zones (name, description, center, center_lat, center_lng, radius_meters, is_active, building_polygon, polygon_source, polygon_wkt)
-VALUES (
-  '${esc(v.name)}', ${v.desc ? `'${esc(v.desc)}'` : 'NULL'},
-  ST_GeographyFromText('POINT(${lng} ${lat})'), ${lat}, ${lng},
-  10, true,
-  ST_GeogFromText('${wkt}'), 'osm', '${wkt}'
-)
-ON CONFLICT DO NOTHING;`
+  return sqlUpsertZone({
+    name: v.name, desc: v.desc, lat, lng,
+    // radius is ignored once a polygon exists; keep the UI honest
+    radius: 10,
+    polygon: wkt,
+    comment: `${esc(v.name)} — polygon geofence (tight check-in). points=${v._points}, footprint diag=${v._diag}m, contains=${v._contains}`,
+  })
 }
 
 function sqlUpdatePolygon(v, wkt) {
@@ -179,14 +224,11 @@ WHERE name = '${esc(v.name)}';`
 }
 
 function sqlCircleZone(v, lat, lng, radius) {
-  return `-- ${esc(v.name)} — circle geofence, ${radius}m radius (reliable check-in; no footprint needed).
-INSERT INTO zones (name, description, center, center_lat, center_lng, radius_meters, is_active)
-VALUES (
-  '${esc(v.name)}', ${v.desc ? `'${esc(v.desc)}'` : 'NULL'},
-  ST_GeographyFromText('POINT(${lng} ${lat})'), ${lat}, ${lng},
-  ${radius}, true
-)
-ON CONFLICT DO NOTHING;`
+  return sqlUpsertZone({
+    name: v.name, desc: v.desc, lat, lng, radius,
+    polygon: null,
+    comment: `${esc(v.name)} — circle geofence, ${radius}m radius (reliable check-in; no footprint needed).`,
+  })
 }
 
 // ── CLI parse ─────────────────────────────────────────────────────────────────
