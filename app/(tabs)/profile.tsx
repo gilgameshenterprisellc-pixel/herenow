@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView, Platform, Image,
@@ -11,7 +11,10 @@ import { supabase, getAuthedUser } from '@/lib/supabase'
 import { hasUnseenAfterglow } from '@/lib/afterglowSeen'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { fetchUserBadges } from '@/lib/badges'
-import { fetchConfirmedWeMets, type WeMet } from '@/lib/weMet'
+// Connections come from the shared hook rather than a one-shot fetch here: it
+// carries the we_met realtime subscription, so a confirmation lands on this
+// screen the moment it happens instead of on the next cold start.
+import { useWeMet } from '@/hooks/useWeMet'
 import { checkOutActiveOnSignOut } from '@/lib/sessions'
 import { SHOW_PRICING } from '@/lib/flags'
 import AvatarImage from '@/components/AvatarImage'
@@ -76,58 +79,53 @@ export default function ProfileScreen() {
   const [userId, setUserId]                 = useState<string | null>(null)
   const [badgeCount, setBadgeCount]         = useState(0)
   const [checkinCount, setCheckinCount]     = useState(0)
-  const [connectionCount, setConnectionCount] = useState(0)
   const [venueCount, setVenueCount]         = useState(0)
-  const [wemetHistory, setWemetHistory]     = useState<{ id: string; userId: string | null; name: string; avatar: string | null; zone: string | null; when: string | null }[]>([])
   const { activeSession }                   = useSessionContext()
+  // Live confirmed connections. Both the stat and the list below read from this,
+  // so they can never disagree with each other.
+  const { confirmed: confirmedWeMets, refresh: refreshWeMets } = useWeMet()
 
-  const load = async () => {
+  // We Met history — private to you (RLS scopes we_met to the two parties).
+  // Map each row to the *other* person.
+  const wemetHistory = useMemo(() => {
+    if (!userId) return []
+    return confirmedWeMets.map((wm) => {
+      const other = wm.initiator_id === userId ? wm.recipient_profile : wm.initiator_profile
+      return {
+        id:     wm.id,
+        userId: other?.id ?? (wm.initiator_id === userId ? wm.recipient_id : wm.initiator_id),
+        name:   other?.display_name ?? 'Someone',
+        avatar: other?.avatar_url ?? null,
+        zone:   null as string | null,
+        when:   wm.confirmed_at,
+      }
+    })
+  }, [confirmedWeMets, userId])
+  const connectionCount = wemetHistory.length
+
+  const load = useCallback(async () => {
     const user = await getAuthedUser()
     if (!user) { router.replace('/(auth)/login'); return }
 
-    const [profileRes, earned, sessRes, connRes, venueRes, wemets] = await Promise.all([
+    const [profileRes, earned, sessRes, venueRes] = await Promise.all([
       supabase.from('profiles').select('*, created_at').eq('id', user.id).maybeSingle(),
       fetchUserBadges(user.id),
       supabase.from('sessions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .not('checked_out_at', 'is', null),
-      supabase.from('we_met')
-        .select('*', { count: 'exact', head: true })
-        .or(`initiator_id.eq.${user.id},recipient_id.eq.${user.id}`)
-        .eq('status', 'confirmed'),
       supabase.from('venue_subscriptions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id),
-      fetchConfirmedWeMets(),
     ])
 
     setProfile(profileRes.data)
     setUserId(user.id)
     setBadgeCount(earned.length)
     setCheckinCount(sessRes.count ?? 0)
-    setConnectionCount(connRes.count ?? 0)
     setVenueCount(venueRes.count ?? 0)
-
-    // We Met history — private to you (RLS scopes we_met to the two parties).
-    // Map each row to the *other* person.
-    setWemetHistory(
-      (wemets as WeMet[]).map((wm) => {
-        const other = wm.initiator_id === user.id ? wm.recipient_profile : wm.initiator_profile
-        return {
-          id:     wm.id,
-          userId: other?.id ?? (wm.initiator_id === user.id ? wm.recipient_id : wm.initiator_id),
-          name:   other?.display_name ?? 'Someone',
-          avatar: other?.avatar_url ?? null,
-          zone:   null,
-          when:   wm.confirmed_at,
-        }
-      })
-    )
     setLoading(false)
-  }
-
-  useEffect(() => { load() }, [])
+  }, [])
 
   const updateMode = async (field: 'social_mode' | 'mood_mode', value: string) => {
     if (!userId) return
@@ -176,7 +174,15 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       hasUnseenAfterglow().then(setHasUnseenRecap)
-    }, [])
+      // The counts (check-ins, badges, venues) are point-in-time reads, so they
+      // went stale the moment you left the tab.
+      load()
+      // Connections normally arrive over realtime, but a confirmation that lands
+      // while the app is backgrounded is a socket event nobody was listening for
+      // and it is never replayed. Re-read on focus so returning to the tab is
+      // always enough to see it.
+      refreshWeMets()
+    }, [load, refreshWeMets])
   )
 
   if (loading) {
