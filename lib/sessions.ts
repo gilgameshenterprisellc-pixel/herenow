@@ -1,13 +1,14 @@
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
 import { getBestCoords } from './location'
+import { SAMPLE_TARGET } from './fixSampling'
 import { checkUserInZone } from './zones'
 import { presenceFromFix, type PresenceReading } from './presence'
 import {
   effectiveCheckinMargin,
   effectivePresenceMargin,
   checkinAccuracyCeiling,
-  POLYGON_MAX_CHECKIN_ACCURACY_M,
+  POLYGON_TARGET_ACCURACY_M,
 } from './geofenceTuning'
 import { logEvent } from './analytics'
 import { publicName } from './format'
@@ -211,9 +212,21 @@ export async function checkIn(params: {
   // Every failure is logged with the accuracy we saw and the device OS so we
   // can see patterns like "old iPhones fail the gate" in the data instead of
   // hearing about it at a venue test.
-  const fail = (reason: 'not_in_zone' | 'location_unavailable' | 'low_accuracy' | 'precise_off', accuracy: number | null): CheckInResult => {
+  // The coordinates go on the failure too, not just the success. Without them a
+  // "it wouldn't let me in and I was standing right there" report can't be
+  // checked — with them the refusal is a measurable distance from the footprint
+  // (ST_Distance against the zone). `samples` says whether the position was a
+  // corroborated median or a lone reading, which is what decides the ceiling.
+  const fail = (
+    reason: 'not_in_zone' | 'location_unavailable' | 'low_accuracy' | 'precise_off',
+    fix?: { latitude: number; longitude: number; accuracy: number | null; samples: number } | null,
+  ): CheckInResult => {
     logEvent('check_in_failed', {
-      zoneId: params.zoneId, reason, accuracy,
+      zoneId: params.zoneId, reason,
+      accuracy: fix?.accuracy ?? null,
+      lat:      fix?.latitude ?? null,
+      lng:      fix?.longitude ?? null,
+      samples:  fix?.samples ?? null,
       os: Platform.OS, osVersion: String(Platform.Version),
     })
     return { ok: false, reason }
@@ -227,28 +240,40 @@ export async function checkIn(params: {
   // Geofence verification — must be physically at the venue to check in.
   // Without this, check-in is just a button anyone can tap from anywhere,
   // which breaks the whole "only visible to people actually here" promise.
-  // Sample fixes for up to 15s and take the best — older phones need a few
-  // seconds to converge from a coarse cell/wifi estimate to real GPS. For a
-  // polygon venue we chase the tighter target, so the sampler keeps working
-  // instead of settling the moment it clears the loose circle bar.
-  const accuracyTarget = margins.hasPolygon ? POLYGON_MAX_CHECKIN_ACCURACY_M : MAX_CHECKIN_ACCURACY_M
-  const coords = await getBestCoords(accuracyTarget, CHECKIN_FIX_TIMEOUT_MS)
+  // Sample fixes for up to 15s and take the MEDIAN of the last few good ones —
+  // older phones need a few seconds to converge from a coarse cell/wifi estimate
+  // to real GPS, and one reading at indoor accuracy places you inside a
+  // bar-sized footprint only about half the time. For a polygon venue we chase
+  // the tighter target, so the sampler keeps working for a genuinely good fix
+  // instead of settling the moment it scrapes past the ceiling.
+  const accuracyTarget = margins.hasPolygon ? POLYGON_TARGET_ACCURACY_M : MAX_CHECKIN_ACCURACY_M
+  const coords = await getBestCoords(
+    accuracyTarget,
+    CHECKIN_FIX_TIMEOUT_MS,
+    // Once a full crowd of readings is already inside the bar we'd judge them
+    // by, the answer is settled — stop rather than hold the user on the spinner
+    // for the rest of the 15s window.
+    checkinAccuracyCeiling(margins.hasPolygon, SAMPLE_TARGET),
+  )
   if (!coords) return fail('location_unavailable', null)
 
   // Don't trust a fuzzy fix to prove presence — a poor reading on the street can
   // fall inside the building footprint.
   //
-  // Polygon venues: hard gate at POLYGON_MAX_CHECKIN_ACCURACY_M, and the 60–90m
-  // soft band deliberately does NOT apply. A fix wider than the building cannot
-  // tell "inside" from "parked out front", so accepting it just launders a guess
-  // into a check-in. Ask for a retry instead — the sampler above has usually
-  // already converged by the time a patron taps again.
+  // Polygon venues: the bar depends on corroboration. A LONE reading still has
+  // to clear POLYGON_MAX_CHECKIN_ACCURACY_M, because a fix wider than the
+  // building can't tell "inside" from "parked out front" and accepting it just
+  // launders a guess into a check-in. A position medianed from several readings
+  // is a different thing and gets the looser
+  // POLYGON_AGGREGATED_MAX_ACCURACY_M — holding it to the single-reading bar is
+  // what refused people standing in the middle of the room. Either way the
+  // 60–90m circle soft band does NOT apply here.
   //
   // Circle venues: unchanged. No footprint to resolve and a wide radius, so the
   // soft band still earns its keep for old phones indoors.
-  const accuracyCeiling = checkinAccuracyCeiling(margins.hasPolygon)
+  const accuracyCeiling = checkinAccuracyCeiling(margins.hasPolygon, coords.samples)
   if (coords.accuracy != null && coords.accuracy > accuracyCeiling) {
-    return fail(coords.accuracy > REDUCED_ACCURACY_HINT_M ? 'precise_off' : 'low_accuracy', coords.accuracy)
+    return fail(coords.accuracy > REDUCED_ACCURACY_HINT_M ? 'precise_off' : 'low_accuracy', coords)
   }
 
   // Use this venue's own check-in margin if it has been tuned, else the default.
@@ -269,9 +294,9 @@ export async function checkIn(params: {
     // A soft-band fix whose center is OUTSIDE isn't evidence either way — call
     // it low accuracy (retry) rather than "you're not here".
     if (coords.accuracy != null && coords.accuracy > MAX_CHECKIN_ACCURACY_M) {
-      return fail('low_accuracy', coords.accuracy)
+      return fail('low_accuracy', coords)
     }
-    return fail('not_in_zone', coords.accuracy)
+    return fail('not_in_zone', coords)
   }
 
   return finalizeCheckIn(user.id, params, pref?.ghost_mode ?? false, coords)
@@ -286,7 +311,7 @@ async function finalizeCheckIn(
   // The fix that passed the gate, recorded on the success event so an
   // "I checked in from the parking lot" report is a measurable distance
   // instead of a guess. Absent on the demo-account bypass (no fix taken).
-  fix?: { latitude: number; longitude: number; accuracy: number | null } | null,
+  fix?: { latitude: number; longitude: number; accuracy: number | null; samples?: number } | null,
 ): Promise<CheckInResult> {
   // Check out of any existing active session first
   await supabase
@@ -333,6 +358,9 @@ async function finalizeCheckIn(
     accuracy: fix?.accuracy ?? null,
     lat: fix?.latitude ?? null,
     lng: fix?.longitude ?? null,
+    // How many readings backed this position — tells us in the data whether the
+    // sampler is actually getting a crowd to median, or settling for one.
+    samples: fix?.samples ?? null,
   })
   return { ok: true, session: data }
 }

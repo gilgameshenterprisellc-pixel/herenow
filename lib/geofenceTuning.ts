@@ -47,18 +47,56 @@ export function checkinAccuracyCap(hasPolygon: boolean): number {
 export const POLYGON_MAX_CHECKIN_ACCURACY_M = 25
 export const CIRCLE_SOFT_CHECKIN_ACCURACY_M = 90
 
-// The worst accuracy (metres) this venue shape will accept for a check-in.
-export function checkinAccuracyCeiling(hasPolygon: boolean): number {
-  return hasPolygon ? POLYGON_MAX_CHECKIN_ACCURACY_M : CIRCLE_SOFT_CHECKIN_ACCURACY_M
+// ── How many readings agree, not just how good one of them looked ────────────
+// The bar above is the right one for a LONE reading. But lib/location.ts now
+// returns the median of several, and a median of five 35m readings pins a
+// position far better than any one 35m reading does. Holding that aggregate to
+// the single-reading bar is what bounced people standing in the middle of the
+// room (Jacob, build 24) — the fix was precise enough to act on, we just had no
+// way to say so.
+//
+// So the ceiling depends on corroboration. Simulated at Martha's real footprint
+// (test/fix-sampling.test.ts pins these), median of five vs one reading:
+//
+//   accuracy   dead centre of the room      truck parked 12m out front
+//   25m        57%  ->  93%                 19%  ->   8%
+//   40m         0%  ->  66%   (was hard-refused by the 25m ceiling)
+//
+// Allowing 40m WITH corroboration is no looser at the parking lot than today's
+// 25m ceiling already is (16-18% vs 19%), and it rescues the patron inside who
+// is currently refused outright. Without corroboration the old 25m bar stands.
+export const POLYGON_AGGREGATED_MAX_ACCURACY_M = 40
+
+// Below this many readings, an aggregate isn't an aggregate — hold it to the
+// single-reading bar.
+export const MIN_SAMPLES_FOR_AGGREGATED_CEILING = 3
+
+// What the sampler should CHASE, which is not the same as what we'll accept.
+// Aiming at the ceiling makes the sampler stop the moment it scrapes past it;
+// aiming here keeps it working for a genuinely good fix for the whole window
+// and only falls back on the aggregate when the building won't give one up.
+export const POLYGON_TARGET_ACCURACY_M = 15
+
+// The worst accuracy (metres) this venue shape will accept for a check-in,
+// given how many readings were combined into the position.
+export function checkinAccuracyCeiling(hasPolygon: boolean, samples = 1): number {
+  if (!hasPolygon) return CIRCLE_SOFT_CHECKIN_ACCURACY_M
+  return samples >= MIN_SAMPLES_FOR_AGGREGATED_CEILING
+    ? POLYGON_AGGREGATED_MAX_ACCURACY_M
+    : POLYGON_MAX_CHECKIN_ACCURACY_M
 }
 
 // True when a fix is precise enough to be allowed to decide a check-in at this
 // venue. A null accuracy (platform didn't report one) is treated as acceptable
 // here and handled by the caller's other gates — this function is only about a
 // reported value being too fuzzy to mean anything.
-export function fixPreciseEnoughForCheckin(accuracy: number | null, hasPolygon: boolean): boolean {
+export function fixPreciseEnoughForCheckin(
+  accuracy: number | null,
+  hasPolygon: boolean,
+  samples = 1,
+): boolean {
   if (accuracy == null) return true
-  return accuracy <= checkinAccuracyCeiling(hasPolygon)
+  return accuracy <= checkinAccuracyCeiling(hasPolygon, samples)
 }
 
 // Effective margin passed to user_in_zone() for a CHECK-IN attempt: the venue's
