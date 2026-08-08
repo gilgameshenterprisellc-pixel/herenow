@@ -2,31 +2,19 @@ import { supabase } from './supabase'
 import { logEvent } from './analytics'
 import { screenText } from './textModeration'
 import { isSessionGhosted } from './sessions'
-
-// Milliseconds to add to a UTC instant to get wall-clock time in `tz`.
-function tzOffsetMs(date: Date, tz: string): number {
-  const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, hour12: false,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  })
-  const p = Object.fromEntries(dtf.formatToParts(date).map((x) => [x.type, x.value])) as Record<string, string>
-  const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
-  return asUTC - date.getTime()
-}
+import { tzOffsetMs, NIGHT_TZ, NIGHT_ROLLOVER_HOUR } from './nights'
 
 // A venue's Pulse post should clear "after they close" — we use the next 6am
 // in Nashville (America/Chicago), the same night boundary the recap uses. A
 // post made in the evening dies at 6am; one made at 1am dies at 6am the same
 // morning. DST flips at 2am so 6am is always a stable target.
 export function nextVenueNightExpiry(now: Date = new Date()): string {
-  const tz = 'America/Chicago'
-  const offset = tzOffsetMs(now, tz)
+  const offset = tzOffsetMs(now, NIGHT_TZ)
   const wall = new Date(now.getTime() + offset) // wall-clock time as a UTC-based Date
   const targetWall = new Date(Date.UTC(
-    wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate(), 6, 0, 0,
+    wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate(), NIGHT_ROLLOVER_HOUR, 0, 0,
   ))
-  if (wall.getUTCHours() >= 6) targetWall.setUTCDate(targetWall.getUTCDate() + 1)
+  if (wall.getUTCHours() >= NIGHT_ROLLOVER_HOUR) targetWall.setUTCDate(targetWall.getUTCDate() + 1)
   // Convert the target wall time back to a real UTC instant.
   return new Date(targetWall.getTime() - offset).toISOString()
 }
