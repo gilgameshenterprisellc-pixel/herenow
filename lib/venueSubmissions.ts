@@ -69,6 +69,25 @@ export async function fetchPendingSubmissions(): Promise<VenueSubmission[]> {
 export async function approveSubmission(sub: VenueSubmission): Promise<boolean> {
   if (sub.latitude == null || sub.longitude == null) return false
 
+  // Don't mint a second copy of a venue that's already in the system. This path
+  // used to insert blind, with no duplicate check of any kind — approving a
+  // suggestion for a venue that already existed silently split its patrons
+  // across two rooms. Same-name-and-close-by is the shared rule every zone
+  // writer now uses (supabase/venue_duplicate_guard.sql); approving an existing
+  // venue just marks the submission handled and leaves the live zone alone.
+  const { data: existingZoneId } = await supabase.rpc('find_zone_by_name_near', {
+    p_name: sub.name,
+    p_lat:  sub.latitude,
+    p_lng:  sub.longitude,
+  })
+  if (existingZoneId) {
+    const { error } = await supabase
+      .from('venue_submissions')
+      .update({ status: 'approved', reviewed_at: new Date().toISOString() })
+      .eq('id', sub.id)
+    return !error
+  }
+
   const insert: Record<string, unknown> = {
     name:          sub.name,
     category:      sub.category,
