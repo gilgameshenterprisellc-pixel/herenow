@@ -16,8 +16,19 @@ export default function ForgotPasswordScreen() {
     if (!email.trim()) return
     setLoading(true)
     setError('')
+    // The custom scheme only means something to the installed app. Opening a
+    // herenow:// link in a desktop browser does nothing at all, which is half of
+    // why the reset link read as "broken" (Jacob, Aug 2026) — so on web, send
+    // people back to the web build instead.
+    // Both of these must be listed under Supabase → Authentication → URL
+    // Configuration → Redirect URLs, or Supabase silently falls back to the
+    // Site URL and the tokens never reach the app.
+    const redirectTo = Platform.OS === 'web'
+      ? `${window.location.origin}/reset-password`
+      : 'herenow://reset-password'
+
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: 'herenow://reset-password',
+      redirectTo,
     })
     setLoading(false)
     if (err) { setError(err.message); return }

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Platform, View } from 'react-native'
+import { Platform, View, Linking } from 'react-native'
 import { Stack, router } from 'expo-router'
 import type { ErrorBoundaryProps } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
@@ -11,6 +11,7 @@ import { SessionProvider } from '@/contexts/SessionContext'
 import { ToastProvider } from '@/contexts/ToastContext'
 import { supabase } from '@/lib/supabase'
 import { registerPushToken } from '@/lib/push'
+import { consumeAuthLink, isAuthLink, scrubAuthParamsFromUrl } from '@/lib/authLinks'
 import { AnalyticsProvider } from '@/components/AnalyticsProvider'
 import * as Sentry from '@sentry/react-native'
 
@@ -42,8 +43,49 @@ function RootLayout() {
     }
   }, [])
 
+  // Consume Supabase auth email links (password reset, and any other link that
+  // carries tokens). Without this the tokens arrive and are ignored: the reset
+  // screen opened with no session behind it, so setting a new password always
+  // failed (Jacob, Aug 2026). Runs for a cold start (getInitialURL) and for a
+  // link tapped while the app is already open (the 'url' event).
+  useEffect(() => {
+    let cancelled = false
+
+    const handle = async (url: string | null | undefined) => {
+      if (cancelled || !isAuthLink(url)) return
+      const result = await consumeAuthLink(url)
+      if (cancelled) return
+      if (Platform.OS === 'web') scrubAuthParamsFromUrl()
+      if (result === 'recovery') {
+        router.replace('/(auth)/reset-password')
+      } else if (result === 'error') {
+        // Expired or already-used link — let the screen say so rather than
+        // presenting a password form that cannot work.
+        router.replace('/(auth)/reset-password?invalid=1')
+      }
+    }
+
+    if (Platform.OS === 'web') {
+      handle(window.location.href)
+      return () => { cancelled = true }
+    }
+
+    Linking.getInitialURL().then(handle).catch(() => {})
+    const sub = Linking.addEventListener('url', ({ url }) => { handle(url) })
+    return () => {
+      cancelled = true
+      sub.remove()
+    }
+  }, [])
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // PKCE recovery links don't announce themselves in the URL — this event is
+      // the only reliable signal that a session came from "forgot password".
+      if (event === 'PASSWORD_RECOVERY') {
+        router.replace('/(auth)/reset-password')
+        return
+      }
       if (event !== 'SIGNED_IN' || !session?.user) return
 
       // Silently refresh the push token on sign-in if permission is already granted.

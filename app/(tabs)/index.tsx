@@ -435,8 +435,23 @@ export default function NearbyScreen() {
           {(() => {
             const dist = selectedZone.distance_meters
             const radius = selectedZone.radius_meters ?? 10
-            // Polygon venues: always show Enter button — user_in_zone() gates precisely at check-in
-            const inRange = dist == null || !!selectedZone.polygon_wkt || dist <= radius * 1.3
+            // A polygon venue carries a token radius_meters (Martha's is 10)
+            // because the footprint is the real geofence, so radius * 1.3 would
+            // hide this button from someone standing inside the building. The
+            // old workaround was to skip the range check entirely for polygon
+            // venues, which is why Martha offered "Enter Venue" from across town
+            // while The 5 Spot — same distance, no footprint — said "you're not
+            // at this venue yet" (Jacob, build 24). Two venues, opposite answers,
+            // for a reason invisible to the user.
+            //
+            // Give polygon venues a generous proximity floor instead. This is
+            // only a UI affordance — check-in still gates precisely through
+            // user_in_zone() — so it can be loose; it just shouldn't be infinite.
+            const POLYGON_PREVIEW_RANGE_M = 75
+            const previewRange = selectedZone.polygon_wkt
+              ? Math.max(radius, POLYGON_PREVIEW_RANGE_M)
+              : radius * 1.3
+            const inRange = dist == null || dist <= previewRange
             if (inRange) {
               return (
                 <TouchableOpacity style={preview.enterBtn} onPress={handlePreviewEnter}>
