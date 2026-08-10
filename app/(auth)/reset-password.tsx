@@ -1,19 +1,52 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 
+// A reset link only works if it actually established a session (the root layout
+// consumes the tokens — see lib/authLinks.ts). Without one, updateUser() fails
+// with "Auth session missing" no matter what the user types, so the form must
+// not be shown at all. That silent failure was the whole bug.
+type LinkState = 'checking' | 'ready' | 'invalid'
+
 export default function ResetPasswordScreen() {
+  const { invalid }               = useLocalSearchParams<{ invalid?: string }>()
+  const [linkState, setLinkState] = useState<LinkState>(invalid ? 'invalid' : 'checking')
   const [password, setPassword]   = useState('')
   const [confirm, setConfirm]     = useState('')
   const [showPw, setShowPw]       = useState(false)
   const [loading, setLoading]     = useState(false)
   const [done, setDone]           = useState(false)
   const [error, setError]         = useState('')
+
+  useEffect(() => {
+    if (invalid) return
+    let cancelled = false
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (!cancelled && session) setLinkState('ready')
+    })
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled && session) setLinkState('ready')
+    })
+
+    // The root layout may still be exchanging the token when this mounts, so
+    // don't condemn the link on the first miss — give it a moment to land.
+    const timer = setTimeout(() => {
+      if (!cancelled) setLinkState((s) => (s === 'checking' ? 'invalid' : s))
+    }, 4000)
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+      clearTimeout(timer)
+    }
+  }, [invalid])
 
   const handleReset = async () => {
     if (password !== confirm) { setError("Passwords don't match."); return }
@@ -36,7 +69,24 @@ export default function ResetPasswordScreen() {
         <Text style={styles.title}>New Password</Text>
         <Text style={styles.sub}>Choose a new password for your account.</Text>
 
-        {done ? (
+        {linkState === 'checking' ? (
+          <View style={styles.checkingBox}>
+            <ActivityIndicator color="#29B6F6" />
+            <Text style={styles.checkingText}>Checking your reset link…</Text>
+          </View>
+        ) : linkState === 'invalid' ? (
+          <View style={styles.invalidBox}>
+            <Ionicons name="alert-circle-outline" size={22} color="#FF8A80" />
+            <Text style={styles.invalidTitle}>This reset link didn't work</Text>
+            <Text style={styles.invalidText}>
+              Reset links expire, and each one can only be used once. Request a fresh
+              one and open it on the same device you have HereNow installed on.
+            </Text>
+            <TouchableOpacity style={styles.btn} onPress={() => router.replace('/(auth)/forgot-password')}>
+              <Text style={styles.btnText}>Send a new link</Text>
+            </TouchableOpacity>
+          </View>
+        ) : done ? (
           <View style={styles.successBox}>
             <Text style={styles.successText}>✓ Password updated — taking you back to sign in.</Text>
           </View>
@@ -122,4 +172,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#22c55e40', padding: 16,
   },
   successText: { color: '#22c55e', fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  checkingBox: { alignItems: 'center', gap: 10, paddingVertical: 18 },
+  checkingText: { color: '#7A93AC', fontSize: 13 },
+  invalidBox: {
+    backgroundColor: '#FF8A8012', borderRadius: 12,
+    borderWidth: 1, borderColor: '#FF8A8033', padding: 16,
+    alignItems: 'center', gap: 8,
+  },
+  invalidTitle: { color: '#f8fafc', fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  invalidText: { color: '#7A93AC', fontSize: 13, lineHeight: 19, textAlign: 'center', marginBottom: 4 },
 })
