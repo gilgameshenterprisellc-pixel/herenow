@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import type { PulsePost } from '@/lib/pulse'
-import { deletePulsePost, togglePinPulse } from '@/lib/pulse'
+import type { PulsePost, ReactionSummary } from '@/lib/pulse'
+import { deletePulsePost, togglePinPulse, togglePulseReaction, PULSE_REACTIONS, EMPTY_REACTIONS } from '@/lib/pulse'
 import ExpiryLabel from './ExpiryLabel'
 import { platformConfirm } from '@/lib/confirm'
+import { tapFeedback } from '@/lib/haptics'
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -20,13 +22,40 @@ interface Props {
   onDeleted?: () => void
   onReport?: (postId: string) => void
   onPinChanged?: () => void
+  /** Counts + this user's picks. Omit to hide the row entirely (locked preview). */
+  reactions?: ReactionSummary
+  canReact?: boolean
 }
 
-export default function PulsePostCard({ post, currentUserId, canPin, onDeleted, onReport, onPinChanged }: Props) {
+export default function PulsePostCard({
+  post, currentUserId, canPin, onDeleted, onReport, onPinChanged,
+  reactions, canReact,
+}: Props) {
   const profile = post.profiles
   const initial = profile?.display_name?.[0]?.toUpperCase() ?? '?'
   const isOwn = post.user_id === currentUserId
   const isVenue = post.is_venue_post
+
+  // Held locally so a tap lands instantly. The feed refetches on its own
+  // schedule, so re-sync whenever a fresher summary arrives from above.
+  const [local, setLocal] = useState<ReactionSummary>(reactions ?? EMPTY_REACTIONS)
+  useEffect(() => { setLocal(reactions ?? EMPTY_REACTIONS) }, [reactions])
+
+  const handleReact = async (emoji: string) => {
+    if (!canReact) return
+    const had = local.mine.includes(emoji)
+    const before = local
+
+    // Optimistic: flip it now, put it back if the write fails.
+    setLocal({
+      counts: { ...local.counts, [emoji]: Math.max(0, (local.counts[emoji] ?? 0) + (had ? -1 : 1)) },
+      mine: had ? local.mine.filter((e) => e !== emoji) : [...local.mine, emoji],
+    })
+    tapFeedback()
+
+    const res = await togglePulseReaction(post.id, emoji)
+    if (!res) setLocal(before)
+  }
 
   const handleDelete = () => {
     platformConfirm(
@@ -86,6 +115,35 @@ export default function PulsePostCard({ post, currentUserId, canPin, onDeleted, 
         <Text style={styles.content}>{post.content}</Text>
       )}
 
+      {/* Reactions — the whole set is always shown so it's obvious you can tap.
+          Counts only appear once someone has actually reacted, so a quiet post
+          reads as an invitation rather than a row of zeroes. */}
+      {reactions !== undefined && (
+        <View style={styles.reactionRow}>
+          {PULSE_REACTIONS.map((emoji) => {
+            const count = local.counts[emoji] ?? 0
+            const mine  = local.mine.includes(emoji)
+            return (
+              <TouchableOpacity
+                key={emoji}
+                style={[styles.reactionPill, mine && styles.reactionPillMine]}
+                onPress={() => handleReact(emoji)}
+                disabled={!canReact}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel={`React ${emoji}${count > 0 ? `, ${count} so far` : ''}`}
+              >
+                <Text style={styles.reactionEmoji}>{emoji}</Text>
+                {count > 0 && (
+                  <Text style={[styles.reactionCount, mine && styles.reactionCountMine]}>{count}</Text>
+                )}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      )}
+
       {/* Venue owner: pin control on their own venue posts */}
       {canPin && isVenue && (
         <TouchableOpacity onPress={handlePin} style={styles.pinBtn}>
@@ -138,6 +196,19 @@ const styles = StyleSheet.create({
   },
   vibeTagText: { fontSize: 12, color: '#a855f7', fontWeight: '600' },
   content: { fontSize: 14, color: '#D0E8F5', lineHeight: 20 },
+  reactionRow: { flexDirection: 'row', gap: 6, marginTop: 2, flexWrap: 'wrap' },
+  reactionPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#07101F',
+    borderWidth: 1, borderColor: '#1A2E4A',
+    borderRadius: 14,
+    paddingHorizontal: 9, paddingVertical: 5,
+    minHeight: 30,
+  },
+  reactionPillMine: { backgroundColor: '#29B6F618', borderColor: '#29B6F660' },
+  reactionEmoji: { fontSize: 14, lineHeight: 18 },
+  reactionCount: { fontSize: 11, fontWeight: '700', color: '#7A93AC' },
+  reactionCountMine: { color: '#29B6F6' },
   pinBtn: {
     alignSelf: 'flex-start', marginTop: 2,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,

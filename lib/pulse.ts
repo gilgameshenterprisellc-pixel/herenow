@@ -116,6 +116,106 @@ export async function createPulsePost(params: {
   return data as PulsePost
 }
 
+// ── Reactions ───────────────────────────────────────────────────────────────
+//
+// Jacob (Aug 2026): "reactions would give people a lightweight way to interact
+// with posts and make Pulse feel a little more alive. I don't think we need
+// commenting yet."
+//
+// A small fixed set, not a full emoji keyboard: five taps cover the whole range
+// of "I saw this and I'm into it", and a closed set has no free-text surface to
+// moderate. Requires supabase/pulse_reactions.sql.
+
+export const PULSE_REACTIONS = ['🔥', '❤️', '😂', '🙌', '🍻'] as const
+export type PulseReaction = typeof PULSE_REACTIONS[number]
+
+export interface ReactionSummary {
+  /** emoji → how many people used it */
+  counts: Record<string, number>
+  /** the emoji this user has used on the post */
+  mine: string[]
+}
+
+export const EMPTY_REACTIONS: ReactionSummary = { counts: {}, mine: [] }
+
+/**
+ * Reaction summaries for a batch of posts, in one round trip.
+ *
+ * Returns an empty map on error rather than throwing: reactions are decoration
+ * on top of the Pulse feed, and a failure here must never blank the feed.
+ */
+export async function fetchPulseReactions(
+  postIds: string[]
+): Promise<Record<string, ReactionSummary>> {
+  if (postIds.length === 0) return {}
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data, error } = await supabase
+    .from('pulse_reactions')
+    .select('post_id, user_id, emoji')
+    .in('post_id', postIds)
+
+  if (error) {
+    console.warn('[pulse] fetchPulseReactions error:', error.message)
+    return {}
+  }
+
+  const out: Record<string, ReactionSummary> = {}
+  for (const row of data ?? []) {
+    const summary = out[row.post_id] ?? (out[row.post_id] = { counts: {}, mine: [] })
+    summary.counts[row.emoji] = (summary.counts[row.emoji] ?? 0) + 1
+    if (user && row.user_id === user.id) summary.mine.push(row.emoji)
+  }
+  return out
+}
+
+/**
+ * Add or remove this user's reaction. Returns the resulting state so an
+ * optimistic UI can reconcile, or null if the write failed and the caller
+ * should roll back.
+ */
+export async function togglePulseReaction(
+  postId: string,
+  emoji: string
+): Promise<{ reacted: boolean } | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: existing, error: readErr } = await supabase
+    .from('pulse_reactions')
+    .select('id')
+    .eq('post_id', postId)
+    .eq('user_id', user.id)
+    .eq('emoji', emoji)
+    .maybeSingle()
+
+  if (readErr) {
+    console.warn('[pulse] togglePulseReaction read error:', readErr.message)
+    return null
+  }
+
+  if (existing) {
+    const { error } = await supabase.from('pulse_reactions').delete().eq('id', existing.id)
+    if (error) {
+      console.warn('[pulse] remove reaction error:', error.message)
+      return null
+    }
+    return { reacted: false }
+  }
+
+  const { error } = await supabase
+    .from('pulse_reactions')
+    .insert({ post_id: postId, user_id: user.id, emoji })
+
+  if (error) {
+    console.warn('[pulse] add reaction error:', error.message)
+    return null
+  }
+  logEvent('pulse_reacted', { emoji })
+  return { reacted: true }
+}
+
 // Venue owners can pin one of their own Pulse posts to the top.
 export async function togglePinPulse(postId: string, pinned: boolean): Promise<boolean> {
   const { error } = await supabase
