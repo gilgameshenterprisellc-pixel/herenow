@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Zone } from '@/lib/zones'
+import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR, type VenueStatus } from '@/lib/venueStatus'
 
 interface Props {
   zones: Zone[]
@@ -17,57 +18,78 @@ export const WEB_MAP_HEIGHT = Math.round(
   Math.min(420, Math.max(260, (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.38))
 )
 
-type Tier = 'subscribed' | 'live' | 'regular'
-
-function getTier(zone: Zone, subscribedIds: Set<string>): Tier {
-  if (subscribedIds.has(zone.id)) return 'subscribed'
-  if ((zone.member_count ?? 0) > 0) return 'live'
-  return 'regular'
+// Status ring + fill opacity for the venue's geofence shading. The status itself
+// (busy / open / nearby) is decided in lib/venueStatus.ts so web and native can
+// never drift apart on what a colour means.
+const HEAT_OPACITY: Record<VenueStatus, number> = {
+  busy:   0.30,
+  open:   0.22,
+  nearby: 0.18,
 }
 
-const TIER_STYLE: Record<Tier, { color: string; size: number; glow: number; heatOpacity: number }> = {
-  subscribed: { color: '#f59e0b', size: 48, glow: 22, heatOpacity: 0.30 },
-  live:       { color: '#22c55e', size: 40, glow: 14, heatOpacity: 0.22 },
-  regular:    { color: '#29B6F6', size: 36, glow: 10, heatOpacity: 0.18 },
+// Everything below is injected as raw HTML into a Leaflet divIcon, and both the
+// venue name and the avatar URL come from the database. Escape before interpolating.
+function esc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
-function makeIcon(L: any, zone: Zone, isSelected: boolean, subscribedIds: Set<string>) {
+function makeIcon(
+  L: any,
+  zone: Zone,
+  isSelected: boolean,
+  subscribed: boolean,
+  status: VenueStatus,
+) {
   ensureMapStyles()
-  const tier              = getTier(zone, subscribedIds)
-  const { color, size, glow } = TIER_STYLE[tier]
-  const tailH             = Math.round(size * 0.22)
-  const h                 = size + tailH
-  const label             = tier === 'subscribed' ? '★' : (zone.name[0]?.toUpperCase() ?? '?')
-  const pinBg             = isSelected ? '#fff'  : color
-  const labelColor        = isSelected ? color   : '#050A15'
-  const border            = isSelected ? color   : '#050A15'
+  const { color } = STATUS_STYLE[status]
+  const size  = isSelected ? 48 : 42
+  const ring  = isSelected ? 3.5 : 3
+  const glow  = status === 'busy' ? 20 : status === 'open' ? 14 : 10
+  const tailH = 7
+  const h     = size + tailH
+
   const glowStyle = isSelected
     ? `0 0 ${glow + 10}px ${color}ee, 0 0 ${glow}px ${color}bb`
     : `0 0 ${glow}px ${color}66`
-  // Live + subscribed pins pulse their glow so the map feels alive
-  const animClass = (tier === 'live' || tier === 'subscribed') && !isSelected ? `hn-pulse-${tier}` : ''
+
+  // Busy + open pins breathe so the map reads as alive at a glance.
+  const animClass = (status === 'busy' || status === 'open') && !isSelected ? `hn-pulse-${status}` : ''
   const animStyle = animClass ? `animation:${animClass} 2.2s ease-in-out infinite;` : ''
+
+  // The venue's profile picture is the pin (Jacob). Venues without one keep the
+  // old initial on a dark disc so the map never shows a broken image.
+  const inner = zone.avatar_url
+    ? `<img src="${esc(zone.avatar_url)}" alt="" style="
+         width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />`
+    : `<span style="color:${color};font-weight:900;font-size:15px;
+         font-family:system-ui,sans-serif;line-height:1;">
+         ${esc(zone.name[0]?.toUpperCase() ?? '?')}
+       </span>`
+
+  const star = subscribed
+    ? `<div style="position:absolute;top:-2px;right:-2px;width:16px;height:16px;
+         background:${SUBSCRIBED_COLOR};border:2px solid #050A15;border-radius:50%;
+         display:flex;align-items:center;justify-content:center;
+         font-size:9px;line-height:1;color:#050A15;font-weight:900;
+         font-family:system-ui,sans-serif;">★</div>`
+    : ''
 
   return L.divIcon({
     html: `
       <div style="position:relative;width:${size}px;height:${h}px;">
         <div style="
-          width:${size}px;height:${size}px;
-          background:${pinBg};border:2.5px solid ${border};
-          border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+          width:${size}px;height:${size}px;box-sizing:border-box;
+          background:#050A15;border:${ring}px solid ${isSelected ? '#fff' : color};
+          border-radius:50%;overflow:hidden;
           display:flex;align-items:center;justify-content:center;
           box-shadow:${glowStyle};cursor:pointer;transition:box-shadow 0.3s;
           ${animStyle}
-        ">
-          <span style="transform:rotate(45deg);color:${labelColor};
-            font-weight:900;font-size:${tier === 'subscribed' ? 16 : 13}px;
-            font-family:system-ui,sans-serif;line-height:1;">
-            ${label}
-          </span>
-        </div>
+        ">${inner}</div>
         <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);
-          width:4px;height:${tailH}px;background:${pinBg};border-radius:0 0 2px 2px;
-          box-shadow:${glowStyle};"></div>
+          width:4px;height:${tailH}px;background:${isSelected ? '#fff' : color};
+          border-radius:0 0 2px 2px;box-shadow:${glowStyle};"></div>
+        ${star}
       </div>`,
     className: '',
     iconSize:   [size, h],
@@ -102,13 +124,13 @@ function ensureMapStyles() {
   const el = document.createElement('style')
   el.id = 'hn-map-keyframes'
   el.textContent = `
-    @keyframes hn-pulse-live {
+    @keyframes hn-pulse-open {
       0%,100% { box-shadow: 0 0 14px #22c55e55, 0 0 6px #22c55e33; }
       50%      { box-shadow: 0 0 28px #22c55ebb, 0 0 14px #22c55e66; }
     }
-    @keyframes hn-pulse-subscribed {
-      0%,100% { box-shadow: 0 0 22px #f59e0b55, 0 0 8px #f59e0b33; }
-      50%      { box-shadow: 0 0 40px #f59e0bbb, 0 0 22px #f59e0b66; }
+    @keyframes hn-pulse-busy {
+      0%,100% { box-shadow: 0 0 20px #a855f755, 0 0 8px #a855f733; }
+      50%      { box-shadow: 0 0 38px #a855f7bb, 0 0 20px #a855f766; }
     }
     @keyframes uPulse {
       0%   { transform: scale(1); opacity: 0.8; }
@@ -199,9 +221,11 @@ export default function WebMap({
     markersRef.current.clear()
 
     zonesRef.current.forEach(zone => {
-      const tier   = getTier(zone, subscribedIdsRef.current)
-      const { color, heatOpacity } = TIER_STYLE[tier]
-      const ring   = parseWktRing(zone.polygon_wkt)
+      const status      = venueStatus(zone)
+      const { color }   = STATUS_STYLE[status]
+      const heatOpacity = HEAT_OPACITY[status]
+      const subscribed  = subscribedIdsRef.current.has(zone.id)
+      const ring        = parseWktRing(zone.polygon_wkt)
 
       if (ring.length >= 3) {
         // Polygon outline — replaces the radius circle when building footprint exists
@@ -251,7 +275,7 @@ export default function WebMap({
         circlesRef.current.set(zone.id, circle)
       }
 
-      const icon   = makeIcon(L, zone, zone.id === selectedIdRef.current, subscribedIdsRef.current)
+      const icon   = makeIcon(L, zone, zone.id === selectedIdRef.current, subscribed, status)
       const marker = L.marker([zone.center_lat, zone.center_lng], { icon })
         .addTo(map)
         .on('click', () => onPinPressRef.current(zone))

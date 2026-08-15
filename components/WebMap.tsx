@@ -1,11 +1,12 @@
 // Native map (iOS/Android) — Apple Maps on iOS via PROVIDER_DEFAULT, no API key.
 // Mirrors the WebMap.web.tsx props contract exactly so NearbyMap doesn't branch.
 // Metro resolves WebMap.web.tsx on web and this file on native.
-import { useEffect, useRef, useMemo } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react'
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
 import MapView, { Marker, Circle, Polygon, UrlTile, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import type { Zone } from '@/lib/zones'
+import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR, type VenueStatus } from '@/lib/venueStatus'
 
 // Pitch-black basemap: the same free CartoDB dark tiles the web build already uses,
 // so native matches web exactly. No API key, no billing — Google Maps would force a
@@ -51,18 +52,13 @@ export const WEB_MAP_HEIGHT = Math.round(
   Math.min(420, Math.max(260, SCREEN_H * 0.38))
 )
 
-type Tier = 'subscribed' | 'live' | 'regular'
-
-function getTier(zone: Zone, subscribedIds: Set<string>): Tier {
-  if (subscribedIds.has(zone.id)) return 'subscribed'
-  if ((zone.member_count ?? 0) > 0) return 'live'
-  return 'regular'
-}
-
-const TIER_STYLE: Record<Tier, { color: string; heatOpacity: number }> = {
-  subscribed: { color: '#f59e0b', heatOpacity: 0.30 },
-  live:       { color: '#22c55e', heatOpacity: 0.22 },
-  regular:    { color: '#29B6F6', heatOpacity: 0.18 },
+// Geofence shading opacity per status. The status itself and its colour live in
+// lib/venueStatus.ts, shared with WebMap.web.tsx so the two can never disagree
+// about what green means.
+const HEAT_OPACITY: Record<VenueStatus, number> = {
+  busy:   0.30,
+  open:   0.22,
+  nearby: 0.18,
 }
 
 // Parse PostGIS WKT POLYGON((lng lat, ...)) → {latitude, longitude}[] ring
@@ -92,6 +88,15 @@ export default function WebMap({
   zones, location, selectedId, onPinPress, subscribedIds, onMapMove, recenterTick,
 }: Props) {
   const mapRef = useRef<MapView>(null)
+
+  // A Marker with tracksViewChanges={false} is snapshotted once. Set it false
+  // before the venue's avatar has decoded and the pin freezes as an empty disc
+  // forever. So markers keep tracking until their image reports back, then stop
+  // — which is where the render-cost saving actually matters.
+  const [imageReady, setImageReady] = useState<Set<string>>(new Set())
+  const markImageReady = useCallback((zoneId: string) => {
+    setImageReady(prev => (prev.has(zoneId) ? prev : new Set(prev).add(zoneId)))
+  }, [])
 
   // react-native-maps hard-crashes (native) on a NaN/null marker coordinate.
   // A single zone with missing coords would take the whole app down, so only
@@ -172,11 +177,15 @@ export default function WebMap({
           zIndex={-1}
         />
         {validZones.map(zone => {
-          const tier = getTier(zone, subscribedIds)
-          const { color, heatOpacity } = TIER_STYLE[tier]
-          const isSelected = zone.id === selectedId
-          const ring = parseWktRing(zone.polygon_wkt)
-          const center = { latitude: zone.center_lat, longitude: zone.center_lng }
+          const status      = venueStatus(zone)
+          const { color }   = STATUS_STYLE[status]
+          const heatOpacity = HEAT_OPACITY[status]
+          const subscribed  = subscribedIds.has(zone.id)
+          const isSelected  = zone.id === selectedId
+          const ring        = parseWktRing(zone.polygon_wkt)
+          const center      = { latitude: zone.center_lat, longitude: zone.center_lng }
+          // Nothing to wait for when the venue has no picture.
+          const pinReady    = !zone.avatar_url || imageReady.has(zone.id)
 
           return (
             <View key={zone.id}>
@@ -199,21 +208,34 @@ export default function WebMap({
               <Marker
                 coordinate={center}
                 onPress={() => onPinPress(zone)}
-                tracksViewChanges={false}
+                tracksViewChanges={!pinReady}
                 anchor={{ x: 0.5, y: 1 }}
               >
                 <View style={styles.pinWrap}>
-                  <View
-                    style={[
-                      styles.pin,
-                      { backgroundColor: isSelected ? '#fff' : color, borderColor: isSelected ? color : '#050A15' },
-                    ]}
-                  >
-                    <Text style={[styles.pinLabel, { color: isSelected ? color : '#050A15' }]}>
-                      {tier === 'subscribed' ? '★' : (zone.name[0]?.toUpperCase() ?? '?')}
-                    </Text>
+                  {/* The venue's profile picture is the pin; the ring carries its
+                      status. Venues without a picture keep the old initial. */}
+                  <View style={[styles.pin, { borderColor: isSelected ? '#fff' : color }]}>
+                    {zone.avatar_url ? (
+                      <Image
+                        source={{ uri: zone.avatar_url }}
+                        style={styles.pinImg}
+                        onLoad={() => markImageReady(zone.id)}
+                        // On error the fallback never arrives, so stop tracking
+                        // anyway rather than leaving the marker redrawing forever.
+                        onError={() => markImageReady(zone.id)}
+                      />
+                    ) : (
+                      <Text style={[styles.pinLabel, { color }]}>
+                        {zone.name[0]?.toUpperCase() ?? '?'}
+                      </Text>
+                    )}
                   </View>
                   <View style={[styles.pinTail, { backgroundColor: isSelected ? '#fff' : color }]} />
+                  {subscribed && (
+                    <View style={styles.pinStar}>
+                      <Text style={styles.pinStarText}>★</Text>
+                    </View>
+                  )}
                 </View>
               </Marker>
             </View>
@@ -234,11 +256,20 @@ const styles = StyleSheet.create({
   wrap: { width: '100%', height: WEB_MAP_HEIGHT, backgroundColor: '#060D1A' },
   pinWrap: { alignItems: 'center' },
   pin: {
-    width: 34, height: 34, borderRadius: 17,
-    borderWidth: 2.5, alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 3, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#050A15', overflow: 'hidden',
   },
-  pinLabel: { fontWeight: '900', fontSize: 13 },
-  pinTail: { width: 3, height: 7, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1 },
+  pinImg: { width: '100%', height: '100%' },
+  pinLabel: { fontWeight: '900', fontSize: 15 },
+  pinTail: { width: 4, height: 7, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1 },
+  pinStar: {
+    position: 'absolute', top: -2, right: -2,
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: SUBSCRIBED_COLOR, borderWidth: 2, borderColor: '#050A15',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pinStarText: { fontSize: 8, lineHeight: 10, color: '#050A15', fontWeight: '900' },
   locateBtn: {
     position: 'absolute', top: 12, right: 12,
     width: 40, height: 40, borderRadius: 10,
