@@ -3,6 +3,7 @@ import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, StyleSheet,
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import type { Zone } from '@/lib/zones'
+import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR } from '@/lib/venueStatus'
 import WebMap, { WEB_MAP_HEIGHT } from './WebMap'
 
 const FILTER_CHIPS = [
@@ -38,7 +39,11 @@ export default function NearbyMap({
   const [searchFocused, setSearchFocused] = useState(false)
   const insets = useSafeAreaInsets()
 
-  const liveCount       = zones.filter(z => (z.member_count ?? 0) > 0).length
+  // Legend entries only appear when something on the map actually carries that
+  // colour, so the key never explains a colour the user cannot see.
+  const statuses        = zones.map(z => venueStatus(z))
+  const busyCount       = statuses.filter(s => s === 'busy').length
+  const openCount       = statuses.filter(s => s === 'open').length
   const subscribedCount = zones.filter(z => subscribedIds.has(z.id)).length
 
   return (
@@ -130,24 +135,30 @@ export default function NearbyMap({
           })}
         </ScrollView>
 
-        {/* Tier legend */}
+        {/* Status legend — matches the ring around each pin */}
         <View style={styles.legend}>
-          {subscribedCount > 0 && (
+          {busyCount > 0 && (
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#f59e0b' }]} />
-              <Text style={styles.legendLabel}>Subscribed</Text>
+              <View style={[styles.legendDot, { backgroundColor: STATUS_STYLE.busy.color }]} />
+              <Text style={styles.legendLabel}>{STATUS_STYLE.busy.label}</Text>
             </View>
           )}
-          {liveCount > 0 && (
+          {openCount > 0 && (
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
-              <Text style={styles.legendLabel}>Live</Text>
+              <View style={[styles.legendDot, { backgroundColor: STATUS_STYLE.open.color }]} />
+              <Text style={styles.legendLabel}>{STATUS_STYLE.open.label}</Text>
             </View>
           )}
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#29B6F6' }]} />
-            <Text style={styles.legendLabel}>Nearby</Text>
+            <View style={[styles.legendDot, { backgroundColor: STATUS_STYLE.nearby.color }]} />
+            <Text style={styles.legendLabel}>{STATUS_STYLE.nearby.label}</Text>
           </View>
+          {subscribedCount > 0 && (
+            <View style={styles.legendItem}>
+              <Text style={[styles.legendStar, { color: SUBSCRIBED_COLOR }]}>★</Text>
+              <Text style={styles.legendLabel}>Subscribed</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -282,5 +293,6 @@ const styles = StyleSheet.create({
   legend:     { flexDirection: 'row', gap: 14, alignItems: 'center' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot:  { width: 8, height: 8, borderRadius: 4 },
+  legendStar: { fontSize: 11, fontWeight: '900', lineHeight: 13 },
   legendLabel: { fontSize: 11, color: '#7A93AC', fontWeight: '500' },
 })
