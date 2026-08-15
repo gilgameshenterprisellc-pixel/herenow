@@ -23,7 +23,7 @@ import MoodBadge from '@/components/MoodBadge'
 import VerifiedBadge from '@/components/VerifiedBadge'
 import { usePulse } from '@/hooks/usePulse'
 import { useVenueChat } from '@/hooks/useVenueChat'
-import { createPulsePost, VIBE_TAGS } from '@/lib/pulse'
+import { createPulsePost, VIBE_TAGS, fetchPulseReactions, EMPTY_REACTIONS, type ReactionSummary } from '@/lib/pulse'
 import { screenImage } from '@/lib/moderation'
 import { screenText, blockedMessage } from '@/lib/textModeration'
 import { sendChatMessage } from '@/lib/chat'
@@ -102,6 +102,7 @@ export default function ZoneScreen() {
 
   // Pulse
   const { posts: pulsePosts, refresh: refreshPulse } = usePulse(id)
+  const [pulseReactions, setPulseReactions] = useState<Record<string, ReactionSummary>>({})
   const [newPulse, setNewPulse]   = useState('')
   const [vibeTag, setVibeTag]     = useState<string | null>(null)
   const [postingPulse, setPostingPulse] = useState(false)
@@ -141,6 +142,17 @@ export default function ZoneScreen() {
   const [submittingPhoto, setSubmittingPhoto] = useState(false)
   const [lightboxIndex, setLightboxIndex]     = useState<number | null>(null)
   const [badgeDetail, setBadgeDetail]         = useState<VenueBadge | null>(null)
+
+  // Reaction counts for whatever Pulse posts are on screen, in one round trip
+  // rather than a query per card. Re-runs when the feed changes (new post,
+  // deletion, realtime refresh) so counts follow the posts they belong to.
+  useEffect(() => {
+    const ids = pulsePosts.map((p) => p.id)
+    if (ids.length === 0) { setPulseReactions({}); return }
+    let cancelled = false
+    fetchPulseReactions(ids).then((r) => { if (!cancelled) setPulseReactions(r) })
+    return () => { cancelled = true }
+  }, [pulsePosts])
 
   // We Met celebration
   const [wemetCelebName, setWemetCelebName] = useState<string | null>(null)
@@ -1174,6 +1186,10 @@ export default function ZoneScreen() {
                 onDeleted={refreshPulse}
                 onReport={handleReportPost}
                 onPinChanged={refreshPulse}
+                reactions={pulseReactions[item.id] ?? EMPTY_REACTIONS}
+                // Reacting is an in-venue act, same as posting: you're saying
+                // something about a room you're standing in.
+                canReact={isCheckedIn}
               />
             )}
             ListEmptyComponent={
