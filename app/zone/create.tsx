@@ -117,7 +117,11 @@ export default function CreateZoneScreen() {
       .insert({
         name: name.trim(),
         description: desc.trim() || null,
-        venue_type: type || null,
+        // The column is `type`, and it stores these exact ids (bar / cafe /
+        // venue …) — the same values TypeLabel maps back to display names on the
+        // Nearby tab. Writing `venue_type` made Postgres reject the whole insert,
+        // so creating a venue from this screen never once worked.
+        type: type || null,
         radius_meters: radiusNum,
         center: `POINT(${location.lng} ${location.lat})`,
         created_by: user.id,

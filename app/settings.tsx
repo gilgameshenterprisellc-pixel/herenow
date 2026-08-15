@@ -77,14 +77,17 @@ export default function SettingsScreen() {
   const [ghostMode, setGhostMode]       = useState(false)
   const [userId, setUserId]             = useState<string | null>(null)
   const [notifPrefs, setNotifPrefs]     = useState(DEFAULT_NOTIF_PREFS)
+  const [isVenueOwner, setIsVenueOwner] = useState(false)
+  const [deleting, setDeleting]         = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
-      supabase.from('profiles').select('ghost_mode, notification_prefs').eq('id', user.id).maybeSingle()
+      supabase.from('profiles').select('ghost_mode, notification_prefs, is_venue_owner').eq('id', user.id).maybeSingle()
         .then(({ data }) => {
           setGhostMode(data?.ghost_mode === true)
+          setIsVenueOwner(data?.is_venue_owner === true)
           if (data?.notification_prefs) {
             setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...(data.notification_prefs as typeof DEFAULT_NOTIF_PREFS) })
           }
@@ -110,25 +113,43 @@ export default function SettingsScreen() {
       .eq('id', userId)
   }
 
+  // Deletion happens here, in the app, immediately. It used to sign the user out
+  // and ask them to email support, which deleted nothing and is a documented App
+  // Store rejection (Guideline 5.1.1(v) requires in-app account deletion).
   const handleDeleteAccount = () => {
     const confirmDelete = async () => {
+      setDeleting(true)
+      const { error } = await supabase.rpc('delete_my_account')
+
+      if (error) {
+        setDeleting(false)
+        // Never claim success we did not get. If the account is still there the
+        // user has to know, or they walk away believing their data is gone.
+        const msg = `We couldn't delete your account: ${error.message}\n\nNothing was removed. Please try again, or contact support@herenowsocial.com.`
+        if (Platform.OS === 'web') (window as any).alert(msg)
+        else Alert.alert('Deletion failed', msg)
+        return
+      }
+
+      // The auth user is gone, so the stored session now points at nobody.
+      // Clear it locally before routing or the app boots into a broken session.
       await supabase.auth.signOut()
       router.replace('/(auth)/login')
     }
 
+    const message = isVenueOwner
+      ? 'This permanently deletes your account and everything in it: your profile, check-ins, connections, messages and posts.\n\nYour venue and its listing, photos, events and promotions will also be removed. This cannot be undone.'
+      : 'This permanently deletes your account and everything in it: your profile, check-ins, connections, messages and posts.\n\nThis cannot be undone.'
+
     if (Platform.OS === 'web') {
-      if ((window as any).confirm(
-        'Delete your account? This removes all your data permanently. Email support@herenowsocial.com to complete the request.'
-      )) {
-        confirmDelete()
-      }
+      if ((window as any).confirm(`Delete your account?\n\n${message}`)) confirmDelete()
     } else {
       Alert.alert(
         'Delete Account',
-        'This permanently removes your profile, sessions, and connections. Email support@herenowsocial.com to complete the request.',
+        message,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', style: 'destructive', onPress: confirmDelete },
+          { text: 'Delete Permanently', style: 'destructive', onPress: confirmDelete },
         ]
       )
     }
@@ -270,8 +291,11 @@ export default function SettingsScreen() {
         <Section title="Danger Zone">
           <SettingsRow
             icon="trash-outline"
-            label="Delete Account"
-            onPress={handleDeleteAccount}
+            label={deleting ? 'Deleting…' : 'Delete Account'}
+            subtitle="Permanently erases your account and all its data"
+            // Disabled mid-flight so a second tap can't fire a second RPC while
+            // the first is still working.
+            onPress={deleting ? undefined : handleDeleteAccount}
             destructive
           />
         </Section>
