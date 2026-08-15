@@ -23,12 +23,8 @@ import NearbyMap from '@/components/NearbyMap'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import AttributionPrompt from '@/components/AttributionPrompt'
 import { TAB_SAFE_BOTTOM } from './_layout'
+import { formatDistance, DISCOVERY_RADIUS_KM } from '@/lib/format'
 import type { Zone } from '@/lib/zones'
-
-function formatDistance(meters: number) {
-  if (meters < 1000) return `${Math.round(meters)}m away`
-  return `${(meters / 1000).toFixed(1)}km away`
-}
 
 // Haversine: straight-line surface distance between two lat/lng points in meters
 function haversineMeters(
@@ -179,7 +175,7 @@ export default function NearbyScreen() {
     const pos = coords ?? location
     if (!pos) return
     setLoading(true)
-    const nearby = await fetchNearbyZones(pos.latitude, pos.longitude, 50)
+    const nearby = await fetchNearbyZones(pos.latitude, pos.longitude, DISCOVERY_RADIUS_KM)
     // Re-anchor all distances to the user's actual GPS fix, not the fetch center.
     // Without this, zone distances change as the user pans/zooms the map since
     // zones_near() computes distance from the map-center point it was given.
@@ -224,7 +220,7 @@ export default function NearbyScreen() {
   // Always re-anchor distances to the user's real GPS fix so they don't change on zoom.
   const handleMapMove = async (lat: number, lng: number) => {
     if (searchQuery.trim()) return  // don't clobber search results
-    const nearby = await fetchNearbyZones(lat, lng, 50)
+    const nearby = await fetchNearbyZones(lat, lng, DISCOVERY_RADIUS_KM)
     const userPos = location
     setZones(userPos ? withRealDistance(nearby, userPos.latitude, userPos.longitude) : nearby)
   }
@@ -411,7 +407,7 @@ export default function NearbyScreen() {
               <View style={preview.metaRow}>
                 <TypeLabel type={(selectedZone as any).type} />
                 {selectedZone.distance_meters != null && (
-                  <Text style={preview.distance}>{formatDistance(selectedZone.distance_meters)}</Text>
+                  <Text style={preview.distance}>{formatDistance(selectedZone.distance_meters)} away</Text>
                 )}
               </View>
 

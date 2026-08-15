@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import type { Zone } from '@/lib/zones'
 import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR } from '@/lib/venueStatus'
+import { DISCOVERY_RADIUS_MILES } from '@/lib/format'
 import WebMap, { WEB_MAP_HEIGHT } from './WebMap'
 
 const FILTER_CHIPS = [
@@ -57,7 +58,7 @@ export default function NearbyMap({
           <Text style={styles.title}>Nearby</Text>
           <Text style={styles.sub}>
             {location
-              ? `${zones.length} venue${zones.length !== 1 ? 's' : ''} within 50km`
+              ? `${zones.length} venue${zones.length !== 1 ? 's' : ''} within ${DISCOVERY_RADIUS_MILES} miles`
               : 'Waiting for location…'}
           </Text>
         </View>
