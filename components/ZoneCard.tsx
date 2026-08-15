@@ -1,16 +1,12 @@
 ﻿import { useEffect, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform, Image } from 'react-native'
 import type { Zone } from '@/lib/zones'
+import { formatDistance } from '@/lib/format'
 
 interface Props {
   zone: Zone
   onPress: () => void
   selected?: boolean
-}
-
-function formatDistance(meters: number) {
-  if (meters < 1000) return `${Math.round(meters)}m`
-  return `${(meters / 1000).toFixed(1)}km`
 }
 
 function PulseDot() {

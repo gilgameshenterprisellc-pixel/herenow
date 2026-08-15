@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { DISCOVERY_RADIUS_KM } from './format'
 
 export interface Zone {
   id: string
@@ -27,7 +28,11 @@ export interface Zone {
 export async function fetchNearbyZones(
   lat: number,
   lng: number,
-  radiusKm = 50
+  // Defaults to the Nearby tab's discovery radius so a caller that omits it
+  // can't silently reach 50km again. app/venue/network.tsx deliberately passes
+  // a wider radius — that screen is a venue's city-wide network view, not
+  // consumer discovery.
+  radiusKm = DISCOVERY_RADIUS_KM
 ): Promise<Zone[]> {
   const { data, error } = await supabase.rpc('zones_near', {
     lat,
