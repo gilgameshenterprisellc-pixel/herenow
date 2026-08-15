@@ -35,7 +35,7 @@ import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
 import { openDirections } from '@/lib/directions'
 import { successBuzz } from '@/lib/haptics'
-import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFoundingBadge, BADGE_ICON_BY_SLUG, type VenueBadge } from '@/lib/venueBadges'
+import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFoundingBadge, BADGE_ICON_BY_SLUG, badgeInfo, type VenueBadge } from '@/lib/venueBadges'
 import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
@@ -140,6 +140,7 @@ export default function ZoneScreen() {
   // Gallery submission
   const [submittingPhoto, setSubmittingPhoto] = useState(false)
   const [lightboxIndex, setLightboxIndex]     = useState<number | null>(null)
+  const [badgeDetail, setBadgeDetail]         = useState<VenueBadge | null>(null)
 
   // We Met celebration
   const [wemetCelebName, setWemetCelebName] = useState<string | null>(null)
@@ -726,10 +727,17 @@ export default function ZoneScreen() {
               const glyphs = Ionicons.glyphMap as Record<string, number>
               const iconName = BADGE_ICON_BY_SLUG[b.slug] ?? (b.icon && glyphs[b.icon] ? b.icon : 'medal')
               return (
-                <View key={b.slug} style={[styles.badgeChip, founding && styles.badgeChipFounding]}>
+                <TouchableOpacity
+                  key={b.slug}
+                  style={[styles.badgeChip, founding && styles.badgeChipFounding]}
+                  onPress={() => setBadgeDetail(b)}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${b.name} badge. Tap to see what it means.`}
+                >
                   <Ionicons name={iconName as any} size={13} color={founding ? '#E8B84B' : '#29B6F6'} />
                   <Text style={[styles.badgeChipName, founding && styles.badgeChipNameFounding]}>{b.name}</Text>
-                </View>
+                </TouchableOpacity>
               )
             })}
           </ScrollView>
@@ -1385,6 +1393,55 @@ export default function ZoneScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Badge explainer — Jacob: tapping a badge should say what it means and
+          how the venue earned it, so they read as earned rather than decorative. */}
+      <Modal visible={badgeDetail !== null} transparent animationType="fade" onRequestClose={() => setBadgeDetail(null)}>
+        <TouchableOpacity style={styles.badgeSheetBg} activeOpacity={1} onPress={() => setBadgeDetail(null)}>
+          {badgeDetail && (() => {
+            const info     = badgeInfo(badgeDetail)
+            const founding = isFoundingBadge(badgeDetail.slug)
+            const glyphs   = Ionicons.glyphMap as Record<string, number>
+            const iconName = BADGE_ICON_BY_SLUG[badgeDetail.slug]
+              ?? (badgeDetail.icon && glyphs[badgeDetail.icon] ? badgeDetail.icon : 'medal')
+            const accent   = founding ? '#E8B84B' : '#29B6F6'
+            const earned   = badgeDetail.earned_at ? new Date(badgeDetail.earned_at) : null
+            const earnedOk = earned && !Number.isNaN(earned.getTime())
+
+            return (
+              // activeOpacity={1} + empty onPress so a tap inside the card doesn't
+              // fall through to the backdrop and dismiss it.
+              <TouchableOpacity activeOpacity={1} onPress={() => {}} style={styles.badgeSheet}>
+                <View style={[styles.badgeSheetIcon, { borderColor: `${accent}55`, backgroundColor: `${accent}18` }]}>
+                  <Ionicons name={iconName as any} size={26} color={accent} />
+                </View>
+
+                <Text style={styles.badgeSheetName}>{info.name}</Text>
+                {founding && <Text style={styles.badgeSheetFoundingTag}>FOUNDING</Text>}
+
+                {!!info.description && (
+                  <Text style={styles.badgeSheetDesc}>{info.description}</Text>
+                )}
+
+                <View style={styles.badgeSheetCriteria}>
+                  <Text style={styles.badgeSheetCriteriaLabel}>HOW IT’S EARNED</Text>
+                  <Text style={styles.badgeSheetCriteriaText}>{info.criteria}</Text>
+                </View>
+
+                {earnedOk && (
+                  <Text style={styles.badgeSheetEarned}>
+                    Earned {earned.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                )}
+
+                <TouchableOpacity style={styles.badgeSheetBtn} onPress={() => setBadgeDetail(null)}>
+                  <Text style={styles.badgeSheetBtnText}>Got it</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            )
+          })()}
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -1787,6 +1844,70 @@ const styles = StyleSheet.create({
     borderColor: '#E8B84B55',
   },
   badgeChipNameFounding: { color: '#F0CD73' },
+
+  // Badge explainer sheet
+  badgeSheetBg: {
+    flex: 1,
+    backgroundColor: 'rgba(5,10,21,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 28,
+  },
+  badgeSheet: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#0B1828',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    padding: 24,
+    alignItems: 'center',
+    gap: 10,
+  },
+  badgeSheetIcon: {
+    width: 56, height: 56, borderRadius: 28,
+    borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 2,
+  },
+  badgeSheetName: { fontSize: 18, fontWeight: '800', color: '#f8fafc', textAlign: 'center' },
+  badgeSheetFoundingTag: {
+    fontSize: 9, fontWeight: '900', color: '#F0CD73', letterSpacing: 1.4,
+    backgroundColor: '#241C08', borderRadius: 5,
+    paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden',
+  },
+  badgeSheetDesc: {
+    fontSize: 14, color: '#D0E8F5', textAlign: 'center', lineHeight: 20,
+  },
+  badgeSheetCriteria: {
+    width: '100%',
+    backgroundColor: '#07101F',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 5,
+    marginTop: 4,
+  },
+  badgeSheetCriteriaLabel: {
+    fontSize: 9, fontWeight: '900', color: '#4A6580', letterSpacing: 1.2,
+  },
+  badgeSheetCriteriaText: { fontSize: 13, color: '#8EADC7', lineHeight: 19 },
+  badgeSheetEarned: { fontSize: 11, color: '#4A6580', marginTop: 2 },
+  badgeSheetBtn: {
+    marginTop: 8,
+    alignSelf: 'stretch',
+    backgroundColor: '#29B6F618',
+    borderWidth: 1,
+    borderColor: '#29B6F640',
+    borderRadius: 12,
+    // 44px min touch target
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  badgeSheetBtnText: { fontSize: 14, fontWeight: '700', color: '#29B6F6' },
+
   wmOverlay: {
     backgroundColor: 'rgba(5,10,21,0.88)',
     justifyContent: 'center',
