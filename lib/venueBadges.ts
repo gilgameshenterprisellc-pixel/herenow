@@ -21,12 +21,14 @@ export const FOUNDING_BADGES = {
     name: 'First HereNow Venue',
     description: 'The first venue ever on HereNow.',
     icon: 'ribbon',
+    criteria: 'Awarded once, by hand. There can only ever be one.',
   },
   founding_partner: {
     slug: 'founding_partner',
     name: 'Founding Partner',
     description: 'An early Nashville partner that helped launch HereNow.',
     icon: 'star',
+    criteria: 'Given to the venues who backed HereNow before it had a crowd.',
   },
 } as const
 
@@ -51,6 +53,7 @@ const BADGE_DEFS: {
   name: string
   description: string
   icon: string
+  criteria: string
   check: (zoneId: string) => Promise<boolean>
 }[] = [
   {
@@ -58,6 +61,7 @@ const BADGE_DEFS: {
     name: 'First 100',
     description: '100 check-ins and counting.',
     icon: 'flame',
+    criteria: '100 total check-ins at this venue.',
     check: async (zoneId) => {
       const { count } = await supabase
         .from('sessions')
@@ -71,6 +75,7 @@ const BADGE_DEFS: {
     name: 'Connection Hub',
     description: '50+ real connections forged here.',
     icon: 'hand-left',
+    criteria: '50 We Met connections confirmed here.',
     check: async (zoneId) => {
       const { count } = await supabase
         .from('we_met')
@@ -85,6 +90,7 @@ const BADGE_DEFS: {
     name: 'Event Host',
     description: 'This venue has run community events.',
     icon: 'sparkles',
+    criteria: 'Hosted at least one community event.',
     check: async (zoneId) => {
       const { count } = await supabase
         .from('events')
@@ -98,6 +104,7 @@ const BADGE_DEFS: {
     name: 'Community Fav',
     description: 'Members keep coming back.',
     icon: 'star',
+    criteria: 'At least 5 people have checked in 3 or more times.',
     check: async (zoneId) => {
       const { data } = await supabase
         .from('sessions')
@@ -117,6 +124,7 @@ const BADGE_DEFS: {
     name: 'The Spot',
     description: 'This place gets packed.',
     icon: 'flame',
+    criteria: '15 or more check-ins in a single day.',
     check: async (zoneId) => {
       const { data } = await supabase
         .from('sessions')
@@ -141,6 +149,41 @@ const BADGE_DEFS: {
 export const BADGE_ICON_BY_SLUG: Record<string, string> = {
   ...Object.fromEntries(Object.values(FOUNDING_BADGES).map((b) => [b.slug, b.icon] as [string, string])),
   ...Object.fromEntries(BADGE_DEFS.map((d) => [d.slug, d.icon] as [string, string])),
+}
+
+// What a badge means and how it was earned, for the tap-to-explain sheet
+// (Jacob: "makes the badges feel more meaningful rather than just decorative").
+// Same rule as the icons above — code is the source of truth, because the
+// zone_badges row was written whenever the badge was awarded and its copy can
+// be older than what's here.
+export interface BadgeInfo { name: string; description: string; criteria: string }
+
+export const BADGE_INFO_BY_SLUG: Record<string, BadgeInfo> = {
+  ...Object.fromEntries(
+    Object.values(FOUNDING_BADGES).map((b) =>
+      [b.slug, { name: b.name, description: b.description, criteria: b.criteria }] as [string, BadgeInfo]
+    )
+  ),
+  ...Object.fromEntries(
+    BADGE_DEFS.map((d) =>
+      [d.slug, { name: d.name, description: d.description, criteria: d.criteria }] as [string, BadgeInfo]
+    )
+  ),
+}
+
+/**
+ * Resolve what to show for a badge, preferring code over the stored row and
+ * degrading gracefully for a slug we no longer define (a badge awarded by an
+ * older build must still open something readable rather than an empty sheet).
+ */
+export function badgeInfo(badge: VenueBadge): BadgeInfo {
+  const known = BADGE_INFO_BY_SLUG[badge.slug]
+  if (known) return known
+  return {
+    name: badge.name,
+    description: badge.description ?? '',
+    criteria: 'Earned through this venue’s activity on HereNow.',
+  }
 }
 
 export async function fetchVenueBadges(zoneId: string): Promise<VenueBadge[]> {
