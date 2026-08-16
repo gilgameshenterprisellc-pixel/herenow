@@ -124,9 +124,9 @@ export async function createEvent(params: {
   // Organization events are normal venue events tagged with the org — they
   // show on the venue's Events tab AND the organization's page.
   orgId?: string
-}): Promise<VenueEvent | null> {
+}): Promise<{ event: VenueEvent | null; error: string | null }> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user) return { event: null, error: 'You need to be signed in to create an event.' }
 
   const { data, error } = await supabase
     .from('venue_events')
@@ -145,10 +145,19 @@ export async function createEvent(params: {
 
   if (error) {
     console.error('[events] createEvent error:', error.message)
-    return null
+    // A refusal is not a network problem, and telling someone to check their
+    // connection when the database said "no" sends them to retry forever. RLS
+    // denials surface as 42501 / "row-level security".
+    const denied = error.code === '42501' || /row-level security/i.test(error.message)
+    return {
+      event: null,
+      error: denied
+        ? 'You do not have permission to create events at this venue.'
+        : error.message,
+    }
   }
 
-  return data
+  return { event: data, error: null }
 }
 
 export async function toggleRsvp(eventId: string, currentlyRsvpd: boolean): Promise<void> {

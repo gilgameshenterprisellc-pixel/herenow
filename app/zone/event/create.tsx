@@ -136,13 +136,24 @@ export default function CreateEventScreen() {
       startsAt: startDate.toISOString(),
       endsAt: (hasEndDate && endDate) ? endDate.toISOString() : undefined,
     }
-    const event = isEditing
-      ? await updateEvent(eventId as string, payload)
-      : await createEvent({ zoneId: zoneId as string, orgId: orgId || undefined, ...payload })
+    if (isEditing) {
+      const updated = await updateEvent(eventId as string, payload)
+      setCreating(false)
+      if (!updated) { showToast('Could not save the event. Check your connection and try again.', 'error'); return }
+      showToast('Event updated.', 'success')
+      router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId ?? updated.zone_id}` as any)
+      return
+    }
+
+    const { event, error } = await createEvent({
+      zoneId: zoneId as string, orgId: orgId || undefined, ...payload,
+    })
     setCreating(false)
 
-    if (!event) { showToast('Could not save the event. Check your connection and try again.', 'error'); return }
-    if (isEditing) showToast('Event updated.', 'success')
+    // Show what actually went wrong. This used to blame the connection for
+    // everything, including the RLS refusal that made event creation impossible
+    // for venue owners in the first place.
+    if (!event) { showToast(error ?? 'Could not save the event. Try again.', 'error'); return }
     router.canGoBack() ? router.back() : router.replace(`/zone/${zoneId ?? event.zone_id}` as any)
   }
 
