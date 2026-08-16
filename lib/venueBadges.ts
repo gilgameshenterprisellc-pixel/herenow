@@ -92,10 +92,17 @@ const BADGE_DEFS: {
     icon: 'sparkles',
     criteria: 'Hosted at least one community event.',
     check: async (zoneId) => {
-      const { count } = await supabase
-        .from('events')
+      // The table is venue_events. There is no `events` table and never was, so
+      // this check errored on every run and Event Host could not be earned by
+      // any venue, however many events it had actually hosted.
+      const { count, error } = await supabase
+        .from('venue_events')
         .select('*', { count: 'exact', head: true })
         .eq('zone_id', zoneId)
+      if (error) {
+        console.warn('[venueBadges] event_host check error:', error.message)
+        return false
+      }
       return (count ?? 0) >= 1
     },
   },
