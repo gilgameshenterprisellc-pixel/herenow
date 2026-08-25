@@ -43,3 +43,6 @@ yarn-error.*
 
 # Supabase CLI local link temp
 supabase/.temp/
+
+# App Store listing working files (raw screenshots, generated venue art)
+store/

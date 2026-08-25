@@ -301,7 +301,8 @@ export default function VenueEditScreen() {
         if (error) { showToast('Upload failed: ' + error.message, 'error'); return }
         const { data } = supabase.storage.from('avatars').getPublicUrl(path)
         const url = `${data.publicUrl}?v=${Date.now()}`
-        await supabase.from('zones').update(type === 'avatar' ? { avatar_url: url } : { banner_url: url }).eq('id', existingZone.id)
+        const { error: dbErr } = await supabase.from('zones').update(type === 'avatar' ? { avatar_url: url } : { banner_url: url }).eq('id', existingZone.id)
+        if (dbErr) { showToast('Photo uploaded, but the venue record could not be updated: ' + dbErr.message, 'error'); return }
         type === 'avatar' ? setAvatarUrl(url) : setBannerUrl(url)
         showToast('Photo updated!', 'success')
         return
@@ -315,7 +316,8 @@ export default function VenueEditScreen() {
       if (error) { showToast('Upload failed: ' + error.message, 'error'); return }
       const { data } = supabase.storage.from('avatars').getPublicUrl(path)
       const url = `${data.publicUrl}?v=${Date.now()}`
-      await supabase.from('zones').update(type === 'avatar' ? { avatar_url: url } : { banner_url: url }).eq('id', existingZone.id)
+      const { error: dbErr } = await supabase.from('zones').update(type === 'avatar' ? { avatar_url: url } : { banner_url: url }).eq('id', existingZone.id)
+      if (dbErr) { showToast('Photo uploaded, but the venue record could not be updated: ' + dbErr.message, 'error'); return }
       type === 'avatar' ? setAvatarUrl(url) : setBannerUrl(url)
       showToast('Photo updated!', 'success')
     } catch (err: any) {
