@@ -11,7 +11,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import BackButton from '@/components/BackButton'
 
-const EMOJIS = ['', '', '', '', '', '', '', '', '', '', '', '']
+const EMOJIS = ['⭐', '🔥', '🎉', '🍹', '🎵', '🌃', '🎭', '🎮', '🍔', '🥳', '💫', '🏆']
 const MAX = 6
 
 export default function VenueHighlightsScreen() {
