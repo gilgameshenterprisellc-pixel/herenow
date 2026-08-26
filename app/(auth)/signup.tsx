@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import Reanimated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated'
 import { Image } from 'react-native'
+import { CONSENT_DOCS, recordConsent } from '@/lib/consent'
 import { Link, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { geocodeAddress, fetchBuildingPolygon, AUTO_APPROVE_THRESHOLD } from '@/lib/geocoding'
@@ -45,6 +46,8 @@ export default function SignupScreen() {
   const [gender, setGender]             = useState('')
   const [loading, setLoading]           = useState(false)
   const [ageConfirmed, setAgeConfirmed] = useState(false)
+  const [agreedTerms, setAgreedTerms]   = useState(false)
+  const [agreedConduct, setAgreedConduct] = useState(false)
   const [errorMsg, setErrorMsg]         = useState('')
   const [toggleWidth, setToggleWidth] = useState(0)
 
@@ -104,6 +107,10 @@ export default function SignupScreen() {
     } else {
       if (!displayName.trim() || !username.trim() || !email.trim() || !password.trim()) {
         setErrorMsg('Please fill in all fields.')
+        return
+      }
+      if (!agreedTerms || !agreedConduct) {
+        setErrorMsg('Please accept both agreements to create an account.')
         return
       }
       if (!ageConfirmed) {
@@ -207,6 +214,14 @@ export default function SignupScreen() {
       }
       return
     }
+
+    // Audit trail for what was agreed to, and which revision of it. Consumer
+    // signups only, matching where the checkboxes are shown. Deliberately not
+    // awaited-and-checked: the account already exists, and failing the signup
+    // over an audit write would strand an auth user with no profile. A failed
+    // write leaves the document outstanding, so the user is asked again rather
+    // than recorded as having agreed to something they never saw.
+    if (!isVenue) void recordConsent(data.user.id)
 
     // Auto-approve: Mapbox returned high-confidence coordinates — create the zone and
     // flip venue_status to approved atomically inside the RPC.
@@ -517,6 +532,53 @@ export default function SignupScreen() {
             </TouchableOpacity>
           )}
 
+          {!isVenue && (
+            <View style={styles.consentBlock}>
+              <Text style={styles.consentIntro}>
+                HereNow is built for meeting people in the real world and making places
+                more social. Help us keep it that way.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.ageRow}
+                onPress={() => setAgreedTerms(!agreedTerms)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.ageBox, agreedTerms && styles.ageBoxChecked]}>
+                  {agreedTerms && <Text style={styles.ageCheck}>✓</Text>}
+                </View>
+                <Text style={styles.consentText}>
+                  I agree to the{' '}
+                  <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.terms.href as any)}>
+                    {CONSENT_DOCS.terms.label}
+                  </Text>
+                  {' '}and{' '}
+                  <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.privacy.href as any)}>
+                    {CONSENT_DOCS.privacy.label}
+                  </Text>.
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.ageRow}
+                onPress={() => setAgreedConduct(!agreedConduct)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.ageBox, agreedConduct && styles.ageBoxChecked]}>
+                  {agreedConduct && <Text style={styles.ageCheck}>✓</Text>}
+                </View>
+                <Text style={styles.consentText}>
+                  I agree to follow the{' '}
+                  <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.guidelines.href as any)}>
+                    {CONSENT_DOCS.guidelines.label}
+                  </Text>
+                  {' '}and not use HereNow to harass, stalk, threaten, impersonate, or
+                  otherwise make other people feel unsafe.
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {!!errorMsg && (
             <Text style={styles.errorMsg}>{errorMsg}</Text>
           )}
@@ -631,7 +693,7 @@ const styles = StyleSheet.create({
   btnTxt: { color: '#020810', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
   footerLink: { color: '#3A5C7A', fontSize: 13, textAlign: 'center', paddingTop: 4 },
   errorMsg: { color: '#f87171', fontSize: 13, textAlign: 'center', paddingHorizontal: 4, lineHeight: 18 },
-  ageRow: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start', paddingVertical: 2 },
+  ageRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, alignSelf: 'stretch', paddingVertical: 2 },
   ageBox: {
     width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
     borderColor: '#1A2E4A', backgroundColor: '#0D1B2E',
@@ -640,4 +702,9 @@ const styles = StyleSheet.create({
   ageBoxChecked: { borderColor: '#29B6F6', backgroundColor: '#29B6F622' },
   ageCheck: { color: '#29B6F6', fontSize: 14, fontWeight: '800', lineHeight: 16 },
   ageText: { color: '#7A93AC', fontSize: 13 },
+  consentBlock: { width: '100%', gap: 12, marginTop: 4 },
+  consentIntro: { color: '#8EADC7', fontSize: 13, lineHeight: 19 },
+  // flex-start so a wrapped second line sits under the text, not under the box.
+  consentText: { color: '#7A93AC', fontSize: 13, lineHeight: 19, flex: 1 },
+  consentLink: { color: '#29B6F6', fontWeight: '600' },
 })
