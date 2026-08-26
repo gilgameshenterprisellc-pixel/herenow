@@ -1,23 +1,14 @@
 ﻿import { View, Text, StyleSheet } from 'react-native'
+import { crowdBand } from '@/lib/venueStatus'
 
 interface Props {
   count: number
-  capacity?: number
+  capacity?: number | null
 }
 
-function getHeatLabel(ratio: number): { label: string; color: string } {
-  if (ratio === 0)    return { label: 'Empty',      color: '#1A2E4A' }
-  if (ratio < 0.2)   return { label: 'Quiet',       color: '#3b82f6' }
-  if (ratio < 0.45)  return { label: 'Filling up',  color: '#22c55e' }
-  if (ratio < 0.7)   return { label: 'Buzzing',     color: '#29B6F6' }
-  if (ratio < 0.9)   return { label: 'Packed',      color: '#f97316' }
-  return               { label: 'On fire',       color: '#ef4444' }
-}
-
-export default function HeatBar({ count, capacity = 50 }: Props) {
-  const ratio = Math.min(count / capacity, 1)
-  const { label, color } = getHeatLabel(ratio)
-  const pct = Math.round(ratio * 100)
+export default function HeatBar({ count, capacity }: Props) {
+  // Bands live in lib/venueStatus so this bar and the map pin cannot disagree.
+  const { label, color, fillPct: pct } = crowdBand(count, capacity)
 
   return (
     <View style={styles.container}>

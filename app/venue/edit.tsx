@@ -140,6 +140,7 @@ export default function VenueEditScreen() {
   const [lat, setLat]               = useState<number | null>(null)
   const [lng, setLng]               = useState<number | null>(null)
   const [radius, setRadius]         = useState(RADIUS_OPTIONS[0].meters)
+  const [capacity, setCapacity]     = useState('')
   const [chips, setChips]           = useState<string[]>([])
   const [customChip, setCustomChip] = useState('')
   const [category, setCategory]     = useState<string | null>(null)
@@ -161,7 +162,7 @@ export default function VenueEditScreen() {
 
       const { data: zones } = await supabase
         .from('zones')
-        .select('id, name, description, center_lat, center_lng, radius_meters, chips, opening_hours, avatar_url, banner_url, category')
+        .select('id, name, description, center_lat, center_lng, radius_meters, chips, opening_hours, avatar_url, banner_url, category, capacity')
         .eq('owner_id', user.id)
         .limit(1)
 
@@ -177,6 +178,7 @@ export default function VenueEditScreen() {
         setLat(z.center_lat)
         setLng(z.center_lng)
         setRadius(z.radius_meters)
+        setCapacity(z.capacity ? String(z.capacity) : '')
         setChips((z as any).chips ?? [])
         setCategory((z as any).category ?? null)
       } else {
@@ -351,6 +353,7 @@ export default function VenueEditScreen() {
           center_lat: lat,
           center_lng: lng,
           radius_meters: radius,
+          capacity: capacity.trim() ? parseInt(capacity, 10) : null,
           chips,
           category,
         })
@@ -369,6 +372,7 @@ export default function VenueEditScreen() {
           center_lat: lat,
           center_lng: lng,
           radius_meters: radius,
+          capacity: capacity.trim() ? parseInt(capacity, 10) : null,
           chips,
           category,
           created_by: userId,
@@ -531,6 +535,25 @@ export default function VenueEditScreen() {
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        {/* Capacity — drives the busy meter */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Capacity</Text>
+          <Text style={styles.sectionHint}>
+            Roughly how many people fit when you are full. This is what the busy meter
+            measures against, so 30 people reads very differently for a 40-capacity room
+            than a 400-capacity one. Leave blank if you would rather not say.
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={capacity}
+            onChangeText={(t) => setCapacity(t.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            placeholder="e.g. 150"
+            placeholderTextColor="#4A6580"
+            maxLength={5}
+          />
         </View>
 
         {/* Venue name */}

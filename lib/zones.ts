@@ -23,6 +23,8 @@ export interface Zone {
   category: string | null
   wait_time_minutes: number | null
   wait_time_updated_at: string | null
+  /** Stated by the venue. Null until they fill it in; see DEFAULT_CAPACITY. */
+  capacity: number | null
 }
 
 export async function fetchNearbyZones(
@@ -86,6 +88,7 @@ export async function createZone(params: {
     next_event_title:          null,
     next_event_starts_at:      null,
     polygon_wkt:               null,
+    capacity:                  null,
     is_temporarily_closed:     false,
     temporary_closure_message: null,
     avatar_url:                null,
@@ -113,6 +116,7 @@ export async function searchZonesByName(query: string): Promise<Zone[]> {
     next_event_title:          null,
     next_event_starts_at:      null,
     polygon_wkt:               z.polygon_wkt ?? null,
+    capacity:                  z.capacity ?? null,
     is_temporarily_closed:     z.is_temporarily_closed ?? false,
     temporary_closure_message: z.temporary_closure_message ?? null,
   }))

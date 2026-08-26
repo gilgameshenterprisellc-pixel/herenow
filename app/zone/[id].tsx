@@ -936,7 +936,7 @@ export default function ZoneScreen() {
       {/* Heat bar — only when checked in */}
       {isCheckedIn && (
         <View style={styles.heatBarWrap}>
-          <HeatBar count={hereCount} />
+          <HeatBar count={hereCount} capacity={zone?.capacity} />
         </View>
       )}
 
