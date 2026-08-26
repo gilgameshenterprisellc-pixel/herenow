@@ -378,7 +378,46 @@ export type PresenceCheck = PresenceReading
 // no fix at all) returns 'unknown' so the caller keeps the session alive and
 // tries again next tick. Only a trustworthy, confirmed-outside fix returns
 // 'outside'.
+// The check-in bypass had a matching hole on the way out. checkIn() exempts the
+// App Store review account from the geofence, but the presence loop that KEEPS a
+// session alive did not: the reviewer checks in from Cupertino, the background
+// task reads them as 'outside' a minute later, and checks them straight back out.
+// The one person who has to approve the app watches the core feature eject them.
+//
+// Cached per user id because this runs on a background tick and is_demo cannot
+// change mid-session — prevent_self_badge() blocks users from setting it at all.
+// Keyed by id so a sign-out/sign-in as someone else re-reads rather than
+// inheriting the previous account's answer.
+let demoAccountCache: { userId: string; isDemo: boolean } | null = null
+
+async function isDemoAccount(): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+  if (demoAccountCache?.userId === user.id) return demoAccountCache.isDemo
+
+  // select('*') for the same reason checkIn() does it: if the is_demo migration
+  // has not run, this returns a row without the column instead of erroring.
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  // Do not cache a failed read — a transient error would otherwise pin the
+  // account to "not demo" for the rest of the process.
+  if (error) {
+    console.warn('[sessions] isDemoAccount — profile read failed:', error.message)
+    return false
+  }
+
+  const isDemo = Boolean(data?.is_demo)
+  demoAccountCache = { userId: user.id, isDemo }
+  return isDemo
+}
+
 export async function verifyZonePresence(zoneId: string): Promise<PresenceCheck> {
+  // Demo/review account: never evictable. Pairs with the bypass in checkIn().
+  if (await isDemoAccount()) return 'inside'
   // Multi-sample (not one-shot): a single jittery fix near a wall could read
   // 'outside', and two of those in a row evicted a stationary user (Jacob: booted
   // at the bar). getBestCoords watches briefly and takes the tightest fix.
