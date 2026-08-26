@@ -341,7 +341,7 @@ function WebLanding() {
             <Text style={s.footerLink}>Guidelines</Text>
           </TouchableOpacity>
         </View>
-        <Text style={s.footerCopy}>© 2026 Gilgamesh Enterprise LLC</Text>
+        <Text style={s.footerCopy}>© 2026 HereNow Technologies LLC</Text>
       </View>
     </ScrollView>
   )
