@@ -3,10 +3,28 @@
 // Metro resolves WebMap.web.tsx on web and this file on native.
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
-import MapView, { Marker, Circle, Polygon, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
+import MapView, { Marker, Circle, Polygon, UrlTile, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import type { Zone } from '@/lib/zones'
 import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR, type VenueStatus } from '@/lib/venueStatus'
+
+// CARTO dark basemap, keyed.
+//
+// The keyless endpoint we used before is now watermarked: every tile comes back
+// with "API KEY REQUIRED" stamped across it, served as a normal 200 so nothing
+// errors and the map silently brands itself unlicensed.
+//
+// A key is free (5M tile requests/month, no approval queue) and restores the
+// exact black basemap the app was designed around.
+//
+// The fallback is deliberate and load-bearing: with no key we render Apple's
+// native basemap instead of an unkeyed CARTO request. A missing or misspelt env
+// var can therefore never put a watermark back on the map — the worst case is a
+// plainer map, not a branded one.
+const CARTO_KEY = process.env.EXPO_PUBLIC_CARTO_KEY ?? ''
+const DARK_TILE_URL = CARTO_KEY
+  ? `https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=${CARTO_KEY}`
+  : null
 
 
 interface Props {
@@ -161,17 +179,17 @@ export default function WebMap({
         showsBuildings={false}
         onRegionChangeComplete={(r) => onMapMove?.(r.latitude, r.longitude)}
       >
-        {/* No tile overlay. CARTO began watermarking its keyless basemap endpoint
-            with "API KEY REQUIRED" stamped diagonally across every tile, served
-            as a normal 200 so nothing errors and nothing warns — the map just
-            quietly brands itself unlicensed.
-
-            Rather than take on a metered tile vendor and a key that ships inside
-            the bundle, this drops back to the native Apple basemap that MapView
-            was already configured for below: mapType="mutedStandard" with
-            userInterfaceStyle="dark". Free, no key, no quota, no attribution
-            obligation, and it cannot be revoked out from under us the way this
-            just was. */}
+        {/* Only ever rendered when a key exists — see DARK_TILE_URL above.
+            shouldReplaceMapContent makes iOS drop the Apple base entirely so
+            only these black tiles plus our venues show. */}
+        {DARK_TILE_URL && (
+          <UrlTile
+            urlTemplate={DARK_TILE_URL}
+            maximumZ={20}
+            shouldReplaceMapContent
+            zIndex={-1}
+          />
+        )}
         {validZones.map(zone => {
           const status      = venueStatus(zone)
           const { color }   = STATUS_STYLE[status]
@@ -244,12 +262,28 @@ export default function WebMap({
           <Ionicons name="locate" size={20} color="#29B6F6" />
         </TouchableOpacity>
       )}
+
+      {/* Required by CARTO's terms whenever their basemap is on screen, and by
+          OpenStreetMap's licence for the underlying data. Rendered only when the
+          CARTO tiles actually are, since Apple's basemap carries its own. */}
+      {DARK_TILE_URL && (
+        <Text style={styles.attribution} pointerEvents="none">
+          © CARTO © OpenStreetMap
+        </Text>
+      )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   wrap: { width: '100%', height: WEB_MAP_HEIGHT, backgroundColor: '#060D1A' },
+  // Legible but recessive: it has to stay visible to satisfy the licence, and it
+  // must not compete with the venue pins.
+  attribution: {
+    position: 'absolute', bottom: 4, left: 8,
+    fontSize: 9, color: 'rgba(255,255,255,0.45)',
+    textShadowColor: 'rgba(0,0,0,0.9)', textShadowRadius: 2,
+  },
   pinWrap: { alignItems: 'center' },
   pin: {
     width: 40, height: 40, borderRadius: 20,
