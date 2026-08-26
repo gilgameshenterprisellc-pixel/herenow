@@ -526,13 +526,26 @@ export async function checkOut(sessionId: string): Promise<string | null> {
     .eq('status', 'confirmed')
     .or(`initiator_session_id.eq.${sessionId},recipient_session_id.eq.${sessionId}`)
 
-  // Count people who were in the zone during this session
-  const { count: peopleCount } = await supabase
+  // Count people who OVERLAPPED this session, which is not the same as people
+  // who arrived after it started.
+  //
+  // This was `.gte('checked_in_at', session.checked_in_at)` — only people who
+  // checked in at or after you did. Everyone already in the room when you walked
+  // in was excluded, which is exactly backwards: those are the people you spent
+  // the night with. A busy venue you joined late reported "0 people present".
+  //
+  // The real test is interval overlap. Their session began before you left, AND
+  // they were still there when you arrived (still checked in, or checked out
+  // after your arrival).
+  const { count: peopleCount, error: peopleError } = await supabase
     .from('sessions')
     .select('*', { count: 'exact', head: true })
     .eq('zone_id', session.zone_id)
     .neq('user_id', user.id)
-    .gte('checked_in_at', session.checked_in_at)
+    .lte('checked_in_at', checkedOutAt)
+    .or(`checked_out_at.is.null,checked_out_at.gte.${session.checked_in_at}`)
+
+  if (peopleError) console.error('[sessions] checkOut — people count error:', peopleError.message)
 
   const zoneName = (session.zones as any)?.name ?? 'this venue'
 
