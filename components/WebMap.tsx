@@ -3,17 +3,11 @@
 // Metro resolves WebMap.web.tsx on web and this file on native.
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
-import MapView, { Marker, Circle, Polygon, UrlTile, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
+import MapView, { Marker, Circle, Polygon, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import type { Zone } from '@/lib/zones'
 import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR, type VenueStatus } from '@/lib/venueStatus'
 
-// Pitch-black basemap: the same free CartoDB dark tiles the web build already uses,
-// so native matches web exactly. No API key, no billing — Google Maps would force a
-// paid billing account even for its "free" tier, so it's out. These opaque tiles
-// replace the base map content, so real-world businesses/labels don't show through
-// (keeps the abstract look) and a future heat layer will pop on the black.
-const DARK_TILE_URL = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
 
 interface Props {
   zones: Zone[]
@@ -167,15 +161,17 @@ export default function WebMap({
         showsBuildings={false}
         onRegionChangeComplete={(r) => onMapMove?.(r.latitude, r.longitude)}
       >
-        {/* Free CartoDB dark basemap — matches the web build. shouldReplaceMapContent
-            makes iOS drop the Apple base entirely so only these black tiles + our
-            venues show. */}
-        <UrlTile
-          urlTemplate={DARK_TILE_URL}
-          maximumZ={20}
-          shouldReplaceMapContent
-          zIndex={-1}
-        />
+        {/* No tile overlay. CARTO began watermarking its keyless basemap endpoint
+            with "API KEY REQUIRED" stamped diagonally across every tile, served
+            as a normal 200 so nothing errors and nothing warns — the map just
+            quietly brands itself unlicensed.
+
+            Rather than take on a metered tile vendor and a key that ships inside
+            the bundle, this drops back to the native Apple basemap that MapView
+            was already configured for below: mapType="mutedStandard" with
+            userInterfaceStyle="dark". Free, no key, no quota, no attribution
+            obligation, and it cannot be revoked out from under us the way this
+            just was. */}
         {validZones.map(zone => {
           const status      = venueStatus(zone)
           const { color }   = STATUS_STYLE[status]
