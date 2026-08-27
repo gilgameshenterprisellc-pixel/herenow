@@ -201,7 +201,7 @@ export default function ZoneScreen() {
 
       const { data: z } = await supabase
         .from('zones')
-        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at, chat_enabled, pulse_enabled, is_verified')
+        .select('id, name, description, radius_meters, member_count, post_count, center_lat, center_lng, opening_hours, chips, polygon_wkt, is_temporarily_closed, temporary_closure_message, avatar_url, banner_url, owner_id, category, wait_time_minutes, wait_time_updated_at, chat_enabled, pulse_enabled, is_verified, capacity')
         .eq('id', id)
         .maybeSingle()
 
