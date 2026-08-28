@@ -251,6 +251,19 @@ export default function ZoneScreen() {
     init()
   }, [id])
 
+  // The header's "here now" count and its crowd label come out of loadPeople,
+  // and the header renders on EVERY tab — so this load cannot be gated on the
+  // People tab. It was, which meant walking into a room with five people in it
+  // showed "0 here now · Quiet" until you happened to tap People, at which point
+  // every tab corrected itself at once. Worst possible first impression for an
+  // app whose entire promise is showing you who is already there.
+  //
+  // Silent so the People list does not flash its spinner on a tab you are not
+  // looking at.
+  useEffect(() => {
+    loadPeople(true)
+  }, [id])
+
   useEffect(() => {
     if (tab === 'people') loadPeople()
     if (tab === 'events') loadEvents()
