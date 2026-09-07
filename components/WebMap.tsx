@@ -6,25 +6,12 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'rea
 import MapView, { Marker, Circle, Polygon, UrlTile, PROVIDER_DEFAULT, type Region } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import type { Zone } from '@/lib/zones'
+import { DARK_TILE_URL } from '@/lib/basemap'
 import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR, type VenueStatus } from '@/lib/venueStatus'
 
-// CARTO dark basemap, keyed.
-//
-// The keyless endpoint we used before is now watermarked: every tile comes back
-// with "API KEY REQUIRED" stamped across it, served as a normal 200 so nothing
-// errors and the map silently brands itself unlicensed.
-//
-// A key is free (5M tile requests/month, no approval queue) and restores the
-// exact black basemap the app was designed around.
-//
-// The fallback is deliberate and load-bearing: with no key we render Apple's
-// native basemap instead of an unkeyed CARTO request. A missing or misspelt env
-// var can therefore never put a watermark back on the map — the worst case is a
-// plainer map, not a branded one.
-const CARTO_KEY = process.env.EXPO_PUBLIC_CARTO_KEY ?? ''
-const DARK_TILE_URL = CARTO_KEY
-  ? `https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=${CARTO_KEY}`
-  : null
+// Basemap URL + key policy live in lib/basemap.ts so the native and web maps
+// can never drift apart again. Native falls back to Apple's basemap when no key
+// is set, so an unkeyed CARTO request is impossible here.
 
 
 interface Props {

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { addDarkBasemap } from '@/lib/basemap'
 
 interface Props {
   lat: number
@@ -78,13 +79,12 @@ export default function PinPicker({ lat, lng, onChange }: Props) {
 
       const map = L.map(containerRef.current, {
         zoomControl: true,
-        attributionControl: false,
+        attributionControl: true,
         doubleClickZoom: false,
       }).setView([lat, lng], 18)  // zoom 18 = building level
+      map.attributionControl.setPrefix(false)
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-      }).addTo(map)
+      addDarkBasemap(L, map)
 
       const marker = L.marker([lat, lng], {
         icon: makeDropIcon(L),

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Zone } from '@/lib/zones'
+import { addDarkBasemap } from '@/lib/basemap'
 import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR, type VenueStatus } from '@/lib/venueStatus'
 
 interface Props {
@@ -318,15 +319,16 @@ export default function WebMap({
 
       const map = L.map(containerRef.current, {
         zoomControl: true,
-        attributionControl: false,
+        // CARTO and OSM both require credit whenever their tiles are on screen.
+        // This was false, so the web map showed none at all.
+        attributionControl: true,
       }).setView(center, 13)
+      map.attributionControl.setPrefix(false) // drop the Leaflet plug, keep the tile credit
 
       // dark_all (not dark_nolabels) so state/city/place names show for
       // orientation, matching the native map's mutedStandard labels. Business
       // POIs only surface at street-level zoom, which this discovery map avoids.
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-      }).addTo(map)
+      addDarkBasemap(L, map)
 
       mapRef.current  = map
       mapReadyRef.current = true
