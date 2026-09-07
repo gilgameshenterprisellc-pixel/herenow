@@ -415,10 +415,14 @@ export default function EditProfileScreen() {
                 <Text style={styles.privacyToggleTitle}>
                   {checkinPrivacy === 'full' ? 'Full profile visible' : 'Minimal only'}
                 </Text>
+                {/* Says exactly what the room sees. It used to promise "only
+                    see your name" and separately claim age range was shown;
+                    your mode and mood are always visible (they are the point of
+                    a check-in), and age range is not sent to the room at all. */}
                 <Text style={styles.privacyToggleSub}>
                   {checkinPrivacy === 'full'
-                    ? 'Others see your name, interests, age range, and kickoff'
-                    : 'Others only see your name — no interests, age, or kickoff'}
+                    ? 'Others see your name, mode, mood, interests, and kickoff'
+                    : 'Others see your name, mode, and mood. No interests or kickoff.'}
                 </Text>
               </View>
               <Switch
