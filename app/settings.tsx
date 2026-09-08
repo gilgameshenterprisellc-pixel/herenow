@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { SHOW_PRICING } from '@/lib/flags'
 import BackButton from '@/components/BackButton'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
@@ -253,16 +252,6 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="Help">
-          {SHOW_PRICING && (
-            <>
-              <SettingsRow
-                icon="pricetags-outline"
-                label="Plans & Pricing"
-                onPress={() => router.push('/pricing' as any)}
-              />
-              <View style={styles.divider} />
-            </>
-          )}
           <SettingsRow
             icon="mail-outline"
             label="Contact Support"

@@ -1,3 +1,10 @@
+// NOT SHIPPED. Parked outside app/ with pricing.tsx; see the note there.
+//
+// This is the Stripe Checkout return page (create-checkout sets success_url to
+// /billing?status=success). Stripe redirects to a URL in a browser, so this
+// only ever renders on web. Kept out of the native bundle for the same reason
+// as pricing.web.tsx: no purchase path of any kind ships in the iOS build.
+
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'

@@ -1,3 +1,22 @@
+// NOT SHIPPED. Deliberately parked outside app/ so Expo Router never sees it.
+//
+// App Review rejected 1.0 (37) under Guideline 2.1(b), asking us to explain the
+// business model because the binary "may access or include paid digital content
+// or services". This screen and its plan copy were the reason.
+//
+// It is worse than untidy: cta() below calls startCheckout, which on native did
+// Linking.openURL to Stripe Checkout in Safari. Apple requires In-App Purchase
+// for digital features consumed in the app and does not allow linking out for
+// them, so shipping that path on iOS is a Guideline 3.1.1 problem waiting for
+// whoever flips SHOW_PRICING.
+//
+// Renaming to pricing.web.tsx was tried first and DOES NOT WORK: Expo Router
+// discovers every file under app/ regardless of platform extension, and a
+// verified iOS export still contained "Available at launch" and "Contact
+// sales" from this file. Only moving it out of app/ actually removes it.
+//
+// To bring it back for web only, use a Metro resolver blockList for ios/android
+// or a web-only entry point. Do not just move it back into app/.
 import { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking,
@@ -10,7 +29,7 @@ import {
   plansFor, formatPrice, formatAnnual, FOUNDING_VENUE_PROGRAM,
   type Audience, type Plan,
 } from '@/lib/pricing'
-import { startCheckout } from '@/lib/checkout'
+import { startCheckout } from './checkout'
 import { SHOW_PRICING } from '@/lib/flags'
 
 const SALES_EMAIL = 'support@herenowsocial.com'
