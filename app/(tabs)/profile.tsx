@@ -16,7 +16,7 @@ import { fetchUserBadges } from '@/lib/badges'
 // screen the moment it happens instead of on the next cold start.
 import { useWeMet } from '@/hooks/useWeMet'
 import { checkOutActiveOnSignOut } from '@/lib/sessions'
-import { SHOW_PRICING, SHOW_BETA_TOOLS } from '@/lib/flags'
+import { SHOW_BETA_TOOLS } from '@/lib/flags'
 import AvatarImage from '@/components/AvatarImage'
 import FounderBadge from '@/components/FounderBadge'
 import VerifiedBadge from '@/components/VerifiedBadge'
@@ -452,25 +452,6 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </Reanimated.View>
 
-      {/* HereNow Plus upgrade — the in-app entry point to premium. Hidden in beta. */}
-      {SHOW_PRICING && (
-      <Reanimated.View entering={FadeInDown.delay(190).duration(450)}>
-        <TouchableOpacity
-          style={styles.plusCard}
-          onPress={() => router.push('/pricing?tab=consumer' as any)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.plusIconWrap}>
-            <Ionicons name="star" size={18} color="#f5b301" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.plusTitle}>Get HereNow Plus</Text>
-            <Text style={styles.plusSub}>Premium profile, bigger Circle, unlimited Afterglow and more</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#f5b301" />
-        </TouchableOpacity>
-      </Reanimated.View>
-      )}
 
       {/* Nav links */}
       <Reanimated.View entering={FadeInDown.delay(220).duration(450)} style={styles.navList}>
@@ -653,18 +634,6 @@ const styles = StyleSheet.create({
     borderColor: '#1A2E4A',
   },
   editBtnText: { color: '#29B6F6', fontWeight: '700', fontSize: 15 },
-  plusCard: {
-    marginHorizontal: 16, marginTop: 12,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#1A1405', borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: '#f5b30140',
-  },
-  plusIconWrap: {
-    width: 38, height: 38, borderRadius: 11, backgroundColor: '#f5b30115',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  plusTitle: { fontSize: 15, fontWeight: '800', color: '#f5c542' },
-  plusSub: { fontSize: 12, color: '#b58a4a', marginTop: 2, lineHeight: 16 },
   navList: {
     marginHorizontal: 16,
     backgroundColor: '#0D1B2E',

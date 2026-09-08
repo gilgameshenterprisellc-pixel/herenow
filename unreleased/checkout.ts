@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 import { router } from 'expo-router'
-import { supabase } from './supabase'
+import { supabase } from '@/lib/supabase'
 
 export type BillingInterval = 'month' | 'year'
 
