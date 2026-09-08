@@ -16,7 +16,7 @@ import { fetchUserBadges } from '@/lib/badges'
 // screen the moment it happens instead of on the next cold start.
 import { useWeMet } from '@/hooks/useWeMet'
 import { checkOutActiveOnSignOut } from '@/lib/sessions'
-import { SHOW_PRICING } from '@/lib/flags'
+import { SHOW_PRICING, SHOW_BETA_TOOLS } from '@/lib/flags'
 import AvatarImage from '@/components/AvatarImage'
 import FounderBadge from '@/components/FounderBadge'
 import VerifiedBadge from '@/components/VerifiedBadge'
@@ -229,8 +229,11 @@ export default function ProfileScreen() {
     ...baseNav,
     ...(venueNav ? [venueNav] : []),
     ...(adminNav ? [adminNav] : []),
-    // Anonymous feedback survey — sits directly above Sign Out (Jacob).
-    { label: 'Take the Survey', route: '/survey', icon: 'clipboard-outline' },
+    // Anonymous feedback survey — beta tooling, so it ships disabled. See
+    // SHOW_BETA_TOOLS in lib/flags.ts (App Review Guideline 2.2).
+    ...(SHOW_BETA_TOOLS
+      ? [{ label: 'Take the Survey', route: '/survey', icon: 'clipboard-outline' } as NavItem]
+      : []),
   ]
 
   return (
