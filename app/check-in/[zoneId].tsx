@@ -22,6 +22,7 @@ import { successBuzz } from '@/lib/haptics'
 import { registerPushToken } from '@/lib/push'
 import { fetchHighlights } from '@/lib/highlights'
 import BetaFeedbackModal, { shouldShowBetaFeedback, markBetaFeedbackShown } from '@/components/BetaFeedbackModal'
+import { SHOW_BETA_TOOLS } from '@/lib/flags'
 import VenueWelcomeModal from '@/components/VenueWelcomeModal'
 
 const SOCIAL_MODES: { mode: SocialMode; emoji: string; label: string; desc: string; color: string }[] = [
@@ -251,7 +252,7 @@ export default function CheckInScreen() {
       }
     }
 
-    const canShow = await shouldShowBetaFeedback()
+    const canShow = SHOW_BETA_TOOLS && await shouldShowBetaFeedback()
     if (canShow) {
       await markBetaFeedbackShown()
       setShowFeedback(true)
@@ -262,7 +263,7 @@ export default function CheckInScreen() {
 
   const afterWelcome = async () => {
     setShowWelcome(false)
-    const canShow = await shouldShowBetaFeedback()
+    const canShow = SHOW_BETA_TOOLS && await shouldShowBetaFeedback()
     if (canShow) {
       await markBetaFeedbackShown()
       setShowFeedback(true)
@@ -386,14 +387,16 @@ export default function CheckInScreen() {
         onDismiss={afterWelcome}
       />
 
-      <BetaFeedbackModal
-        visible={showFeedback}
-        zoneId={zoneId ?? ''}
-        onDismiss={() => {
-          setShowFeedback(false)
-          router.replace(`/zone/${zoneId}`)
-        }}
-      />
+      {SHOW_BETA_TOOLS && (
+        <BetaFeedbackModal
+          visible={showFeedback}
+          zoneId={zoneId ?? ''}
+          onDismiss={() => {
+            setShowFeedback(false)
+            router.replace(`/zone/${zoneId}`)
+          }}
+        />
+      )}
 
       {showCiAnim && (
         <Animated.View style={[StyleSheet.absoluteFillObject, styles.ciOverlay, { opacity: ciOpacity }]} pointerEvents="none">
