@@ -10,6 +10,7 @@ import {
   Animated,
   ScrollView,
   Image,
+  Linking,
 } from 'react-native'
 import Reanimated, { FadeInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
@@ -98,7 +99,7 @@ function TypeLabel({ type }: { type?: string | null }) {
 }
 
 export default function NearbyScreen() {
-  const { location, loading: locLoading, error: locError } = useLocation()
+  const { location, loading: locLoading, error: locError, retry: retryLocation, canAskAgain: canAskLocation } = useLocation()
   const [zones, setZones]               = useState<Zone[]>([])
   const [loading, setLoading]           = useState(false)
   const [selectedId, setSelectedId]     = useState<string | null>(null)
@@ -262,6 +263,15 @@ export default function NearbyScreen() {
   }
 
   if (locError) {
+    // This screen used to be a dead end. useLocation ran once on mount, so a
+    // denied permission was permanent, and because Expo Router keeps tab
+    // screens mounted, switching tabs and back did not re-run it either. The
+    // only way out was restarting the app -- on the app's main screen, at the
+    // exact moment someone first opens it inside a venue.
+    //
+    // When the OS will prompt again, offer a retry. When it will not (iOS
+    // after one denial, or a browser-level block), send them where the setting
+    // actually lives instead of a button that cannot do anything.
     return (
       <View style={styles.center}>
         <View style={styles.emptyIcon}>
@@ -270,10 +280,26 @@ export default function NearbyScreen() {
         <Text style={styles.errorTitle}>Location required</Text>
         <Text style={styles.errorSub}>
           HereNow needs your location to show nearby venues.{'\n'}
-          {Platform.OS === 'web'
-            ? 'Allow location access in your browser.'
-            : 'Allow location access when prompted.'}
+          {canAskLocation
+            ? (Platform.OS === 'web'
+                ? 'Allow location access in your browser.'
+                : 'Allow location access when prompted.')
+            : (Platform.OS === 'web'
+                ? 'Location is blocked for this site. Enable it in your browser’s site settings, then try again.'
+                : 'Location is turned off for HereNow. Turn it on in Settings, then come back.')}
         </Text>
+
+        {canAskLocation || Platform.OS === 'web' ? (
+          <TouchableOpacity style={styles.locRetryBtn} onPress={retryLocation}>
+            <Ionicons name="refresh" size={16} color="#050A15" />
+            <Text style={styles.locRetryText}>Try again</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.locRetryBtn} onPress={() => Linking.openSettings()}>
+            <Ionicons name="settings-outline" size={16} color="#050A15" />
+            <Text style={styles.locRetryText}>Open Settings</Text>
+          </TouchableOpacity>
+        )}
       </View>
     )
   }
@@ -526,6 +552,18 @@ const styles = StyleSheet.create({
   emptySub:   { fontSize: 13, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32, lineHeight: 22 },
   statusText: { color: '#7A93AC', fontSize: 14, marginTop: 8 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: '#f8fafc' },
+  locRetryBtn: {
+    marginTop: 20,
+    backgroundColor: '#29B6F6',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  locRetryText: { color: '#050A15', fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },
   errorSub:   { fontSize: 14, color: '#7A93AC', textAlign: 'center', paddingHorizontal: 32, lineHeight: 22 },
 
   previewCard: {
