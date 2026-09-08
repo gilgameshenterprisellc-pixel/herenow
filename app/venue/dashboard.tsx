@@ -557,7 +557,12 @@ export default function VenueDashboard() {
     )
   }
 
-  if (venueStatus !== 'approved') {
+  // Only a real applicant is actually waiting on us. This used to be
+  // `venueStatus !== 'approved'`, so anyone whose status was 'none' or null --
+  // every ordinary person account -- was told their venue was in a review queue
+  // that had never received an application. Meanwhile the admin queue correctly
+  // showed zero pending, so the two screens flatly contradicted each other.
+  if (venueStatus === 'pending') {
     return (
       <View style={[styles.center, { paddingHorizontal: 24 }]}>
         <View style={styles.pendingGlow} />
@@ -576,6 +581,44 @@ export default function VenueDashboard() {
           </Text>
         </Reanimated.View>
         <Reanimated.View entering={FadeInDown.delay(220).duration(500)} style={{ width: '100%' }}>
+          <TouchableOpacity
+            style={styles.backHomeBtn}
+            onPress={() => router.replace('/(tabs)')}
+          >
+            <Text style={styles.backHomeBtnText}>Back to Home</Text>
+          </TouchableOpacity>
+        </Reanimated.View>
+      </View>
+    )
+  }
+
+  // 'none' or null: no application exists. Say that, and point at the route
+  // that actually starts one instead of implying someone is reviewing it.
+  if (venueStatus !== 'approved') {
+    return (
+      <View style={[styles.center, { paddingHorizontal: 24 }]}>
+        <View style={styles.pendingGlow} />
+        <Reanimated.View entering={FadeInDown.delay(60).duration(500)} style={styles.pendingCard}>
+          <View style={styles.pendingIconWrap}>
+            <Ionicons name="business-outline" size={52} color="#29B6F6" />
+          </View>
+          <Text style={styles.pendingTitle}>No venue on this account</Text>
+          <Text style={styles.pendingSub}>
+            This area is for venue owners. If you run a spot and want it on HereNow, suggest it and we'll take it from there.
+          </Text>
+          <View style={styles.pendingDivider} />
+          <Text style={styles.pendingHint}>
+            Questions? Email{' '}
+            <Text style={styles.pendingEmail}>support@herenowsocial.com</Text>
+          </Text>
+        </Reanimated.View>
+        <Reanimated.View entering={FadeInDown.delay(220).duration(500)} style={{ width: '100%' }}>
+          <TouchableOpacity
+            style={styles.backHomeBtn}
+            onPress={() => router.push('/venue/submit' as any)}
+          >
+            <Text style={styles.backHomeBtnText}>Suggest a venue</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.backHomeBtn}
             onPress={() => router.replace('/(tabs)')}
