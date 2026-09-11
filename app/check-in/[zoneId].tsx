@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Animated,
+  Switch,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -88,6 +89,11 @@ export default function CheckInScreen() {
   // matters — the first pick is stored as the primary mode.
   const [socialModes, setSocialModes] = useState<SocialMode[]>([])
   const [moodMode, setMoodMode]     = useState<MoodMode>('selective')
+  // Explicit per-check-in consent to be shown to others at this venue. Seeded
+  // from the user's Ghost default (Settings) but always presented and always
+  // changeable right here — Apple 5.1.2(i) requires the option to decline at
+  // the point presence is actually requested, not only as a buried setting.
+  const [visibleToOthers, setVisibleToOthers] = useState(true)
   const [loading, setLoading]         = useState(false)
   const [loadingMsg, setLoadingMsg]   = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
@@ -111,6 +117,16 @@ export default function CheckInScreen() {
     supabase.from('zones').select('name').eq('id', zoneId).maybeSingle()
       .then(({ data }) => setZoneName(data?.name ?? ''))
   }, [zoneId])
+
+  // Seed the visibility toggle from the user's Ghost default so it reflects
+  // their standing preference, but it's still shown and changeable every time.
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('ghost_mode').eq('id', user.id).maybeSingle()
+        .then(({ data }) => setVisibleToOthers(data?.ghost_mode !== true))
+    })
+  }, [])
 
   // Quick re-check-in — pre-fill your last vibe at this venue so regulars
   // can check in with one tap (Jacob Round 2, Q27)
@@ -193,7 +209,7 @@ export default function CheckInScreen() {
   const doCheckIn = async () => {
     setLoading(true)
     setLoadingMsg('Pinning your location — can take a few seconds…')
-    const result = await checkIn(zoneId, socialModes, moodMode)
+    const result = await checkIn(zoneId, socialModes, moodMode, !visibleToOthers)
     setLoadingMsg('')
     setLoading(false)
 
@@ -357,9 +373,23 @@ export default function CheckInScreen() {
           </View>
         </View>
 
-        {/* Privacy note */}
-        <View style={styles.privacyNote}>
-          <Text style={styles.privacyText}> Only visible to people checked in to the same venue at the same time. Disappears when you leave. </Text>
+        {/* Visibility consent — explicit request + decline option, asked every
+            time presence is about to be shown to others at this venue. */}
+        <View style={styles.section}>
+          <View style={styles.visibilityRow}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={styles.sectionTitle}>Show me to others here</Text>
+              <Text style={styles.sectionSub}>
+                Only people checked in to {zoneName || 'this venue'} right now can see you, and it disappears the moment you leave. Turn this off to check in privately — you won't appear to anyone, and no one can approach, tag, or message you.
+              </Text>
+            </View>
+            <Switch
+              value={visibleToOthers}
+              onValueChange={setVisibleToOthers}
+              trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
+              thumbColor="#f8fafc"
+            />
+          </View>
         </View>
       </ScrollView>
 
@@ -459,6 +489,16 @@ const styles = StyleSheet.create({
   },
   checkDotText: { fontSize: 12, fontWeight: '800', color: '#fff' },
   optionDesc: { fontSize: 13, color: '#7A93AC', lineHeight: 17, paddingLeft: 32 },
+  visibilityRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    backgroundColor: '#0D1B2E',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1A2E4A',
+    padding: 14,
+  },
   moodRow: { flexDirection: 'row', gap: 8 },
   moodOption: {
     flex: 1,
@@ -473,14 +513,6 @@ const styles = StyleSheet.create({
   moodEmoji: { fontSize: 22 },
   moodLabel: { fontSize: 13, fontWeight: '700', color: '#f8fafc', textAlign: 'center' },
   moodDesc: { fontSize: 11, color: '#7A93AC', textAlign: 'center', lineHeight: 14 },
-  privacyNote: {
-    backgroundColor: '#0D1B2E',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#1A2E4A',
-  },
-  privacyText: { fontSize: 12, color: '#7A93AC', lineHeight: 17, textAlign: 'center' },
   footer: {
     paddingHorizontal: 16,
     paddingBottom: 40,

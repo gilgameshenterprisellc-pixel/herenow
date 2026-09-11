@@ -185,6 +185,12 @@ export async function checkIn(params: {
   // social_mode so existing aggregates keep working.
   socialModes: SocialMode[]
   moodMode: MoodMode
+  // Explicit per-check-in consent to appear to others at this venue, asked on
+  // the check-in screen itself (Apple 5.1.2(i): a user must be able to decline
+  // having their presence shown, at the point it's requested — not only via a
+  // buried Settings default). When the user declines, this overrides the
+  // profile's persistent Ghost default for this one check-in.
+  ghostOverride?: boolean
 }): Promise<CheckInResult> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, reason: 'failed' }
@@ -200,13 +206,15 @@ export async function checkIn(params: {
     .eq('id', user.id)
     .maybeSingle()
 
+  const ghost = params.ghostOverride ?? pref?.ghost_mode ?? false
+
   // Demo/review account bypass: the App Store reviewer is not physically at the
   // venue (they test from Cupertino or a simulator), so the GPS gate would make
   // the core feature untestable and fail review. A dedicated is_demo account —
   // and only that account — checks in without the geofence. Real users always
   // pass the fence below. See supabase/apple_demo_account.sql.
   if (pref?.is_demo) {
-    return finalizeCheckIn(user.id, params, pref?.ghost_mode ?? false)
+    return finalizeCheckIn(user.id, params, ghost)
   }
 
   // Every failure is logged with the accuracy we saw and the device OS so we
@@ -299,7 +307,7 @@ export async function checkIn(params: {
     return fail('not_in_zone', coords)
   }
 
-  return finalizeCheckIn(user.id, params, pref?.ghost_mode ?? false, coords)
+  return finalizeCheckIn(user.id, params, ghost, coords)
 }
 
 // Write the session + zone_member rows once the entry gate (geofence, or the
