@@ -261,9 +261,49 @@ export async function venuePinToTop(pinId: string, pinned: boolean): Promise<boo
 
 // Ban a user from posting to this venue's Board. Works on anonymous pins too —
 // the RPC targets the account behind the pin server-side without ever
-// revealing who it is (owner-gated inside the function).
+// revealing who it is (owner-gated inside the function). Venue-scoped only —
+// see adminBanBoardAuthor for a platform-wide ejection.
 export async function venueBanPinAuthor(pinId: string): Promise<boolean> {
   const { error } = await supabase.rpc('board_ban_pin_author', { p_pin: pinId })
+  return !error
+}
+
+// ── Admin review queue — the one surface with genuine anonymity, so it's the ─
+// one Apple's Guideline 1.2 rejection cares about most. Unmasks authorship for
+// review only; every other read stays anonymous via the masking RPCs above.
+
+export interface ReportedBoardPin {
+  id: string
+  zone_id: string
+  zone_name: string
+  category: BoardCategoryId
+  title: string
+  body: string
+  image_url: string | null
+  is_anonymous: boolean
+  status: 'active' | 'complete' | 'hidden' | 'removed'
+  report_count: number
+  created_at: string
+  author_id: string
+  author_name: string
+  author_banned: boolean
+}
+
+export async function fetchReportedBoardPins(): Promise<ReportedBoardPin[]> {
+  const { data, error } = await supabase.rpc('admin_board_reported_pins')
+  if (error) {
+    console.error('[board] fetchReportedBoardPins error:', error.message)
+    return []
+  }
+  return (data ?? []) as ReportedBoardPin[]
+}
+
+// Restore (false report), or permanently remove.
+export async function adminSetBoardPinStatus(
+  pinId: string,
+  status: 'active' | 'removed',
+): Promise<boolean> {
+  const { error } = await supabase.rpc('admin_set_board_pin_status', { p_pin: pinId, p_status: status })
   return !error
 }
 

@@ -13,6 +13,7 @@ interface AdminUser {
   display_name: string
   username: string | null
   is_muted: boolean
+  is_banned: boolean
   is_admin: boolean
   venue_status: string | null
   created_at: string
@@ -30,7 +31,7 @@ export default function AdminUsers() {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, display_name, username, is_muted, is_admin, venue_status, created_at')
+      .select('id, display_name, username, is_muted, is_banned, is_admin, venue_status, created_at')
       .order('created_at', { ascending: false })
       .limit(200)
     const list = (data ?? []) as AdminUser[]
@@ -74,6 +75,37 @@ export default function AdminUsers() {
     }
   }
 
+  // Ejects the account from the whole app (signed out on next auth check, and
+  // blocked from posting to pulse/chat/Board at the database level) — not the
+  // same as Mute, which only stops new posts. See Apple Guideline 1.2.
+  const toggleBan = (user: AdminUser) => {
+    const label = user.is_banned ? 'Unban' : 'Ban'
+    const msg = user.is_banned
+      ? 'They will be able to sign in and use the app again.'
+      : 'They will be signed out, unable to sign back in, and unable to post anywhere. This is for confirmed violations of the Community Guidelines.'
+
+    const doBan = async () => {
+      setActing(user.id)
+      await supabase.rpc('admin_set_user_banned', {
+        p_user_id: user.id,
+        p_banned: !user.is_banned,
+        p_reason: user.is_banned ? null : 'Banned via admin panel',
+      })
+      setActing(null)
+      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_banned: !u.is_banned } : u))
+    }
+
+    if (Platform.OS === 'web') {
+      const ok = (window as any).confirm(`${label} ${user.display_name}?\n\n${msg}`)
+      if (ok) doBan()
+    } else {
+      Alert.alert(`${label} ${user.display_name}?`, msg, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: label, style: user.is_banned ? 'default' : 'destructive', onPress: doBan },
+      ])
+    }
+  }
+
   const renderUser = ({ item }: { item: AdminUser }) => (
     <View style={styles.row}>
       <View style={styles.rowLeft}>
@@ -85,6 +117,7 @@ export default function AdminUsers() {
             <Text style={styles.name}>{item.display_name}</Text>
             {item.is_admin && <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>ADMIN</Text></View>}
             {item.is_muted && <View style={styles.mutedBadge}><Text style={styles.mutedBadgeText}>MUTED</Text></View>}
+            {item.is_banned && <View style={styles.bannedBadge}><Text style={styles.bannedBadgeText}>BANNED</Text></View>}
           </View>
           {item.username ? <Text style={styles.username}>@{item.username}</Text> : null}
           {item.venue_status === 'approved' && <Text style={styles.venueBadge}>Venue owner</Text>}
@@ -93,14 +126,24 @@ export default function AdminUsers() {
       {acting === item.id ? (
         <ActivityIndicator color="#29B6F6" size="small" />
       ) : (
-        <TouchableOpacity
-          style={[styles.muteBtn, item.is_muted && styles.muteBtnActive]}
-          onPress={() => toggleMute(item)}
-        >
-          <Text style={[styles.muteBtnText, item.is_muted && styles.muteBtnTextActive]}>
-            {item.is_muted ? 'Unmute' : 'Mute'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.rowActions}>
+          <TouchableOpacity
+            style={[styles.muteBtn, item.is_muted && styles.muteBtnActive]}
+            onPress={() => toggleMute(item)}
+          >
+            <Text style={[styles.muteBtnText, item.is_muted && styles.muteBtnTextActive]}>
+              {item.is_muted ? 'Unmute' : 'Mute'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.banBtn, item.is_banned && styles.banBtnActive]}
+            onPress={() => toggleBan(item)}
+          >
+            <Text style={[styles.banBtnText, item.is_banned && styles.banBtnTextActive]}>
+              {item.is_banned ? 'Unban' : 'Ban'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   )
@@ -189,8 +232,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#ef4444',
   },
   mutedBadgeText: { fontSize: 9, fontWeight: '800', color: '#ef4444', letterSpacing: 0.5 },
+  bannedBadge: {
+    backgroundColor: '#7f1d1d40', borderRadius: 4,
+    paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#dc2626',
+  },
+  bannedBadgeText: { fontSize: 9, fontWeight: '800', color: '#dc2626', letterSpacing: 0.5 },
   username: { fontSize: 12, color: '#7A93AC' },
   venueBadge: { fontSize: 11, color: '#29B6F6' },
+  rowActions: { flexDirection: 'row', gap: 8 },
   muteBtn: {
     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1, borderColor: '#1A2E4A',
@@ -198,6 +247,13 @@ const styles = StyleSheet.create({
   muteBtnActive: { borderColor: '#ef4444', backgroundColor: '#ef444415' },
   muteBtnText: { fontSize: 12, fontWeight: '600', color: '#7A93AC' },
   muteBtnTextActive: { color: '#ef4444' },
+  banBtn: {
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1, borderColor: '#1A2E4A',
+  },
+  banBtnActive: { borderColor: '#dc2626', backgroundColor: '#7f1d1d20' },
+  banBtnText: { fontSize: 12, fontWeight: '600', color: '#7A93AC' },
+  banBtnTextActive: { color: '#dc2626' },
   sep: { height: 1, backgroundColor: '#0D1B2E', marginHorizontal: 4 },
   empty: { alignItems: 'center', paddingTop: 40 },
   emptyTitle: { fontSize: 14, color: '#7A93AC' },
