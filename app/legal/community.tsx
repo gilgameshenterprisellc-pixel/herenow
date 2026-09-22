@@ -59,7 +59,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: 'Keep content appropriate',
     body: [
-      'Share content that contributes positively to the community. Do not post content that includes:',
+      'We have zero tolerance for objectionable content and abusive users. Do not post content that includes:',
       { bullets: [
         'Harassment or threats',
         'Hate speech',
@@ -71,7 +71,7 @@ const SECTIONS: LegalSection[] = [
         'Misleading information intended to deceive',
         'Malware or malicious links',
       ] },
-      'We may remove content that violates these guidelines.',
+      'This applies everywhere on HereNow, including anonymous posts — anonymity changes who can see your name, never what you\'re allowed to post. We remove violating content and act on abusive accounts, including on posts made anonymously.',
     ],
   },
   {
