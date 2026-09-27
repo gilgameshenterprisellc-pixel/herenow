@@ -57,15 +57,23 @@ WHERE id = (SELECT id FROM auth.users WHERE email = 'herenowdemo@gmail.com');
 --
 -- HereNow shows who is physically checked in at a venue right now. To review the
 -- core loop:
---   1. Sign in with the demo account above.
---   2. Open the venue "HereNow Demo (Apple Park)".
+--   1. Sign in with the demo account above. The Nearby tab loads straight to the
+--      demo venue -- this account does not need Location permission at all (it
+--      is exempt from the location gate on that screen, see DEMO_FALLBACK_COORDS
+--      in lib/sessions.ts / app/(tabs)/index.tsx). You do not need to grant
+--      location access, and can deny the prompt if the OS shows one.
+--   2. Open the venue "The Lantern Room" (renamed from "HereNow Demo (Apple
+--      Park)" -- same seeded zone, more natural venue name). It's already
+--      populated: 4 people checked in, Pulse posts with reactions.
 --   3. Tap "Check In", pick a Social Mode + Mood, confirm. (This demo account is
 --      allowed to check in without being on-site; real users must be at the
---      venue. So you can test from anywhere, including the simulator.)
---   4. You'll see the People / Pulse / Chat / Board tabs for that venue. Post to
---      Pulse or Chat, and open another person's card to send a "We Met" request.
+--      venue. So you can test from anywhere, including the simulator, with
+--      Location permission denied.)
+--   4. You'll see the Pulse / Chat / People / Board / Events tabs for that venue.
+--      Post to Pulse or Chat, and open another person's card to send a
+--      "We Met" request.
 --
 -- Verify:
---   SELECT id, name FROM zones WHERE name = 'HereNow Demo (Apple Park)';
+--   SELECT id, name FROM zones WHERE name = 'The Lantern Room';
 --   SELECT display_name, is_demo FROM profiles
 --   WHERE id = (SELECT id FROM auth.users WHERE email = 'herenowdemo@gmail.com');
