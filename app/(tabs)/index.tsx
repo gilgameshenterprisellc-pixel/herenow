@@ -18,6 +18,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { useLocation } from '@/hooks/useLocation'
 import { fetchNearbyZones, searchZonesByName } from '@/lib/zones'
 import { fetchMyVenues } from '@/lib/venueSubscriptions'
+import { isDemoAccount, DEMO_FALLBACK_COORDS } from '@/lib/sessions'
 import { supabase } from '@/lib/supabase'
 import ZoneCard from '@/components/ZoneCard'
 import NearbyMap from '@/components/NearbyMap'
@@ -104,6 +105,13 @@ export default function NearbyScreen() {
   const [loading, setLoading]           = useState(false)
   const [selectedId, setSelectedId]     = useState<string | null>(null)
   const [isVenueOwner, setIsVenueOwner] = useState(false)
+  // App Store review account: never hard-gate this screen on device GPS. A
+  // reviewer who denies the location prompt (or a simulator with no location
+  // services at all) would otherwise never get past "Location required" and
+  // could not reach any venue, including the pre-populated demo one -- which
+  // is the exact "unable to access all part of the app" failure this account
+  // exists to prevent. See DEMO_FALLBACK_COORDS in lib/sessions.ts.
+  const [isDemo, setIsDemo] = useState(false)
   const [showAttribution, setShowAttribution] = useState(false)
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery]   = useState('')
@@ -144,6 +152,10 @@ export default function NearbyScreen() {
     inputRange: [0, 0.5, 1],
     outputRange: [0, 0.6, 1],
   })
+
+  useEffect(() => {
+    isDemoAccount().then(setIsDemo)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -189,11 +201,21 @@ export default function NearbyScreen() {
   // watchPosition fires continuously — we must NOT let every GPS ping wipe
   // whatever the user panned the map to see. After first load, zone updates
   // come exclusively from handleMapMove (user pan / ⊕ button / tab focus).
+  //
+  // The demo/review account never waits on a real fix: it anchors on the
+  // seeded demo venue's own coordinates instead, so a reviewer who denies the
+  // location prompt (or is on a simulator with no location services) still
+  // lands on a populated venue list instead of a dead end.
   useEffect(() => {
-    if (!location || locationLoadedRef.current) return
-    locationLoadedRef.current = true
-    load(location)
-  }, [location])
+    if (locationLoadedRef.current) return
+    if (location) {
+      locationLoadedRef.current = true
+      load(location)
+    } else if (isDemo) {
+      locationLoadedRef.current = true
+      load(DEMO_FALLBACK_COORDS)
+    }
+  }, [location, isDemo])
 
   // Global DB search — fires on every keystroke (debounced 300ms)
   useEffect(() => {
@@ -253,7 +275,7 @@ export default function NearbyScreen() {
 
   const handleDismissPreview = () => setSelectedId(null)
 
-  if (locLoading) {
+  if (locLoading && !isDemo) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color="#29B6F6" size="large" />
@@ -262,7 +284,7 @@ export default function NearbyScreen() {
     )
   }
 
-  if (locError) {
+  if (locError && !isDemo) {
     // This screen used to be a dead end. useLocation ran once on mount, so a
     // denied permission was permanent, and because Expo Router keeps tab
     // screens mounted, switching tabs and back did not re-run it either. The
@@ -311,7 +333,7 @@ export default function NearbyScreen() {
 
       <NearbyMap
         zones={filteredZones}
-        location={location}
+        location={location ?? (isDemo ? DEMO_FALLBACK_COORDS : null)}
         selectedId={selectedId}
         onPinPress={handlePinPress}
         mapRef={mapRef}

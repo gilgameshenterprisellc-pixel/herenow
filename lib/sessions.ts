@@ -17,6 +17,16 @@ import { scheduleMorningRecapAlert } from './notifications'
 export type SocialMode = 'dating' | 'friends' | 'networking' | 'just_vibes'
 export type MoodMode   = 'open' | 'selective' | 'not_today'
 
+// Coordinates of the seeded App Store review venue ("HereNow Demo (Apple
+// Park)" — see supabase/apple_demo_account.sql, scripts/geofence-venue.mjs).
+// Used as a location fallback for the is_demo account on the Nearby screen,
+// which otherwise hard-gates on device GPS before showing any venue at all —
+// see app/(tabs)/index.tsx. A reviewer who denies the location prompt (or is
+// on a simulator with no location services) would never get past that gate,
+// which defeats the whole point of the is_demo geofence bypass below: it only
+// helps once you're already looking at a zone.
+export const DEMO_FALLBACK_COORDS = { latitude: 37.334606, longitude: -122.008972 }
+
 export interface Session {
   id: string
   zone_id: string
@@ -398,7 +408,7 @@ export type PresenceCheck = PresenceReading
 // inheriting the previous account's answer.
 let demoAccountCache: { userId: string; isDemo: boolean } | null = null
 
-async function isDemoAccount(): Promise<boolean> {
+export async function isDemoAccount(): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return false
   if (demoAccountCache?.userId === user.id) return demoAccountCache.isDemo
