@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase'
 import { registerPushToken } from '@/lib/push'
 import { consumeAuthLink, isAuthLink, scrubAuthParamsFromUrl } from '@/lib/authLinks'
 import { AnalyticsProvider } from '@/components/AnalyticsProvider'
+import ConsentGate from '@/components/ConsentGate'
 import * as Sentry from '@sentry/react-native'
 
 // Crash + error reporting. Native only — the live web build (Vercel) is left
@@ -156,6 +157,7 @@ function RootLayout() {
           <Stack.Screen name="my-venues" />
           <Stack.Screen name="admin" />
         </Stack>
+        <ConsentGate />
       </SessionProvider>
       </View>
     </ToastProvider>

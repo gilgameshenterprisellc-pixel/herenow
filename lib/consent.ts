@@ -26,9 +26,20 @@ export type ConsentDoc = 'terms' | 'privacy' | 'guidelines'
 export const CONSENT_DOCS: Record<ConsentDoc, {
   version: number; effective: string; label: string; href: string
 }> = {
-  terms:      { version: 1, effective: '2026-07-28', label: 'Terms of Service',     href: '/legal/terms' },
+  // v2 (Oct 1 2026): added the explicit zero-tolerance and 24-hour-response
+  // language Apple Guideline 1.2 asks users to agree to. Everyone who agreed to
+  // v1 is asked again by ConsentGate; the privacy policy did not change.
+  terms:      { version: 2, effective: '2026-10-01', label: 'Terms of Service',     href: '/legal/terms' },
   privacy:    { version: 1, effective: '2026-07-28', label: 'Privacy Policy',       href: '/legal/privacy' },
-  guidelines: { version: 1, effective: '2026-07-28', label: 'Community Guidelines', href: '/legal/community' },
+  guidelines: { version: 2, effective: '2026-10-01', label: 'Community Guidelines', href: '/legal/community' },
+}
+
+// ConsentGate listens here so it can drop the moment a signup finishes writing
+// its consent rows, instead of waiting for its next poll.
+const listeners = new Set<() => void>()
+export function subscribeConsentChanges(fn: () => void): () => void {
+  listeners.add(fn)
+  return () => { listeners.delete(fn) }
 }
 
 /**
@@ -41,7 +52,7 @@ export const CONSENT_DOCS: Record<ConsentDoc, {
  * unaccepted, so the user is re-prompted rather than silently recorded as having
  * agreed to something they were never asked about.
  */
-export async function recordConsent(userId: string): Promise<void> {
+export async function recordConsent(userId: string): Promise<boolean> {
   const rows = (Object.keys(CONSENT_DOCS) as ConsentDoc[]).map(doc => ({
     user_id:  userId,
     document: doc,
@@ -52,7 +63,36 @@ export async function recordConsent(userId: string): Promise<void> {
     .from('user_consents')
     .upsert(rows, { onConflict: 'user_id,document,version' })
 
-  if (error) console.error('[consent] failed to record signup consent:', error.message)
+  if (error) {
+    console.error('[consent] failed to record signup consent:', error.message)
+    return false
+  }
+  listeners.forEach((fn) => fn())
+  return true
+}
+
+/**
+ * Like outstandingConsents, but returns null when the read itself failed.
+ *
+ * outstandingConsents answers "ask again" on a failure, which is right for an
+ * audit question and wrong for a gate: a dropped connection or a missing table
+ * must not lock a signed-in person out of the app. The gate uses this and only
+ * blocks when it positively knows something is outstanding.
+ */
+export async function fetchOutstandingConsents(userId: string): Promise<ConsentDoc[] | null> {
+  const { data, error } = await supabase
+    .from('user_consents')
+    .select('document, version')
+    .eq('user_id', userId)
+
+  if (error) {
+    console.warn('[consent] gate could not read consents, not blocking:', error.message)
+    return null
+  }
+
+  const accepted = new Set((data ?? []).map(r => `${r.document}:${r.version}`))
+  return (Object.keys(CONSENT_DOCS) as ConsentDoc[])
+    .filter(doc => !accepted.has(`${doc}:${CONSENT_DOCS[doc].version}`))
 }
 
 /**

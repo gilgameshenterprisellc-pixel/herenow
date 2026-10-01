@@ -58,6 +58,21 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
+    heading: 'Zero tolerance for objectionable content and abusive users',
+    body: [
+      'HereNow has no tolerance for objectionable content or abusive users. By creating an account or using HereNow, you agree to this section.',
+      'Objectionable content includes harassment, threats, hate speech, sexually explicit or exploitative material, graphic violence, illegal activity, scams, and spam.',
+      'This applies everywhere in the app, including anonymous areas such as Venue Chat and the Board. Anonymity hides your name from other users. It does not hide your account from us, and it never changes what you are allowed to post.',
+      { bullets: [
+        'Report anything. Use the options button on any message, post, pin, or conversation to report it. Reported content is hidden right away.',
+        'Block anyone. Blocking stops you and that person from seeing or contacting each other. Manage blocked users in Settings.',
+        'Remove your own content. You can delete your own posts, messages, and pins at any time.',
+        'We act within 24 hours. We review every report within 24 hours. When content breaks these rules, we remove it and eject the user who posted it by suspending or permanently banning their account.',
+      ] },
+      'You can also contact us at any time at support@herenowsocial.com.',
+    ],
+  },
+  {
     heading: 'Check-ins and presence',
     body: [
       'HereNow uses your device\'s location to verify that you are physically present at participating venues. Check-ins are temporary and automatically end when your visit concludes.',
@@ -154,8 +169,8 @@ export default function TermsScreen() {
   return (
     <LegalDoc
       title="Terms of Service"
-      updated="July 28, 2026"
-      intro="HereNow is a platform designed to help people discover and share real-world experiences through participating venues and communities. These Terms govern your use of the HereNow app, website, and related services. By creating an account or using HereNow, you agree to these Terms and our Privacy Policy. If you do not agree, please do not use HereNow."
+      updated="October 1, 2026"
+      intro="HereNow is a platform designed to help people discover and share real-world experiences through participating venues and communities. These Terms govern your use of the HereNow app, website, and related services. By creating an account or using HereNow, you agree to these Terms and our Privacy Policy, including that there is no tolerance for objectionable content or abusive users. If you do not agree, please do not use HereNow."
       sections={SECTIONS}
     />
   )
