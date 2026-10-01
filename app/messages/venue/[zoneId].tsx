@@ -13,6 +13,12 @@ import {
   fetchVenueThreadMessages, sendVenueMessage, markVenueThreadRead,
 } from '@/lib/venueMessages'
 import type { DirectMessage } from '@/lib/messages'
+import { reportUser, type ReportReason } from '@/lib/reports'
+import { blockUser } from '@/lib/blocks'
+import { screenText, blockedMessage } from '@/lib/textModeration'
+import { platformConfirm } from '@/lib/confirm'
+import { useToast } from '@/contexts/ToastContext'
+import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 
 export default function VenueThreadScreen() {
   const insets = useSafeAreaInsets()
@@ -24,6 +30,8 @@ export default function VenueThreadScreen() {
   const [draft, setDraft]     = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [sheet, setSheet]     = useState<ActionSheetConfig | null>(null)
+  const { showToast }         = useToast()
   const listRef = useRef<FlatList<DirectMessage>>(null)
 
   const load = useCallback(async (uid: string, other: string) => {
@@ -76,12 +84,67 @@ export default function VenueThreadScreen() {
   const send = async () => {
     const content = draft.trim()
     if (!content || !otherId || sending) return
+    const screen = screenText(content)
+    if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     setSending(true)
     setDraft('')
     const msg = await sendVenueMessage({ zoneId, content, recipientId: otherId })
     if (msg) setMessages((prev) => [...prev, msg])
+    else { setDraft(content); showToast('Could not send that message. Try again.', 'error') }
     setSending(false)
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50)
+  }
+
+  const leaveThread = () => router.canGoBack() ? router.back() : router.replace('/messages' as any)
+
+  const submitReport = async (reason: ReportReason) => {
+    if (!otherId) return
+    try {
+      await reportUser({ reportedId: otherId, zoneId, reason })
+      showToast('Reported. We review reports within 24 hours.', 'success')
+    } catch {
+      showToast('Could not submit report. Try again.', 'error')
+    }
+  }
+
+  const handleBlock = () => {
+    if (!otherId) return
+    platformConfirm(
+      `Block ${title}?`,
+      'This conversation disappears and neither of you can message the other. You can undo this in Settings > Blocked users.',
+      async () => {
+        try {
+          await blockUser(otherId, { label: title, source: 'venue_dm' })
+          showToast('Blocked.', 'success')
+          leaveThread()
+        } catch {
+          showToast('Could not block. Try again.', 'error')
+        }
+      },
+      { confirmText: 'Block', destructive: true }
+    )
+  }
+
+  const openSafetyMenu = () => {
+    setSheet({
+      title,
+      options: [
+        {
+          label: 'Report this conversation',
+          onPress: () => setSheet({
+            title: 'Report this conversation',
+            message: 'What is this report about? We review reports within 24 hours and remove content and accounts that break the rules.',
+            options: [
+              { label: 'Harassment or threats', onPress: () => submitReport('harassment') },
+              { label: 'Inappropriate behavior', onPress: () => submitReport('inappropriate_behavior') },
+              { label: 'Spam', onPress: () => submitReport('spam') },
+              { label: 'Something else', onPress: () => submitReport('other') },
+            ],
+          }),
+        },
+        { label: `Block ${title}`, destructive: true, onPress: handleBlock },
+      ],
+    })
   }
 
   return (
@@ -96,6 +159,16 @@ export default function VenueThreadScreen() {
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
           <Text style={styles.sub}>Venue conversation · no expiry</Text>
         </View>
+        {!!otherId && (
+          <TouchableOpacity
+            onPress={openSafetyMenu}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Report or block"
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color="#7A93AC" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (
@@ -144,6 +217,8 @@ export default function VenueThreadScreen() {
           <Text style={styles.sendBtnText}>{sending ? '…' : 'Send'}</Text>
         </TouchableOpacity>
       </View>
+
+      <ActionSheet config={sheet} onClose={() => setSheet(null)} />
     </KeyboardAvoidingView>
   )
 }

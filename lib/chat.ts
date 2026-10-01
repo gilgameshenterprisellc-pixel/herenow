@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { screenText } from './textModeration'
 import { isSessionGhosted } from './sessions'
+import { fetchBlockedIds } from './blocks'
 
 export interface ChatMessage {
   id: string
@@ -33,7 +34,30 @@ export async function fetchChat(zoneId: string): Promise<ChatMessage[]> {
     return []
   }
 
-  return (data as ChatMessage[]) ?? []
+  // Blocked people never appear. The database enforces this too; filtering here
+  // keeps it true even before that migration is applied.
+  const blocked = new Set(await fetchBlockedIds())
+  return ((data as ChatMessage[]) ?? []).filter((m) => !blocked.has(m.user_id))
+}
+
+// A person removing their own message. RLS ("Users delete own chat messages")
+// already limits this to the author; the user_id filter just makes a mismatch
+// a no-op instead of a silent success.
+export async function deleteChatMessage(messageId: string): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { error } = await supabase
+    .from('venue_chat')
+    .delete()
+    .eq('id', messageId)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('[chat] deleteChatMessage error:', error.message)
+    return false
+  }
+  return true
 }
 
 export async function sendChatMessage(params: {

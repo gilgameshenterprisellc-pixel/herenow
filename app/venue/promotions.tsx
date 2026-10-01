@@ -9,6 +9,7 @@ import { router } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
+import { screenText, blockedMessage } from '@/lib/textModeration'
 import BackButton from '@/components/BackButton'
 
 interface Promotion {
@@ -123,6 +124,10 @@ export default function VenuePromotionsScreen() {
 
   const handleCreate = async () => {
     if (!zoneId || !title.trim()) { showToast('Title required.', 'error'); return }
+    for (const field of [title, description, discountLabel]) {
+      const screen = screenText(field)
+      if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
+    }
 
     setSaving(true)
     const { data: { user: authUser } } = await supabase.auth.getUser()

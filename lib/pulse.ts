@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { logEvent } from './analytics'
 import { screenText } from './textModeration'
 import { isSessionGhosted } from './sessions'
+import { fetchBlockedIds } from './blocks'
 import { tzOffsetMs, NIGHT_TZ, NIGHT_ROLLOVER_HOUR } from './nights'
 
 // A venue's Pulse post should clear "after they close" — we use the next 6am
@@ -66,7 +67,10 @@ export async function fetchPulse(zoneId: string): Promise<PulsePost[]> {
     return []
   }
 
-  return (data as PulsePost[]) ?? []
+  // Blocked people never appear. The database enforces this too; filtering here
+  // keeps it true even before that migration has been applied.
+  const blocked = new Set(await fetchBlockedIds())
+  return ((data as PulsePost[]) ?? []).filter((p) => !blocked.has(p.user_id))
 }
 
 export async function createPulsePost(params: {

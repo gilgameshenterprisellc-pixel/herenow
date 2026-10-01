@@ -4,7 +4,9 @@ export type ReportReason = 'harassment' | 'inappropriate_behavior' | 'spam' | 'f
 
 export async function reportUser(params: {
   reportedId: string
-  zoneId: string
+  // Null for reports that do not come from inside a venue (a DM thread whose
+  // We Met has no zone, for instance). safety_reports.zone_id is nullable.
+  zoneId: string | null
   reason: ReportReason
   note?: string
 }): Promise<void> {

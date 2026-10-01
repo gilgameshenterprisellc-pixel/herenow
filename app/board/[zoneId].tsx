@@ -11,10 +11,11 @@ import BackButton from '@/components/BackButton'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { subscribeAsPatron } from '@/lib/venueSubscriptions'
+import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 import {
   fetchBoard, checkBoardAccess, boardCategory, toggleLike, toggleSave,
   reportPin, removePin, markPinComplete, closePinResponses,
-  venueHidePin, venuePinToTop, venueBanPinAuthor, respondToPin,
+  venueHidePin, venuePinToTop, venueBanPinAuthor, respondToPin, blockPinAuthor,
   type BoardPin, type BoardAccess,
 } from '@/lib/board'
 
@@ -41,6 +42,7 @@ export default function BoardScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
   const [menuPinId, setMenuPinId] = useState<string | null>(null)
+  const [sheet, setSheet]         = useState<ActionSheetConfig | null>(null)
 
   // Respond modal state
   const [respondPin, setRespondPin]   = useState<BoardPin | null>(null)
@@ -90,17 +92,49 @@ export default function BoardScreen() {
     showToast(pin.saved ? 'Removed from saved.' : 'Saved.', 'success')
   }
 
-  const handleReport = (pin: BoardPin) => {
+  const submitReport = async (pin: BoardPin, reason: string) => {
+    const ok = await reportPin(pin.id, reason)
+    showToast(ok ? 'Reported and hidden. We review reports within 24 hours.' : 'Could not report. Try again.', ok ? 'success' : 'error')
+    if (ok) load()
+  }
+
+  const handleBlockPoster = (pin: BoardPin) => {
     platformConfirm(
-      'Report this pin?',
-      'It will be reviewed. Pins reported by multiple people are hidden automatically.',
+      'Block this poster?',
+      pin.is_anonymous
+        ? 'You will no longer see their pins or hear from them. They stay anonymous to you, and you can undo this in Settings > Blocked users.'
+        : 'You will no longer see their pins or hear from them. You can undo this in Settings > Blocked users.',
       async () => {
-        const ok = await reportPin(pin.id)
-        showToast(ok ? 'Reported — thank you.' : 'Could not report. Try again.', ok ? 'success' : 'error')
+        const ok = await blockPinAuthor(pin.id)
+        showToast(ok ? 'Poster blocked.' : 'Could not block. Try again.', ok ? 'success' : 'error')
         if (ok) load()
       },
-      { confirmText: 'Report', destructive: true },
+      { confirmText: 'Block', destructive: true },
     )
+  }
+
+  // The flag opens a menu rather than reporting on a single tap: report (with a
+  // reason) or block. Both work on anonymous pins without revealing the poster.
+  const handlePinSafetyMenu = (pin: BoardPin) => {
+    setSheet({
+      title: 'Pin options',
+      options: [
+        {
+          label: 'Report this pin',
+          onPress: () => setSheet({
+            title: 'Report this pin',
+            message: 'What is wrong with it? It is hidden for you right away and reviewed within 24 hours.',
+            options: [
+              { label: 'Harassment or hate', onPress: () => submitReport(pin, 'harassment') },
+              { label: 'Inappropriate or explicit', onPress: () => submitReport(pin, 'inappropriate') },
+              { label: 'Spam or scam', onPress: () => submitReport(pin, 'spam') },
+              { label: 'Something else', onPress: () => submitReport(pin, 'other') },
+            ],
+          }),
+        },
+        { label: 'Block this poster', destructive: true, onPress: () => handleBlockPoster(pin) },
+      ],
+    })
   }
 
   const handleRespond = async () => {
@@ -288,8 +322,15 @@ export default function BoardScreen() {
                       <Ionicons name={pin.saved ? 'bookmark' : 'bookmark-outline'} size={17} color={pin.saved ? '#29B6F6' : '#7A93AC'} />
                     </TouchableOpacity>
                     {!pin.is_own && (
-                      <TouchableOpacity style={styles.actionBtn} onPress={() => handleReport(pin)} hitSlop={6}>
+                      <TouchableOpacity
+                        style={styles.actionBtn}
+                        onPress={() => handlePinSafetyMenu(pin)}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel="Report or block this pin"
+                      >
                         <Ionicons name="flag-outline" size={16} color="#7A93AC" />
+                        <Text style={styles.actionCount}>Report</Text>
                       </TouchableOpacity>
                     )}
                     <View style={{ flex: 1 }} />
@@ -357,6 +398,8 @@ export default function BoardScreen() {
           </View>
         </View>
       </Modal>
+
+      <ActionSheet config={sheet} onClose={() => setSheet(null)} />
     </View>
   )
 }

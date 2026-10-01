@@ -268,6 +268,42 @@ export async function venueBanPinAuthor(pinId: string): Promise<boolean> {
   return !error
 }
 
+// ── Safety: block and report without unmasking anyone ────────────────────────
+// Anonymous pins and Board response threads never reveal who is behind them, so
+// these go through SECURITY DEFINER RPCs that act on the pin or thread and keep
+// the identity server-side. Requires
+// supabase/apple_1_2_block_enforcement_and_ugc_controls.sql.
+
+// Block whoever posted a pin. Their pins and responses disappear for you, and
+// they can no longer respond to you.
+export async function blockPinAuthor(pinId: string): Promise<boolean> {
+  const { error } = await supabase.rpc('board_block_pin_author', { p_pin: pinId })
+  if (error) console.error('[board] blockPinAuthor error:', error.message)
+  return !error
+}
+
+// Block the other person in a response thread. The thread is closed.
+export async function blockResponseOther(responseId: string): Promise<boolean> {
+  const { error } = await supabase.rpc('board_block_response_other', { p_response: responseId })
+  if (error) console.error('[board] blockResponseOther error:', error.message)
+  return !error
+}
+
+export type ResponseReportReason = 'harassment' | 'inappropriate_behavior' | 'spam' | 'other'
+
+// Report the other person in a response thread to the admin review queue.
+export async function reportResponseThread(
+  responseId: string,
+  reason: ResponseReportReason,
+): Promise<boolean> {
+  const { error } = await supabase.rpc('board_report_response', {
+    p_response: responseId,
+    p_reason:   reason,
+  })
+  if (error) console.error('[board] reportResponseThread error:', error.message)
+  return !error
+}
+
 // ── Admin review queue — the one surface with genuine anonymity, so it's the ─
 // one Apple's Guideline 1.2 rejection cares about most. Unmasks authorship for
 // review only; every other read stays anonymous via the masking RPCs above.

@@ -10,11 +10,12 @@ import { supabase } from '@/lib/supabase'
 import BackButton from '@/components/BackButton'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
+import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 import {
   fetchMyResponseThreads, fetchResponseMessages, sendResponseMessage,
   closeResponseThread, responseExpired, boardCategory,
-  fetchContactExchange, shareContact,
-  type ResponseThread, type ResponseMessage, type ContactExchangeState,
+  fetchContactExchange, shareContact, blockResponseOther, reportResponseThread,
+  type ResponseThread, type ResponseMessage, type ContactExchangeState, type ResponseReportReason,
 } from '@/lib/board'
 
 // A Response thread: a temporary conversation tied to ONE Board pin. Not a DM —
@@ -37,6 +38,7 @@ export default function ResponseThreadScreen() {
   const [shareOpen, setShareOpen]       = useState(false)
   const [shareValue, setShareValue]     = useState('')
   const [sharing, setSharing]           = useState(false)
+  const [sheet, setSheet]               = useState<ActionSheetConfig | null>(null)
 
   const listRef = useRef<FlatList>(null)
 
@@ -107,6 +109,49 @@ export default function ResponseThreadScreen() {
   const otherName = thread?.other_name ?? 'Anonymous'
   const cat = thread ? boardCategory(thread.pin_category) : null
 
+  // Report and block go through RPCs that act on the thread, so they work even
+  // when the other person is anonymous and never reveal who they are.
+  const submitReport = async (reason: ResponseReportReason) => {
+    const ok = await reportResponseThread(responseId!, reason)
+    showToast(ok ? 'Reported. We review reports within 24 hours.' : 'Could not submit report. Try again.', ok ? 'success' : 'error')
+  }
+
+  const handleBlock = () => {
+    platformConfirm(
+      `Block ${otherName}?`,
+      'This conversation disappears and neither of you can respond to the other again. You can undo this in Settings > Blocked users.',
+      async () => {
+        const ok = await blockResponseOther(responseId!)
+        if (!ok) { showToast('Could not block. Try again.', 'error'); return }
+        showToast('Blocked.', 'success')
+        router.back()
+      },
+      { confirmText: 'Block', destructive: true },
+    )
+  }
+
+  const openSafetyMenu = () => {
+    setSheet({
+      title: otherName,
+      options: [
+        {
+          label: 'Report this person',
+          onPress: () => setSheet({
+            title: 'Report this person',
+            message: 'What is this report about? We review reports within 24 hours and remove content and accounts that break the rules.',
+            options: [
+              { label: 'Harassment or threats', onPress: () => submitReport('harassment') },
+              { label: 'Inappropriate behavior', onPress: () => submitReport('inappropriate_behavior') },
+              { label: 'Spam or scam', onPress: () => submitReport('spam') },
+              { label: 'Something else', onPress: () => submitReport('other') },
+            ],
+          }),
+        },
+        { label: `Block ${otherName}`, destructive: true, onPress: handleBlock },
+      ],
+    })
+  }
+
   if (notFound) {
     return (
       <View style={styles.container}>
@@ -134,6 +179,14 @@ export default function ResponseThreadScreen() {
             </Text>
           )}
         </View>
+        <TouchableOpacity
+          onPress={openSafetyMenu}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Report or block"
+        >
+          <Ionicons name="flag-outline" size={19} color="#7A93AC" />
+        </TouchableOpacity>
         <TouchableOpacity onPress={handleCloseThread} hitSlop={8}>
           <Ionicons name="trash-outline" size={19} color="#7A93AC" />
         </TouchableOpacity>
@@ -265,6 +318,8 @@ export default function ResponseThreadScreen() {
           </View>
         </View>
       </Modal>
+
+      <ActionSheet config={sheet} onClose={() => setSheet(null)} />
     </KeyboardAvoidingView>
   )
 }

@@ -109,14 +109,19 @@ export default function SignupScreen() {
         setErrorMsg('Please fill in all fields.')
         return
       }
-      if (!agreedTerms || !agreedConduct) {
-        setErrorMsg('Please accept both agreements to create an account.')
-        return
-      }
-      if (!ageConfirmed) {
-        setErrorMsg('HereNow is 18+. Confirm your age to create an account.')
-        return
-      }
+    }
+
+    // Everyone agrees to the same terms, venue owners included: a venue account
+    // can post to Pulse, Chat and announcements just like anyone else, so it
+    // gets the same agreement (Apple Guideline 1.2 asks for agreement before
+    // any user can post). Venue accounts used to skip this entirely.
+    if (!agreedTerms || !agreedConduct) {
+      setErrorMsg('Please accept both agreements to create an account.')
+      return
+    }
+    if (!ageConfirmed) {
+      setErrorMsg('HereNow is 18+. Confirm your age to create an account.')
+      return
     }
 
     // Phone required for everyone — one number per account (anti-fraud).
@@ -215,13 +220,12 @@ export default function SignupScreen() {
       return
     }
 
-    // Audit trail for what was agreed to, and which revision of it. Consumer
-    // signups only, matching where the checkboxes are shown. Deliberately not
-    // awaited-and-checked: the account already exists, and failing the signup
-    // over an audit write would strand an auth user with no profile. A failed
-    // write leaves the document outstanding, so the user is asked again rather
-    // than recorded as having agreed to something they never saw.
-    if (!isVenue) void recordConsent(data.user.id)
+    // Audit trail for what was agreed to, and which revision of it. Deliberately
+    // not awaited-and-checked: the account already exists, and failing the
+    // signup over an audit write would strand an auth user with no profile. A
+    // failed write leaves the document outstanding, so ConsentGate asks again
+    // rather than recording the user as having agreed to something they never saw.
+    void recordConsent(data.user.id)
 
     // Auto-approve: Mapbox returned high-confidence coordinates — create the zone and
     // flip venue_status to approved atomically inside the RPC.
@@ -519,65 +523,62 @@ export default function SignupScreen() {
             </Reanimated.View>
           )}
 
-          {!isVenue && (
+          <TouchableOpacity
+            style={styles.ageRow}
+            onPress={() => setAgeConfirmed(!ageConfirmed)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.ageBox, ageConfirmed && styles.ageBoxChecked]}>
+              {ageConfirmed && <Text style={styles.ageCheck}>✓</Text>}
+            </View>
+            <Text style={styles.ageText}>I'm 18 or older</Text>
+          </TouchableOpacity>
+
+          <View style={styles.consentBlock}>
+            <Text style={styles.consentIntro}>
+              HereNow is built for meeting people in the real world and making places
+              more social. Help us keep it that way.
+            </Text>
+
             <TouchableOpacity
               style={styles.ageRow}
-              onPress={() => setAgeConfirmed(!ageConfirmed)}
+              onPress={() => setAgreedTerms(!agreedTerms)}
               activeOpacity={0.7}
             >
-              <View style={[styles.ageBox, ageConfirmed && styles.ageBoxChecked]}>
-                {ageConfirmed && <Text style={styles.ageCheck}>✓</Text>}
+              <View style={[styles.ageBox, agreedTerms && styles.ageBoxChecked]}>
+                {agreedTerms && <Text style={styles.ageCheck}>✓</Text>}
               </View>
-              <Text style={styles.ageText}>I'm 18 or older</Text>
-            </TouchableOpacity>
-          )}
-
-          {!isVenue && (
-            <View style={styles.consentBlock}>
-              <Text style={styles.consentIntro}>
-                HereNow is built for meeting people in the real world and making places
-                more social. Help us keep it that way.
+              <Text style={styles.consentText}>
+                I agree to the{' '}
+                <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.terms.href as any)}>
+                  {CONSENT_DOCS.terms.label}
+                </Text>
+                {' '}and{' '}
+                <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.privacy.href as any)}>
+                  {CONSENT_DOCS.privacy.label}
+                </Text>
+                , including that HereNow has no tolerance for objectionable content or abusive users.
               </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.ageRow}
-                onPress={() => setAgreedTerms(!agreedTerms)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.ageBox, agreedTerms && styles.ageBoxChecked]}>
-                  {agreedTerms && <Text style={styles.ageCheck}>✓</Text>}
-                </View>
-                <Text style={styles.consentText}>
-                  I agree to the{' '}
-                  <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.terms.href as any)}>
-                    {CONSENT_DOCS.terms.label}
-                  </Text>
-                  {' '}and{' '}
-                  <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.privacy.href as any)}>
-                    {CONSENT_DOCS.privacy.label}
-                  </Text>.
+            <TouchableOpacity
+              style={styles.ageRow}
+              onPress={() => setAgreedConduct(!agreedConduct)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.ageBox, agreedConduct && styles.ageBoxChecked]}>
+                {agreedConduct && <Text style={styles.ageCheck}>✓</Text>}
+              </View>
+              <Text style={styles.consentText}>
+                I agree to follow the{' '}
+                <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.guidelines.href as any)}>
+                  {CONSENT_DOCS.guidelines.label}
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.ageRow}
-                onPress={() => setAgreedConduct(!agreedConduct)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.ageBox, agreedConduct && styles.ageBoxChecked]}>
-                  {agreedConduct && <Text style={styles.ageCheck}>✓</Text>}
-                </View>
-                <Text style={styles.consentText}>
-                  I agree to follow the{' '}
-                  <Text style={styles.consentLink} onPress={() => router.push(CONSENT_DOCS.guidelines.href as any)}>
-                    {CONSENT_DOCS.guidelines.label}
-                  </Text>
-                  {' '}and not use HereNow to harass, stalk, threaten, impersonate, or
-                  otherwise make other people feel unsafe.
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                {' '}and not use HereNow to harass, stalk, threaten, impersonate, or
+                otherwise make other people feel unsafe.
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {!!errorMsg && (
             <Text style={styles.errorMsg}>{errorMsg}</Text>

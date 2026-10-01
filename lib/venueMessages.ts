@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 import { sendNotification } from './notifications'
 import { DM_PERMANENT_SENTINEL, type DirectMessage } from './messages'
+import { fetchBlockedIds } from './blocks'
+import { screenText } from './textModeration'
 
 // Venue DMs (Jacob build 8): a follower/subscriber can message a venue with no
 // We Met and no expiry. Separate thread type from We Met DMs. A thread is keyed
@@ -31,6 +33,12 @@ export async function sendVenueMessage(params: {
 }): Promise<DirectMessage | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  // Same word-list screen as every other place users can write. See sendMessage.
+  if (!screenText(params.content).ok) {
+    console.warn('[venueMessages] message blocked by content filter')
+    return null
+  }
 
   const { data: zone } = await supabase
     .from('zones').select('owner_id, name').eq('id', params.zoneId).maybeSingle()
@@ -116,10 +124,15 @@ export async function fetchVenueThreads(): Promise<VenueThread[]> {
 
   if (error || !msgs || msgs.length === 0) return []
 
+  // Blocked people get no row. The database hides their messages too; this keeps
+  // the list right even before that migration has been applied.
+  const blocked = new Set(await fetchBlockedIds())
+
   // Group by (zone, the other party).
   const groups = new Map<string, { zoneId: string; otherId: string; msgs: typeof msgs }>()
   for (const m of msgs as any[]) {
     const otherId = m.sender_id === user.id ? m.recipient_id : m.sender_id
+    if (blocked.has(otherId)) continue
     const key = `${m.venue_zone_id}:${otherId}`
     if (!groups.has(key)) groups.set(key, { zoneId: m.venue_zone_id, otherId, msgs: [] })
     groups.get(key)!.msgs.push(m)

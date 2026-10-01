@@ -12,6 +12,7 @@ import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { sendNotification } from '@/lib/notifications'
+import { screenText, blockedMessage } from '@/lib/textModeration'
 import BackButton from '@/components/BackButton'
 
 interface Announcement {
@@ -146,6 +147,8 @@ export default function VenueAnnouncementsScreen() {
   const handleSend = async () => {
     if (!zoneId) { showToast('Venue zone not found. Contact support.', 'error'); return }
     if (!message.trim()) { showToast('Message required.', 'error'); return }
+    const screen = screenText(message)
+    if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     if (uploading) { showToast('Image still uploading, please wait.', 'error'); return }
 
     setSending(true)

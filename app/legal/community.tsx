@@ -97,7 +97,8 @@ const SECTIONS: LegalSection[] = [
         'Suspend bad actors.',
         'Improve the HereNow community.',
       ] },
-      'We review reports carefully and may take action when these Guidelines or our Terms of Service are violated.',
+      'You can report any message, post, pin, or conversation with the options button next to it, and block anyone from the same place. Reported content is hidden right away.',
+      'We review every report within 24 hours. When these Guidelines or our Terms of Service are violated, we remove the content and eject the user who posted it.',
     ],
   },
   {
@@ -155,7 +156,7 @@ export default function CommunityGuidelinesScreen() {
   return (
     <LegalDoc
       title="Community Guidelines"
-      updated="July 28, 2026"
+      updated="October 1, 2026"
       intro="HereNow exists to help people connect through shared real-world experiences. Whether you're grabbing coffee, attending a concert, cheering for your team, or exploring a new neighborhood, our goal is to make being out in the world a little more social. Every person helps shape this community. These guidelines explain what we expect from everyone who uses HereNow."
       sections={SECTIONS}
     />

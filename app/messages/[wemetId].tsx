@@ -12,6 +12,11 @@ import { sendMessage, markMessagesRead, isPermanentDm } from '@/lib/messages'
 import { unmeet } from '@/lib/weMet'
 import { platformConfirm } from '@/lib/confirm'
 import { publicName } from '@/lib/format'
+import { reportUser, type ReportReason } from '@/lib/reports'
+import { blockUser } from '@/lib/blocks'
+import { screenText, blockedMessage } from '@/lib/textModeration'
+import { useToast } from '@/contexts/ToastContext'
+import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 import DmBubble from '@/components/DmBubble'
 import ExpiryLabel from '@/components/ExpiryLabel'
 import BackButton from '@/components/BackButton'
@@ -25,7 +30,10 @@ export default function DmConversationScreen() {
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [otherName, setOtherName] = useState('')
   const [otherId, setOtherId]     = useState<string | null>(null)
+  const [zoneId, setZoneId]       = useState<string | null>(null)
   const [notFound, setNotFound]   = useState(false)
+  const [sheet, setSheet]         = useState<ActionSheetConfig | null>(null)
+  const { showToast }             = useToast()
   const listRef = useRef<FlatList>(null)
 
   const { messages, loading } = useDmThread(wemetId, userId ?? '')
@@ -37,7 +45,7 @@ export default function DmConversationScreen() {
 
       const { data: wm, error: wmErr } = await supabase
         .from('we_met')
-        .select('expires_at, initiator_id, recipient_id')
+        .select('expires_at, initiator_id, recipient_id, zone_id')
         .eq('id', wemetId)
         .maybeSingle()
 
@@ -47,6 +55,7 @@ export default function DmConversationScreen() {
       }
 
       setExpiresAt(wm.expires_at)
+      setZoneId(wm.zone_id ?? null)
       const otherUserId = wm.initiator_id === user?.id ? wm.recipient_id : wm.initiator_id
       setOtherId(otherUserId)
       const { data: profile } = await supabase
@@ -63,10 +72,13 @@ export default function DmConversationScreen() {
 
   const handleSend = async () => {
     if (!text.trim() || sending || !userId) return
+    const screen = screenText(text)
+    if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     setSending(true)
-    await sendMessage({ wemetId, content: text.trim() })
-    setText('')
+    const sent = await sendMessage({ wemetId, content: text.trim() })
     setSending(false)
+    if (!sent) { showToast('Could not send that message. Try again.', 'error'); return }
+    setText('')
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100)
   }
 
@@ -85,6 +97,59 @@ export default function DmConversationScreen() {
       },
       { confirmText: 'Unmeet', cancelText: 'Keep', destructive: true }
     )
+  }
+
+  const leaveThread = () => router.canGoBack() ? router.back() : router.replace('/messages' as any)
+
+  const submitReport = async (reason: ReportReason) => {
+    if (!otherId) return
+    try {
+      await reportUser({ reportedId: otherId, zoneId, reason })
+      showToast('Reported. We review reports within 24 hours.', 'success')
+    } catch {
+      showToast('Could not submit report. Try again.', 'error')
+    }
+  }
+
+  const handleBlock = () => {
+    if (!otherId) return
+    platformConfirm(
+      `Block ${otherName || 'this person'}?`,
+      'This conversation disappears and neither of you can message or send We Met requests to the other. You can undo this in Settings > Blocked users.',
+      async () => {
+        try {
+          await blockUser(otherId, { label: otherName || undefined, source: 'dm' })
+          showToast('Blocked.', 'success')
+          leaveThread()
+        } catch {
+          showToast('Could not block. Try again.', 'error')
+        }
+      },
+      { confirmText: 'Block', destructive: true }
+    )
+  }
+
+  const openSafetyMenu = () => {
+    setSheet({
+      title: otherName || 'This conversation',
+      options: [
+        {
+          label: 'Report this person',
+          onPress: () => setSheet({
+            title: 'Report this person',
+            message: 'What is this report about? We review reports within 24 hours and remove content and accounts that break the rules.',
+            options: [
+              { label: 'Harassment or threats', onPress: () => submitReport('harassment') },
+              { label: 'Inappropriate behavior', onPress: () => submitReport('inappropriate_behavior') },
+              { label: 'Spam', onPress: () => submitReport('spam') },
+              { label: 'Fake account', onPress: () => submitReport('fake_account') },
+              { label: 'Something else', onPress: () => submitReport('other') },
+            ],
+          }),
+        },
+        { label: `Block ${otherName || 'this person'}`, destructive: true, onPress: handleBlock },
+      ],
+    })
   }
 
   if (notFound) {
@@ -128,6 +193,14 @@ export default function DmConversationScreen() {
         </View>
         <TouchableOpacity onPress={handleUnmeet} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.unmeetText}>Unmeet</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={openSafetyMenu}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Report or block"
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color="#7A93AC" />
         </TouchableOpacity>
       </View>
 
@@ -204,6 +277,8 @@ export default function DmConversationScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <ActionSheet config={sheet} onClose={() => setSheet(null)} />
     </KeyboardAvoidingView>
   )
 }
