@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { sendNotification } from './notifications'
 import { DM_PERMANENT_SENTINEL, type DirectMessage } from './messages'
+import { fetchBlockedIds } from './blocks'
 
 // Venue DMs (Jacob build 8): a follower/subscriber can message a venue with no
 // We Met and no expiry. Separate thread type from We Met DMs. A thread is keyed
@@ -116,10 +117,15 @@ export async function fetchVenueThreads(): Promise<VenueThread[]> {
 
   if (error || !msgs || msgs.length === 0) return []
 
+  // Blocked people get no row. The database hides their messages too; this keeps
+  // the list right even before that migration has been applied.
+  const blocked = new Set(await fetchBlockedIds())
+
   // Group by (zone, the other party).
   const groups = new Map<string, { zoneId: string; otherId: string; msgs: typeof msgs }>()
   for (const m of msgs as any[]) {
     const otherId = m.sender_id === user.id ? m.recipient_id : m.sender_id
+    if (blocked.has(otherId)) continue
     const key = `${m.venue_zone_id}:${otherId}`
     if (!groups.has(key)) groups.set(key, { zoneId: m.venue_zone_id, otherId, msgs: [] })
     groups.get(key)!.msgs.push(m)

@@ -217,6 +217,22 @@ export default function SettingsScreen() {
           />
         </Section>
 
+        <Section title="Safety">
+          <SettingsRow
+            icon="ban-outline"
+            label="Blocked Users"
+            subtitle="See who you've blocked, and unblock anyone"
+            onPress={() => router.push('/blocked' as any)}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
+            icon="flag-outline"
+            label="Report Abuse"
+            subtitle="Email us about a person or content. We review every report within 24 hours and remove content and accounts that break the rules. To report something inside the app, tap the options button on it."
+            onPress={() => openMail('mailto:support@herenowsocial.com?subject=Report%20abuse')}
+          />
+        </Section>
+
         <Section title="Notifications">
           <SettingsRow
             icon="megaphone-outline"
