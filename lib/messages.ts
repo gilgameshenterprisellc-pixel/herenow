@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { sendNotification } from './notifications'
 import { fetchBlockedIds } from './blocks'
+import { screenText } from './textModeration'
 
 export interface DirectMessage {
   id: string
@@ -58,6 +59,14 @@ export async function sendMessage(params: {
 }): Promise<DirectMessage | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  // Same word-list screen Pulse, Chat and the Board use. Direct messages were the
+  // one place it was missing. The thread screen checks first so it can tell the
+  // user why; this is the enforcement backstop for any caller.
+  if (!screenText(params.content).ok) {
+    console.warn('[messages] message blocked by content filter')
+    return null
+  }
 
   const { data: wm } = await supabase
     .from('we_met')

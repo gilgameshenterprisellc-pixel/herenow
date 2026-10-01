@@ -10,6 +10,7 @@ import { supabase, getAuthedUser } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import { uploadAvatarWeb } from '@/lib/uploadAvatar'
 import { useToast } from '@/contexts/ToastContext'
+import { screenText, blockedMessage } from '@/lib/textModeration'
 import BackButton from '@/components/BackButton'
 
 const AGE_RANGES    = ['18–22', '23–27', '28–34', '35–45', '45+', 'Prefer not to say']
@@ -137,6 +138,12 @@ export default function EditProfileScreen() {
     if (!cleanUsername) {
       showToast('Pick a username (your @handle).', 'error')
       return
+    }
+    // Name, handle, bio and kickoff are all shown to other people, so they get
+    // the same screen as everything else users write.
+    for (const field of [displayName, cleanUsername, bio, kickoff]) {
+      const screen = screenText(field)
+      if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     }
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()

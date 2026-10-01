@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import { sendNotification } from './notifications'
 import { DM_PERMANENT_SENTINEL, type DirectMessage } from './messages'
 import { fetchBlockedIds } from './blocks'
+import { screenText } from './textModeration'
 
 // Venue DMs (Jacob build 8): a follower/subscriber can message a venue with no
 // We Met and no expiry. Separate thread type from We Met DMs. A thread is keyed
@@ -32,6 +33,12 @@ export async function sendVenueMessage(params: {
 }): Promise<DirectMessage | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  // Same word-list screen as every other place users can write. See sendMessage.
+  if (!screenText(params.content).ok) {
+    console.warn('[venueMessages] message blocked by content filter')
+    return null
+  }
 
   const { data: zone } = await supabase
     .from('zones').select('owner_id, name').eq('id', params.zoneId).maybeSingle()

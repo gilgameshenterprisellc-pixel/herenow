@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { createEvent, updateEvent, fetchEventById } from '@/lib/events'
 import { useToast } from '@/contexts/ToastContext'
+import { screenText, blockedMessage } from '@/lib/textModeration'
 import BackButton from '@/components/BackButton'
 
 const EVENT_TYPES = [
@@ -124,6 +125,10 @@ export default function CreateEventScreen() {
   const handleCreate = async () => {
     if (!isEditing && !zoneId) { showToast('Venue ID missing — go back and try again.', 'error'); return }
     if (!title.trim()) { showToast('Give your event a name.', 'error'); return }
+    for (const field of [title, desc]) {
+      const screen = screenText(field)
+      if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
+    }
     if (hasEndDate && endDate && endDate <= startDate) {
       showToast('End time must be after start time.', 'error'); return
     }

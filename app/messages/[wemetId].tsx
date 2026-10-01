@@ -14,6 +14,7 @@ import { platformConfirm } from '@/lib/confirm'
 import { publicName } from '@/lib/format'
 import { reportUser, type ReportReason } from '@/lib/reports'
 import { blockUser } from '@/lib/blocks'
+import { screenText, blockedMessage } from '@/lib/textModeration'
 import { useToast } from '@/contexts/ToastContext'
 import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 import DmBubble from '@/components/DmBubble'
@@ -71,10 +72,13 @@ export default function DmConversationScreen() {
 
   const handleSend = async () => {
     if (!text.trim() || sending || !userId) return
+    const screen = screenText(text)
+    if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     setSending(true)
-    await sendMessage({ wemetId, content: text.trim() })
-    setText('')
+    const sent = await sendMessage({ wemetId, content: text.trim() })
     setSending(false)
+    if (!sent) { showToast('Could not send that message. Try again.', 'error'); return }
+    setText('')
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100)
   }
 

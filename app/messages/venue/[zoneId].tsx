@@ -15,6 +15,7 @@ import {
 import type { DirectMessage } from '@/lib/messages'
 import { reportUser, type ReportReason } from '@/lib/reports'
 import { blockUser } from '@/lib/blocks'
+import { screenText, blockedMessage } from '@/lib/textModeration'
 import { platformConfirm } from '@/lib/confirm'
 import { useToast } from '@/contexts/ToastContext'
 import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
@@ -83,10 +84,13 @@ export default function VenueThreadScreen() {
   const send = async () => {
     const content = draft.trim()
     if (!content || !otherId || sending) return
+    const screen = screenText(content)
+    if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     setSending(true)
     setDraft('')
     const msg = await sendVenueMessage({ zoneId, content, recipientId: otherId })
     if (msg) setMessages((prev) => [...prev, msg])
+    else { setDraft(content); showToast('Could not send that message. Try again.', 'error') }
     setSending(false)
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50)
   }
