@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { sendNotification } from './notifications'
+import { fetchBlockedIds } from './blocks'
 
 export interface DirectMessage {
   id: string
@@ -181,8 +182,15 @@ export async function fetchDmThreads(): Promise<DmThread[]> {
 
   if (error || !wemets) return []
 
+  // Blocked people do not get a conversation row. The database already hides
+  // these (supabase/apple_1_2_block_enforcement_and_ugc_controls.sql); this keeps
+  // the list correct even before that migration has been applied.
+  const blocked = new Set(await fetchBlockedIds())
+  const visible = wemets.filter((wm: any) =>
+    !blocked.has(wm.initiator_id === user.id ? wm.recipient_id : wm.initiator_id))
+
   const threads: DmThread[] = await Promise.all(
-    wemets.map(async (wm: any) => {
+    visible.map(async (wm: any) => {
       const isInitiator = wm.initiator_id === user.id
       const other    = isInitiator ? wm.recipient_profile : wm.initiator_profile
       const otherId  = isInitiator ? wm.recipient_id : wm.initiator_id

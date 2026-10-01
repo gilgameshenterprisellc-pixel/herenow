@@ -26,7 +26,7 @@ import { useVenueChat } from '@/hooks/useVenueChat'
 import { createPulsePost, VIBE_TAGS, fetchPulseReactions, EMPTY_REACTIONS, type ReactionSummary } from '@/lib/pulse'
 import { screenImage } from '@/lib/moderation'
 import { screenText, blockedMessage } from '@/lib/textModeration'
-import { sendChatMessage } from '@/lib/chat'
+import { sendChatMessage, deleteChatMessage, type ChatMessage as ChatMsg } from '@/lib/chat'
 import { sendWeMet, existingWeMet } from '@/lib/weMet'
 import { fetchEvents, toggleRsvp } from '@/lib/events'
 import { checkAndAwardBadges } from '@/lib/badges'
@@ -40,6 +40,7 @@ import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubs
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
 import ChatMessage from '@/components/ChatMessage'
+import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 import EventCard from '@/components/EventCard'
 import HeatBar from '@/components/HeatBar'
 import type { VenueEvent } from '@/lib/events'
@@ -85,6 +86,8 @@ export default function ZoneScreen() {
   const [zone, setZone]             = useState<any>(null)
   const [loading, setLoading]       = useState(true)
   const [tab, setTab]               = useState<Tab>('pulse')
+  // The Report / Block / Delete menu for Pulse posts and Chat messages.
+  const [sheet, setSheet]           = useState<ActionSheetConfig | null>(null)
 
   // People
   const [people, setPeople]           = useState<ActivePerson[]>([])
@@ -421,11 +424,13 @@ export default function ZoneScreen() {
   const handleBlock = (person: ActivePerson) => {
     platformConfirm(
       `Block ${person.display_name}?`,
-      'They won\'t be able to send you We Met requests, and you won\'t see each other here.',
+      'You won\'t see each other in People, Pulse or Chat, and neither of you can send We Met requests or messages. You can undo this in Settings > Blocked users.',
       async () => {
         try {
-          await blockUser(person.user_id)
+          await blockUser(person.user_id, { label: person.display_name, source: 'people' })
           setPeople((prev) => prev.filter((p) => p.user_id !== person.user_id))
+          refreshPulse()
+          refreshChat()
         } catch {
           showToast('Could not block user. Try again.', 'error')
         }
@@ -572,32 +577,105 @@ export default function ZoneScreen() {
     </View>
   )
 
-  const handleReportPost = (postId: string) => {
-    if (Platform.OS === 'web') {
-      if ((window as any).confirm('Report this post as spam or inappropriate?')) {
-        submitContentReport(postId, 'spam')
-      }
-    } else {
-      Alert.alert(
-        'Report this post',
-        'What\'s wrong with it?',
-        [
-          { text: 'Spam', onPress: () => submitContentReport(postId, 'spam') },
-          { text: 'Harassment', onPress: () => submitContentReport(postId, 'harassment') },
-          { text: 'Inappropriate', onPress: () => submitContentReport(postId, 'inappropriate') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      )
-    }
-  }
+  // ── Report / block for Pulse posts and Chat messages ───────────────────────
+  // Reporting hides the content for everyone straight away pending review
+  // (report_content_auto_hide), so the refresh below makes it vanish at once.
 
-  const submitContentReport = async (postId: string, reason: ContentReportReason) => {
+  const submitContentReport = async (
+    contentType: 'pulse_post' | 'chat_message',
+    contentId: string,
+    reason: ContentReportReason,
+  ) => {
     try {
-      await reportContent({ contentType: 'pulse_post', contentId: postId, zoneId: id, reason })
-      showToast('Reported. Thanks for keeping the space safe.', 'success')
+      await reportContent({ contentType, contentId, zoneId: id, reason })
+      showToast('Reported and hidden. We review reports within 24 hours.', 'success')
+      if (contentType === 'pulse_post') refreshPulse(); else refreshChat()
     } catch {
       showToast('Could not submit report. Try again.', 'error')
     }
+  }
+
+  const chooseReportReason = (contentType: 'pulse_post' | 'chat_message', contentId: string) => {
+    setSheet({
+      title: contentType === 'pulse_post' ? 'Report this post' : 'Report this message',
+      message: 'What is wrong with it? It is hidden right away and reviewed within 24 hours.',
+      options: [
+        { label: 'Harassment or hate', onPress: () => submitContentReport(contentType, contentId, 'harassment') },
+        { label: 'Inappropriate or explicit', onPress: () => submitContentReport(contentType, contentId, 'inappropriate') },
+        { label: 'Spam', onPress: () => submitContentReport(contentType, contentId, 'spam') },
+        { label: 'Something else', onPress: () => submitContentReport(contentType, contentId, 'other') },
+      ],
+    })
+  }
+
+  // `label` is only ever something the blocker could already see (a Pulse
+  // display name, or "Guest 3"), so blocking never unmasks an anonymous person.
+  const confirmBlockAuthor = (authorId: string, label: string, source: string) => {
+    platformConfirm(
+      `Block ${label}?`,
+      'You will no longer see each other in Pulse, Chat or People, and neither of you can send We Met requests or messages. You can undo this in Settings > Blocked users.',
+      async () => {
+        try {
+          await blockUser(authorId, { label: `${label} at ${zone?.name ?? 'a venue'}`, source })
+          setPeople((prev) => prev.filter((p) => p.user_id !== authorId))
+          refreshPulse()
+          refreshChat()
+          showToast(`${label} is blocked.`, 'success')
+        } catch {
+          showToast('Could not block. Try again.', 'error')
+        }
+      },
+      { confirmText: 'Block', destructive: true }
+    )
+  }
+
+  const handleReportPost = (postId: string) => {
+    const post = pulsePosts.find((p) => p.id === postId)
+    const name = post?.profiles?.display_name ?? 'this person'
+    const options: ActionSheetConfig['options'] = [
+      { label: 'Report this post', onPress: () => chooseReportReason('pulse_post', postId) },
+    ]
+    // A venue's own posts can be reported but not blocked.
+    if (post && !post.is_venue_post) {
+      options.push({
+        label: `Block ${name}`,
+        onPress: () => confirmBlockAuthor(post.user_id, name, 'pulse'),
+        destructive: true,
+      })
+    }
+    setSheet({ title: 'Post options', options })
+  }
+
+  const handleChatMenu = (msg: ChatMsg) => {
+    if (msg.user_id === userId) {
+      setSheet({
+        title: 'Your message',
+        options: [{
+          label: 'Delete message',
+          destructive: true,
+          onPress: async () => {
+            const ok = await deleteChatMessage(msg.id)
+            showToast(ok ? 'Message deleted.' : 'Could not delete. Try again.', ok ? 'success' : 'error')
+            if (ok) refreshChat()
+          },
+        }],
+      })
+      return
+    }
+    const options: ActionSheetConfig['options'] = [
+      { label: 'Report this message', onPress: () => chooseReportReason('chat_message', msg.id) },
+    ]
+    // Venue announcements can be reported but not blocked: the venue is not a
+    // guest, and blocking it would hide the room's own notices.
+    if (!msg.is_venue_msg) {
+      const guest = `Guest ${guestNumbers.get(msg.user_id) ?? ''}`.trim()
+      options.push({
+        label: `Block ${guest}`,
+        onPress: () => confirmBlockAuthor(msg.user_id, guest, 'chat'),
+        destructive: true,
+      })
+    }
+    setSheet({ title: 'Message options', options })
   }
 
   const handleSubscribeToggle = async () => {
@@ -1295,6 +1373,7 @@ export default function ZoneScreen() {
                 message={item}
                 currentUserId={userId ?? ''}
                 senderLabel={`Guest ${guestNumbers.get(item.user_id) ?? '?'}`}
+                onOpenMenu={handleChatMenu}
               />
             )}
             ListEmptyComponent={
@@ -1471,6 +1550,8 @@ export default function ZoneScreen() {
           })()}
         </TouchableOpacity>
       </Modal>
+
+      <ActionSheet config={sheet} onClose={() => setSheet(null)} />
     </KeyboardAvoidingView>
   )
 }
