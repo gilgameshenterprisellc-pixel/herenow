@@ -9,6 +9,7 @@ import { Image } from 'react-native'
 import { CONSENT_DOCS, recordConsent } from '@/lib/consent'
 import { Link, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { screenText, blockedMessage } from '@/lib/textModeration'
 import { geocodeAddress, fetchBuildingPolygon, AUTO_APPROVE_THRESHOLD } from '@/lib/geocoding'
 
 type Mode = 'person' | 'venue'
@@ -109,6 +110,13 @@ export default function SignupScreen() {
         setErrorMsg('Please fill in all fields.')
         return
       }
+    }
+
+    // Names are shown to other people, so they get the same text filter as every
+    // other place users can write (Apple Guideline 1.2).
+    for (const field of isVenue ? [venueName] : [displayName, username]) {
+      const screen = screenText(field)
+      if (!screen.ok) { setErrorMsg(blockedMessage(screen.category)); return }
     }
 
     // Everyone agrees to the same terms, venue owners included: a venue account
