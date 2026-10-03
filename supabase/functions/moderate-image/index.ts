@@ -38,17 +38,27 @@ serve(async (req) => {
 
     const params = new URLSearchParams({
       url,
-      models: 'nudity-2.1,offensive,gore-2.0',
+      models: 'nudity-2.1,offensive-2.0,gore-2.0',
       api_user: user,
       api_secret: secret,
     })
     const res = await fetch(`https://api.sightengine.com/1.0/check.json?${params}`)
     const r = await res.json()
-    if (r.status !== 'success') return json({ ok: true, configured: true, error: 'upstream' })
+    if (r.status !== 'success') {
+      // Fail open so a Sightengine outage never blocks posting, but leave a trail
+      // in the function logs so a broken filter is not invisible.
+      console.error('[moderate-image] Sightengine error:', JSON.stringify(r.error ?? r))
+      return json({ ok: true, configured: true, error: 'upstream' })
+    }
 
     const n = r.nudity ?? {}
     const sexual = Math.max(n.sexual_activity ?? 0, n.sexual_display ?? 0, n.erotica ?? 0)
-    const offensive = Math.max(r.offensive?.prob ?? 0, r.offensive?.nazi ?? 0, r.offensive?.terrorist ?? 0)
+    // offensive-2.0 returns one score per hateful symbol (it has no overall
+    // "prob"). The middle finger is rude, not hateful, so it is left out.
+    const o = r.offensive ?? {}
+    const offensive = Math.max(
+      o.nazi ?? 0, o.asian_swastika ?? 0, o.confederate ?? 0, o.supremacist ?? 0, o.terrorist ?? 0,
+    )
     const gore = r.gore?.prob ?? 0
 
     if (sexual > 0.6) return json({ ok: false, configured: true, reason: 'explicit' })
