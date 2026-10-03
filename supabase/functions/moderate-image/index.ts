@@ -7,11 +7,8 @@
 //   supabase secrets set SIGHTENGINE_USER=... SIGHTENGINE_SECRET=...
 //
 // Callers (lib/moderation.ts) send { url } for a photo that was just uploaded to
-// a public bucket. JWT verification is left on, so only signed-in users can call
-// it. Without the secrets the function answers { ok: true, configured: false }
+// a public bucket. Only signed-in users can call it (checked in code below). Without the secrets the function answers { ok: true, configured: false }
 // and the app falls back to report -> auto-hide, exactly as before.
-
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -25,8 +22,21 @@ const json = (body: unknown, status = 200) =>
 // cannot be used as an open proxy to Sightengine.
 const ALLOWED_PREFIX = `${Deno.env.get('SUPABASE_URL') ?? ''}/storage/v1/object/public/`
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+
+  // Signed-in users only. Checked here, in code, so it does not depend on the
+  // platform's JWT setting: ask Supabase Auth who the bearer token belongs to.
+  try {
+    const authz = req.headers.get('Authorization') ?? ''
+    const apikey = req.headers.get('apikey') ?? ''
+    const who = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/user`, {
+      headers: { Authorization: authz, apikey },
+    })
+    if (!who.ok) return json({ ok: false, reason: 'unauthorized' }, 401)
+  } catch {
+    return json({ ok: false, reason: 'unauthorized' }, 401)
+  }
 
   try {
     const { url } = await req.json()
