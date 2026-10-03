@@ -12,6 +12,11 @@ import FounderBadge from '@/components/FounderBadge'
 import VerifiedBadge from '@/components/VerifiedBadge'
 import { getCircleStatus, sendCircleRequest, respondCircleRequest, type CircleStatus } from '@/lib/circle'
 import { publicName } from '@/lib/format'
+import { reportUser, type ReportReason } from '@/lib/reports'
+import { blockUser } from '@/lib/blocks'
+import { platformConfirm } from '@/lib/confirm'
+import { useToast } from '@/contexts/ToastContext'
+import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 
 interface UserProfile {
   id: string
@@ -37,10 +42,23 @@ export default function UserProfileScreen() {
   const [circleStatus, setCircleStatus] = useState<CircleStatus>('none')
   const [circleReqId, setCircleReqId]   = useState<string | null>(null)
   const [circleBusy, setCircleBusy]     = useState(false)
+  const [sheet, setSheet]               = useState<ActionSheetConfig | null>(null)
+  const [isSelf, setIsSelf]             = useState(false)
+  const { showToast }                   = useToast()
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      setIsSelf(!!user && user.id === id)
+
+      // A block hides both people from each other everywhere, profile included.
+      // is_blocked_between() is true when EITHER side blocked the other, which
+      // the client cannot read from user_blocks directly (RLS). Fails open on an
+      // RPC error so a missing function never locks anyone out of a profile.
+      if (user && id && user.id !== id) {
+        const { data: blocked } = await supabase.rpc('is_blocked_between', { a: user.id, b: id })
+        if (blocked === true) { setNotFound(true); setLoading(false); return }
+      }
 
       const { data: p } = await supabase
         .from('profiles')
@@ -86,6 +104,59 @@ export default function UserProfileScreen() {
     setCircleBusy(false)
   }
 
+  const displayName = profile ? publicName(profile.display_name) : 'this person'
+
+  const submitReport = async (reason: ReportReason) => {
+    if (!id) return
+    try {
+      await reportUser({ reportedId: id, zoneId: null, reason })
+      showToast('Reported. We review reports within 24 hours.', 'success')
+    } catch {
+      showToast('Could not submit report. Try again.', 'error')
+    }
+  }
+
+  const handleBlock = () => {
+    if (!id) return
+    platformConfirm(
+      `Block ${displayName}?`,
+      'Neither of you will see the other, message each other or send We Met requests. You can undo this in Settings > Blocked users.',
+      async () => {
+        try {
+          await blockUser(id, { label: displayName, source: 'profile' })
+          showToast('Blocked.', 'success')
+          router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)
+        } catch {
+          showToast('Could not block. Try again.', 'error')
+        }
+      },
+      { confirmText: 'Block', destructive: true }
+    )
+  }
+
+  const openSafetyMenu = () => {
+    setSheet({
+      title: displayName,
+      options: [
+        {
+          label: 'Report this person',
+          onPress: () => setSheet({
+            title: 'Report this person',
+            message: 'What is this report about? We review reports within 24 hours and remove content and accounts that break the rules.',
+            options: [
+              { label: 'Harassment or threats', onPress: () => submitReport('harassment') },
+              { label: 'Inappropriate photo or bio', onPress: () => submitReport('inappropriate_behavior') },
+              { label: 'Spam', onPress: () => submitReport('spam') },
+              { label: 'Fake account', onPress: () => submitReport('fake_account') },
+              { label: 'Something else', onPress: () => submitReport('other') },
+            ],
+          }),
+        },
+        { label: `Block ${displayName}`, destructive: true, onPress: handleBlock },
+      ],
+    })
+  }
+
   const circleLabel = {
     none:        'Add to My Circle',
     pending_out: 'Circle request sent',
@@ -123,8 +194,20 @@ export default function UserProfileScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile' as any)} />
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={[styles.headerTitle, { flex: 1 }]}>Profile</Text>
+        {!isSelf && (
+          <TouchableOpacity
+            onPress={openSafetyMenu}
+            accessibilityRole="button"
+            accessibilityLabel="Report or block this person"
+            style={styles.menuBtn}
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color="#B8D4E8" />
+          </TouchableOpacity>
+        )}
       </View>
+
+      <ActionSheet config={sheet} onClose={() => setSheet(null)} />
 
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -204,6 +287,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#0D1B2E',
   },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#f8fafc' },
+  menuBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20, gap: 14 },
   hero: { alignItems: 'center', gap: 6, paddingTop: 8 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },

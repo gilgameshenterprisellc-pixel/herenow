@@ -1,6 +1,7 @@
 import { Platform, Alert } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { supabase } from './supabase'
+import { screenImage } from './moderation'
 
 export async function uploadAvatarWeb(
   userId: string,
@@ -57,6 +58,14 @@ export async function uploadAvatarWeb(
   if (error) { console.error('[uploadAvatar]', error.message); return null }
 
   const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+
+  // Screen the photo before it becomes anyone's profile picture (Guideline 1.2).
+  const screen = await screenImage(data.publicUrl)
+  if (!screen.ok) {
+    await supabase.storage.from('avatars').remove([path]).catch(() => {})
+    alert(screen.reason ?? 'That photo cannot be used.')
+    return null
+  }
   return `${data.publicUrl}?v=${Date.now()}`
 }
 
@@ -111,5 +120,13 @@ async function uploadAvatarNative(
   }
 
   const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+
+  // Screen the photo before it becomes anyone's profile picture (Guideline 1.2).
+  const screen = await screenImage(data.publicUrl)
+  if (!screen.ok) {
+    await supabase.storage.from('avatars').remove([path]).catch(() => {})
+    Alert.alert('Photo not allowed', screen.reason ?? 'That photo cannot be used.')
+    return null
+  }
   return `${data.publicUrl}?v=${Date.now()}`
 }
