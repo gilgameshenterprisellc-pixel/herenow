@@ -1,52 +1,34 @@
-// Image moderation for photo-first Pulse — free by default.
+// Image moderation. Photos are screened by the moderate-image Edge Function
+// (supabase/functions/moderate-image), which holds the Sightengine credentials
+// server-side. The app never carries a moderation secret in its bundle.
 //
-// Default (no config): photos post instantly and rely on report → auto-hide
-// (reportContent hides flagged content immediately for everyone). Zero cost.
-//
-// Optional proactive screening: set EXPO_PUBLIC_SIGHTENGINE_USER +
-// EXPO_PUBLIC_SIGHTENGINE_SECRET (Sightengine has a free tier that covers beta
-// volume). When present, uploads are screened and obvious NSFW is blocked before
-// it ever posts. Note: in the current no-server setup the secret ships in the
-// client bundle — fine for a rate-limited free-tier key during beta; move to a
-// Supabase Edge Function before scale.
+// Fails open on purpose: if the function is not deployed, has no credentials, or
+// the network drops, posting still works and the report -> auto-hide path
+// (reportContent hides flagged content immediately for everyone) covers abuse.
 
-const SE_USER   = process.env.EXPO_PUBLIC_SIGHTENGINE_USER
-const SE_SECRET = process.env.EXPO_PUBLIC_SIGHTENGINE_SECRET
+import { supabase } from './supabase'
 
 export interface ScreenResult {
   ok: boolean          // true = safe to post
   reason?: string      // set when blocked
 }
 
-// Screens a public image URL. Returns { ok: true } when no key is configured
-// (free/reactive mode) so posting is never blocked by moderation being off.
+const REASONS: Record<string, string> = {
+  explicit:  'That photo looks explicit. Try another.',
+  graphic:   'That photo looks graphic or violent. Try another.',
+  offensive: 'That photo may be offensive. Try another.',
+}
+
+// Screens a public image URL that was just uploaded to this project's storage.
 export async function screenImage(publicUrl: string): Promise<ScreenResult> {
-  if (!SE_USER || !SE_SECRET) return { ok: true }
-
   try {
-    const params = new URLSearchParams({
-      url:        publicUrl,
-      models:     'nudity-2.1,offensive',
-      api_user:   SE_USER,
-      api_secret: SE_SECRET,
-    })
-    const res  = await fetch(`https://api.sightengine.com/1.0/check.json?${params}`)
-    const json = await res.json()
-
-    if (json.status !== 'success') return { ok: true } // fail open — don't block on API errors
-
-    const nudity    = json.nudity ?? {}
-    const sexual    = Math.max(nudity.sexual_activity ?? 0, nudity.sexual_display ?? 0, nudity.erotica ?? 0)
-    const offensive = Math.max(
-      json.offensive?.prob ?? 0,
-      json.offensive?.nazi ?? 0,
-      json.offensive?.terrorist ?? 0,
-    )
-
-    if (sexual > 0.6)    return { ok: false, reason: 'That photo looks explicit — try another.' }
-    if (offensive > 0.6) return { ok: false, reason: 'That photo may be offensive — try another.' }
+    const { data, error } = await supabase.functions.invoke('moderate-image', { body: { url: publicUrl } })
+    if (error || !data) return { ok: true }
+    if (data.ok === false && data.reason) {
+      return { ok: false, reason: REASONS[data.reason] ?? 'That photo can\'t be posted.' }
+    }
     return { ok: true }
   } catch {
-    return { ok: true } // network error — fail open, report/hide still covers abuse
+    return { ok: true }
   }
 }

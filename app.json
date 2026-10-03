@@ -13,14 +13,13 @@
       "buildNumber": "15",
       "bundleIdentifier": "Com.gilgameshenterprise.herenow",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "HereNow uses your location to show you zones nearby and let you join them.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "HereNow uses your location in the background to notify you when you enter or leave a zone.",
-        "NSLocationAlwaysUsageDescription": "HereNow uses your location in the background to notify you when you enter or leave a zone.",
-        "NSPhotoLibraryUsageDescription": "HereNow lets venue owners add photos to announcements and events.",
-        "NSCameraUsageDescription": "HereNow lets you take a photo for your profile or attach one to an announcement.",
+        "NSLocationWhenInUseUsageDescription": "HereNow uses your location to show venues near you and to confirm you are at a venue when you check in.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "HereNow uses your location in the background only to check you out of a venue automatically after you leave it. You always check in yourself.",
+        "NSLocationAlwaysUsageDescription": "HereNow uses your location in the background only to check you out of a venue automatically after you leave it. You always check in yourself.",
+        "NSPhotoLibraryUsageDescription": "HereNow uses your photo library so you can choose a profile photo or attach photos to posts, the Board and venue announcements.",
+        "NSCameraUsageDescription": "HereNow uses your camera so you can take a profile photo or attach a photo to a post, the Board or a venue announcement.",
         "UIBackgroundModes": [
-          "location",
-          "fetch"
+          "location"
         ],
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -82,7 +81,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "HereNow uses your location to show nearby zones and notify you when you enter one.",
+          "locationAlwaysAndWhenInUsePermission": "HereNow uses your location to show venues near you and, in the background, only to check you out of a venue after you leave it. You always check in yourself.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
@@ -99,8 +98,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "HereNow lets venue owners add photos to announcements and events.",
-          "cameraPermission": "HereNow lets you take a photo for your profile or attach one to an announcement."
+          "photosPermission": "HereNow uses your photo library so you can choose a profile photo or attach photos to posts, the Board and venue announcements.",
+          "cameraPermission": "HereNow uses your camera so you can take a profile photo or attach a photo to a post, the Board or a venue announcement."
         }
       ],
       "expo-asset",
