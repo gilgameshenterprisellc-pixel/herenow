@@ -32,6 +32,7 @@ import { fetchEvents, toggleRsvp } from '@/lib/events'
 import { checkAndAwardBadges } from '@/lib/badges'
 import { reportUser, reportContent, type ReportReason, type ContentReportReason } from '@/lib/reports'
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
+import { publicName } from '@/lib/format'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
 import { openDirections } from '@/lib/directions'
 import { successBuzz } from '@/lib/haptics'
@@ -56,7 +57,7 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 const VIBE_SOCIAL_OPTIONS: { mode: SocialMode; label: string; color: string }[] = [
-  { mode: 'dating',     label: 'Dating',     color: '#f43f5e' },
+  { mode: 'dating',     label: 'Connection', color: '#f43f5e' },
   { mode: 'friends',    label: 'Friends',    color: '#22c55e' },
   { mode: 'networking', label: 'Networking', color: '#3b82f6' },
   { mode: 'just_vibes', label: 'Just Vibes', color: '#a855f7' },
@@ -185,17 +186,10 @@ export default function ZoneScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zone?.chat_enabled, zone?.pulse_enabled])
 
-  // Anonymous chat: assign each other user a stable "Guest N" in order of first
-  // appearance in the chat, so nobody's real name is ever shown (Jacob #6).
-  const guestNumbers = useMemo(() => {
-    const map = new Map<string, number>()
-    let n = 0
-    for (const m of chatMsgs) {
-      if (m.user_id === userId) continue
-      if (!map.has(m.user_id)) map.set(m.user_id, ++n)
-    }
-    return map
-  }, [chatMsgs, userId])
+  // Chat shows the sender's display name ("Jordan P."), the same form used on
+  // People cards. Nothing in the app posts anonymously.
+  const senderName = (m: { profiles?: { display_name: string } | null }) =>
+    publicName(m.profiles?.display_name)
 
   useEffect(() => {
     const init = async () => {
@@ -668,7 +662,7 @@ export default function ZoneScreen() {
     // Venue announcements can be reported but not blocked: the venue is not a
     // guest, and blocking it would hide the room's own notices.
     if (!msg.is_venue_msg) {
-      const guest = `Guest ${guestNumbers.get(msg.user_id) ?? ''}`.trim()
+      const guest = senderName(msg)
       options.push({
         label: `Block ${guest}`,
         onPress: () => confirmBlockAuthor(msg.user_id, guest, 'chat'),
@@ -1372,7 +1366,7 @@ export default function ZoneScreen() {
               <ChatMessage
                 message={item}
                 currentUserId={userId ?? ''}
-                senderLabel={`Guest ${guestNumbers.get(item.user_id) ?? '?'}`}
+                senderLabel={senderName(item)}
                 onOpenMenu={handleChatMenu}
               />
             )}

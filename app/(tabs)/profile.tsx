@@ -61,7 +61,7 @@ const SOCIAL_MODES = [
   { value: 'just_vibes', label: 'Vibes' },
   { value: 'friends',    label: 'Friends' },
   { value: 'networking', label: 'Network' },
-  { value: 'dating',     label: 'Dating' },
+  { value: 'dating',     label: 'Connection' },
 ]
 
 const MOOD_MODES = [

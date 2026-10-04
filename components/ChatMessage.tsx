@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import type { ChatMessage as ChatMsg } from '@/lib/chat'
+import { publicName } from '@/lib/format'
 
 function timeStr(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -9,8 +10,8 @@ function timeStr(iso: string): string {
 interface Props {
   message: ChatMsg
   currentUserId: string
-  // Stable anonymous label for the sender (e.g. "Guest 3"). Venue chat is
-  // anonymous — real names are never shown. Falls back to "Guest" if missing.
+  // Optional override for the sender's label. By default the sender's display
+  // name is shown ("Jordan P."), the same form used on People cards.
   senderLabel?: string
   // Opens the Report / Block (someone else's message) or Delete (your own) menu.
   // The button is always visible rather than hidden behind a long-press, so it
@@ -20,8 +21,8 @@ interface Props {
 
 export default function ChatMessage({ message, currentUserId, senderLabel, onOpenMenu }: Props) {
   const isMe = message.user_id === currentUserId
-  const label = senderLabel ?? 'Guest'
-  const avatarText = label.match(/\d+/)?.[0] ?? '·'
+  const label = senderLabel ?? publicName(message.profiles?.display_name)
+  const avatarText = label.trim().charAt(0).toUpperCase() || '·'
 
   const menuBtn = onOpenMenu ? (
     <TouchableOpacity

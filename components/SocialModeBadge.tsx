@@ -5,7 +5,7 @@ import type { SocialMode } from '@/lib/sessions'
 type IoniconName = React.ComponentProps<typeof Ionicons>['name']
 
 const MODE_CONFIG: Record<SocialMode, { label: string; color: string; bg: string; icon: IoniconName }> = {
-  dating:      { label: 'Dating',      color: '#f43f5e', bg: '#f43f5e18', icon: 'heart' },
+  dating:      { label: 'Connection',  color: '#f43f5e', bg: '#f43f5e18', icon: 'heart' },
   friends:     { label: 'Friends',     color: '#22c55e', bg: '#22c55e18', icon: 'people' },
   networking:  { label: 'Networking',  color: '#3b82f6', bg: '#3b82f618', icon: 'briefcase' },
   just_vibes:  { label: 'Just Vibes',  color: '#a855f7', bg: '#a855f718', icon: 'musical-notes' },

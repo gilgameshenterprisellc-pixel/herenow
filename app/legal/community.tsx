@@ -71,7 +71,7 @@ const SECTIONS: LegalSection[] = [
         'Misleading information intended to deceive',
         'Malware or malicious links',
       ] },
-      'This applies everywhere on HereNow, including anonymous posts — anonymity changes who can see your name, never what you\'re allowed to post. We remove violating content and act on abusive accounts, including on posts made anonymously.',
+      'This applies everywhere on HereNow, including Venue Chat, the Pulse, the Board, and direct messages. Everything you post is shown with your name and tied to your account. We remove violating content and act on abusive accounts.',
     ],
   },
   {

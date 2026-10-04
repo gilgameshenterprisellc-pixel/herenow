@@ -62,7 +62,7 @@ const SECTIONS: LegalSection[] = [
     body: [
       'HereNow has no tolerance for objectionable content or abusive users. By creating an account or using HereNow, you agree to this section.',
       'Objectionable content includes harassment, threats, hate speech, sexually explicit or exploitative material, graphic violence, illegal activity, scams, and spam.',
-      'This applies everywhere in the app, including anonymous areas such as Venue Chat and the Board. Anonymity hides your name from other users. It does not hide your account from us, and it never changes what you are allowed to post.',
+      'This applies everywhere in the app, including Venue Chat, the Pulse, the Board, direct messages, and your profile. What you post is always shown with your name, and it is always tied to your account.',
       { bullets: [
         'Report anything. Use the options button on any message, post, pin, or conversation to report it. Reported content is hidden right away.',
         'Block anyone. Blocking stops you and that person from seeing or contacting each other. Manage blocked users in Settings.',

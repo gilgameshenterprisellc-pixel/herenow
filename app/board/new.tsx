@@ -27,7 +27,6 @@ export default function PinToBoardScreen() {
   const [title, setTitle]         = useState('')
   const [body, setBody]           = useState('')
   const [imageUrl, setImageUrl]   = useState<string | null>(null)
-  const [anonymous, setAnonymous] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving]       = useState(false)
   const [loadingPin, setLoadingPin] = useState(isEditing)
@@ -47,7 +46,6 @@ export default function PinToBoardScreen() {
       setTitle(pin.title)
       setBody(pin.body)
       setImageUrl(pin.image_url)
-      setAnonymous(pin.is_anonymous)
       setLoadingPin(false)
     })
     return () => { cancelled = true }
@@ -132,7 +130,7 @@ export default function PinToBoardScreen() {
     } else {
       const result = await createPin({
         zoneId, category, title, body,
-        imageUrl, isAnonymous: anonymous,
+        imageUrl, isAnonymous: false,
       })
       setSaving(false)
       if (!result.ok) { showToast(result.reason, 'error'); return }
@@ -232,24 +230,6 @@ export default function PinToBoardScreen() {
                   : <Text style={styles.imageBtnText}>Add a photo</Text>}
               </TouchableOpacity>
             )}
-          </View>
-        )}
-
-        {/* Anonymous toggle (create only — a pin can't change its author story) */}
-        {!isEditing && (
-          <View style={styles.anonRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.anonTitle}>Post anonymously</Text>
-              <Text style={styles.anonSub}>
-                Shows "Posted by Anonymous". Still tied to your account behind the scenes for moderation.
-              </Text>
-            </View>
-            <Switch
-              value={anonymous}
-              onValueChange={setAnonymous}
-              trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
-              thumbColor="#f8fafc"
-            />
           </View>
         )}
 

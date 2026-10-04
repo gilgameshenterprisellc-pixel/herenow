@@ -92,10 +92,10 @@ export default function ConsentGate() {
       >
         <Text style={styles.title}>Our terms have been updated</Text>
         <Text style={styles.body}>
-          HereNow has no tolerance for objectionable content or abusive users, including on
-          anonymous posts. You can report or block anyone from the options button on any message,
-          post, or conversation, and we act on every report within 24 hours by removing the content
-          and ejecting the user who posted it.
+          HereNow has no tolerance for objectionable content or abusive users. You can report or
+          block anyone from the options button on any message, post, profile, or conversation, and
+          we act on every report within 24 hours by removing the content and ejecting the user who
+          posted it.
         </Text>
         <Text style={styles.body}>
           To keep using HereNow, please read and agree to the current versions.

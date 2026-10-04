@@ -1,0 +1,24 @@
+ABOUT HERENOW
+HereNow is a location-based social layer for physical venues. Users check in at a bar, cafe or music venue and see only the other people checked in there right now. There is no global directory and no browsing. The app is free: no purchases, subscriptions or paid content of any kind.
+
+HOW TO REVIEW
+Sign in with the demo account in the Sign-In Information fields. The demo account is allowed past the Nearby location requirement, so you do not need to be at a venue. The Nearby tab opens straight to "The Lantern Room", which is already populated. Tap Check In, choose any Social Mode and Mood, then use the Pulse, Chat, People, Board and Events tabs. Check-in is always manual. At check-in the user chooses whether to be shown to others and can decline, which checks them in privately. Location is used only to show nearby venues and verify presence at check-in; background location is used only to check a user out after they leave.
+
+GUIDELINE 1.2: WHERE EACH PRECAUTION IS
+Age: 18+ only. Age rating is 18+ and every new account confirms they are 18 or older.
+
+Terms: at sign-up users must agree to the Terms of Service and Privacy Policy "including that HereNow has no tolerance for objectionable content or abusive users", and to the Community Guidelines. Existing accounts (including the demo account) see a full-screen "Our terms have been updated" agreement on first open. Full text: Settings > Privacy > Terms of Service, section "Zero tolerance for objectionable content and abusive users".
+
+Filtering: profanity and slurs are rejected at the moment of posting in Pulse, Chat, the Board, Board responses, direct messages, profile fields, names, events and announcements. Try a slur in Chat and it will not send. Profile, Pulse, Board and venue photos are also screened by an automated image filter at upload and rejected if explicit, graphic or offensive.
+
+Reporting: every message, post, pin, profile and conversation has a control. Chat: "..." beside a message > Report. Pulse: flag on a post. Board: "Report" under a pin. People: "..." on a card. Messages: "..." in a conversation. Profiles: "..." top right. Reported posts and messages are hidden immediately.
+
+Blocking: the same menus have Block. Blocking is enforced in the database: blocked people disappear from Pulse, Chat, People, the Board and each other's profiles, and cannot message or send We Met or My Circle requests. Settings > Safety > Blocked Users lists and unblocks.
+
+Removing your own content: Chat "..." > Delete message; Pulse: X on your post; Board: "..." > Remove Pin.
+
+24 hours: every report goes to an admin queue and alerts the admin accounts. We remove the content and suspend the user, who is signed out and cannot post anywhere. The Terms state this commitment.
+
+Contact: Settings > Help > Contact Support, and Settings > Safety > Report Abuse, both email support@herenowsocial.com.
+
+No anonymous posting: Venue Chat, Pulse, Board pins and direct messages always show the sender's display name and are tied to their account, so reports, blocks, removals and suspensions all apply to a named person.
