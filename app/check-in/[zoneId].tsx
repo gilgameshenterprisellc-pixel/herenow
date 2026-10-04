@@ -30,8 +30,8 @@ const SOCIAL_MODES: { mode: SocialMode; emoji: string; label: string; desc: stri
   {
     mode:  'dating',
     emoji: '',
-    label: 'Dating',
-    desc:  'Open to romantic connection — IRL, no pressure',
+    label: 'Connection',
+    desc:  'Open to something more personal, IRL, no pressure',
     color: '#f43f5e',
   },
   {
@@ -85,7 +85,7 @@ export default function CheckInScreen() {
   const insets = useSafeAreaInsets()
   const { zoneId } = useLocalSearchParams<{ zoneId: string }>()
   const [zoneName, setZoneName]     = useState('')
-  // Multi-select: people can be there for dating AND friends. Pick order
+  // Multi-select: people can be there for connection AND friends. Pick order
   // matters — the first pick is stored as the primary mode.
   const [socialModes, setSocialModes] = useState<SocialMode[]>([])
   const [moodMode, setMoodMode]     = useState<MoodMode>('selective')
@@ -313,7 +313,7 @@ export default function CheckInScreen() {
           </View>
         )}
 
-        {/* Social Mode — multi-select: dating AND friends is a real answer */}
+        {/* Social Mode — multi-select: connection AND friends is a real answer */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What are you here for?</Text>
           <Text style={styles.sectionSub}>

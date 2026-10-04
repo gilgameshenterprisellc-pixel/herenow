@@ -91,7 +91,7 @@ export default function ProfilePrivacyScreen() {
         <View style={styles.card}>
           <PrivRow
             label="Social Mode"
-            sub='Dating / Friends / Networking / Just Vibes badge'
+            sub='Connection / Friends / Networking / Just Vibes badge'
             value={priv.show_social_mode}
             onChange={(v) => update('show_social_mode', v)}
           />

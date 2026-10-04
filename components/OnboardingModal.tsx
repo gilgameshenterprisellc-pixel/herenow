@@ -28,7 +28,7 @@ const SLIDES = [
     emoji: '',
     title: 'Social Mode',
     subtitle: 'Tell people why you\'re out.',
-    body: 'Before you check in, you pick your intent — so nobody has to guess.\n\n Dating — open to romantic connection\n Friends — here to socialize\n Networking — creative or professional\n Just Vibes — here for the energy\n\nEveryone at the venue sees your mode. It removes the ambiguity.',
+    body: 'Before you check in, you pick your intent — so nobody has to guess.\n\n Connection — open to something more personal\n Friends — here to socialize\n Networking — creative or professional\n Just Vibes — here for the energy\n\nEveryone at the venue sees your mode. It removes the ambiguity.',
     accent: '#a855f7',
   },
   {

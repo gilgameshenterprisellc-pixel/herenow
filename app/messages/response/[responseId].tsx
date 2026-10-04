@@ -106,7 +106,7 @@ export default function ResponseThreadScreen() {
     )
   }
 
-  const otherName = thread?.other_name ?? 'Anonymous'
+  const otherName = thread?.other_name ?? 'A member'
   const cat = thread ? boardCategory(thread.pin_category) : null
 
   // Report and block go through RPCs that act on the thread, so they work even

@@ -30,7 +30,7 @@ const SOCIAL_MODE_COLORS: Record<string, string> = {
 }
 
 const SOCIAL_MODE_LABELS: Record<string, string> = {
-  dating:     'Dating',
+  dating:     'Connection',
   friends:    'Friends',
   networking: 'Networking',
   just_vibes: 'Just Vibes',

@@ -101,7 +101,7 @@ export default function MessagesScreen() {
                           {t.last_message ?? 'No messages yet'}
                         </Text>
                         <Text style={styles.expiryNote}>
-                          {expired ? 'Expired' : `${t.is_owner ? 'Response from' : 'Your response to'} ${t.other_name ?? 'Anonymous'} · ${cat.label}`}
+                          {expired ? 'Expired' : `${t.is_owner ? 'Response from' : 'Your response to'} ${t.other_name ?? 'A member'} · ${cat.label}`}
                         </Text>
                       </View>
                     </TouchableOpacity>

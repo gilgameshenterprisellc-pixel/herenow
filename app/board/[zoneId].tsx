@@ -101,9 +101,7 @@ export default function BoardScreen() {
   const handleBlockPoster = (pin: BoardPin) => {
     platformConfirm(
       'Block this poster?',
-      pin.is_anonymous
-        ? 'You will no longer see their pins or hear from them. They stay anonymous to you, and you can undo this in Settings > Blocked users.'
-        : 'You will no longer see their pins or hear from them. You can undo this in Settings > Blocked users.',
+      'You will no longer see their pins or hear from them. You can undo this in Settings > Blocked users.',
       async () => {
         const ok = await blockPinAuthor(pin.id)
         showToast(ok ? 'Poster blocked.' : 'Could not block. Try again.', ok ? 'success' : 'error')
@@ -179,7 +177,7 @@ export default function BoardScreen() {
       { label: 'Remove Pin', destructive: true, action: () => runAndReload(() => removePin(pin.id), 'Pin removed.') },
       { label: 'Ban Poster from Board', destructive: true, action: () => platformConfirm(
         'Ban this poster?',
-        'They won\'t be able to pin anything to your Board again. Anonymous posters stay anonymous — the ban still lands.',
+        'They won\'t be able to pin anything to your Board again.',
         () => runAndReload(() => venueBanPinAuthor(pin.id), 'Poster banned from this Board.'),
         { confirmText: 'Ban', destructive: true },
       ) },
@@ -307,7 +305,7 @@ export default function BoardScreen() {
 
                   <View style={styles.byline}>
                     <Text style={styles.bylineText}>
-                      Posted by {pin.author_name ?? 'Anonymous'}{pin.is_own ? ' (you)' : ''}
+                      Posted by {pin.author_name ?? 'A member'}{pin.is_own ? ' (you)' : ''}
                     </Text>
                     <Text style={styles.bylineTime}>{timeAgo(pin.created_at)}</Text>
                   </View>

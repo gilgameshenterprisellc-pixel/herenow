@@ -30,9 +30,19 @@ export function useVenueChat(zoneId: string) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'venue_chat', filter: `zone_id=eq.${zoneId}` },
-        (payload) => {
+        async (payload) => {
           const newMsg = payload.new as ChatMessage
           if (blockedRef.current.has(newMsg.user_id)) return
+          // Realtime rows arrive without the joined profile, so look the sender
+          // up here; messages show the sender's name, never an anonymous label.
+          if (!newMsg.profiles) {
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('id, display_name, avatar_url')
+              .eq('id', newMsg.user_id)
+              .maybeSingle()
+            newMsg.profiles = prof ?? null
+          }
           setMessages((prev) => {
             if (prev.find((m) => m.id === newMsg.id)) return prev
             return [...prev, newMsg]

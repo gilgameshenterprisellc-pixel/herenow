@@ -1,0 +1,117 @@
+HereNow Terms of Service and End User License Agreement
+Last updated October 1, 2026
+
+HereNow is a platform designed to help people discover and share real-world experiences through participating venues and communities. These Terms govern your use of the HereNow app, website, and related services. By creating an account or using HereNow, you agree to these Terms and our Privacy Policy, including that there is no tolerance for objectionable content or abusive users. If you do not agree, please do not use HereNow.
+
+Who can use HereNow
+You must be at least 18 years old to create an account or use HereNow.
+By using HereNow, you represent that:
+- You are at least 18 years old.
+- The information you provide is accurate and current.
+- You are legally permitted to use the service.
+- You will comply with these Terms and all applicable laws.
+We may suspend or terminate accounts that do not meet these requirements.
+
+Your account
+You are responsible for maintaining the security of your account.
+You agree to:
+- Keep your account information accurate and up to date.
+- Keep your login credentials secure.
+- Notify us promptly if you believe your account has been compromised.
+- Use only one personal account unless we expressly authorize otherwise.
+You are responsible for activity that occurs under your account.
+
+License to use HereNow
+Subject to these Terms, HereNow grants you a limited, non-exclusive, non-transferable, revocable license to use the platform for your personal, non-commercial use.
+This license does not transfer ownership of HereNow or any of its intellectual property.
+
+Community rules
+HereNow is built around respectful, real-world interactions. By using HereNow, you agree to treat other users respectfully and use the platform responsibly.
+You may not:
+- Harass, threaten, stalk, intimidate, or abuse another person.
+- Promote hate, discrimination, violence, or illegal activity.
+- Impersonate another person, organization, or business.
+- Create fake accounts or provide false information.
+- Falsify your location or attempt to check into places where you are not physically present.
+- Attempt to bypass or interfere with HereNow's geofencing or location verification systems.
+- Spam users or send unwanted promotional content.
+- Upload malicious software or attempt to compromise the security of the platform.
+- Use bots, scripts, automation, or scraping tools without permission.
+- Collect or harvest information about other users without authorization.
+- Attempt unauthorized access to HereNow or its systems.
+We may remove content, suspend accounts, or permanently terminate accounts that violate these Terms or threaten the safety of the community.
+
+Zero tolerance for objectionable content and abusive users
+HereNow has no tolerance for objectionable content or abusive users. By creating an account or using HereNow, you agree to this section.
+Objectionable content includes harassment, threats, hate speech, sexually explicit or exploitative material, graphic violence, illegal activity, scams, and spam.
+This applies everywhere in the app, including Venue Chat, the Pulse, the Board, direct messages, and your profile. What you post is always shown with your name, and it is always tied to your account.
+- Report anything. Use the options button on any message, post, pin, or conversation to report it. Reported content is hidden right away.
+- Block anyone. Blocking stops you and that person from seeing or contacting each other. Manage blocked users in Settings.
+- Remove your own content. You can delete your own posts, messages, and pins at any time.
+- We act within 24 hours. We review every report within 24 hours. When content breaks these rules, we remove it and eject the user who posted it by suspending or permanently banning their account.
+You can also contact us at any time at support@herenowsocial.com.
+
+Check-ins and presence
+HereNow uses your device's location to verify that you are physically present at participating venues. Check-ins are temporary and automatically end when your visit concludes.
+Location accuracy depends on factors outside of HereNow's control, including your device, GPS availability, wireless signals, operating system behavior, and environmental conditions. While we work to provide accurate location services, we cannot guarantee perfect accuracy at all times.
+
+Connections and messaging
+HereNow is designed to help people connect through shared real-world experiences. Features such as messaging, We Met, My Circle, venue communities, organizations, creators, and future social features may evolve over time.
+We do not guarantee that you will meet people, receive responses, build relationships, or achieve any particular social or business outcome through the platform.
+
+Your content
+You retain ownership of the content you submit to HereNow, including photos, profile information, messages, comments, and other user-generated content.
+By submitting content, you grant HereNow a worldwide, non-exclusive, royalty-free license to host, store, reproduce, display, distribute, and process that content solely for the purpose of operating, maintaining, improving, and promoting the HereNow service.
+You represent that you have the necessary rights to share any content you submit. We may remove content that violates these Terms, our Community Guidelines, or applicable law.
+
+Intellectual property
+HereNow, including its software, trademarks, logos, graphics, designs, branding, text, and other platform content (excluding user-generated content), is owned by HereNow or its licensors and is protected by applicable intellectual property laws.
+You may not copy, modify, distribute, reverse engineer, sell, license, or otherwise exploit any part of HereNow except as permitted by law or with our prior written permission.
+
+Your safety
+HereNow is intended to help people discover shared experiences and connect in the real world. While we strive to provide a safe platform, we do not perform background checks on users, guarantee the identity of users, or guarantee the accuracy of information provided by users, venues, organizations, or creators.
+You are responsible for your interactions with other people. Always exercise good judgment, meet in public places when appropriate, and prioritize your personal safety.
+If you believe another user has violated these Terms or poses a safety concern, please report them through the app or contact us.
+
+Venues, organizations, and creators
+Venues, organizations, and creators are responsible for the information, events, promotions, and content they publish.
+HereNow does not endorse, guarantee, or assume responsibility for any venue, organization, creator, event, promotion, or offer available through the platform.
+
+Service availability
+HereNow is provided on an "as is" and "as available" basis. While we work hard to provide a reliable service, we do not guarantee uninterrupted availability, error-free operation, or compatibility with every device or network.
+We may modify, suspend, discontinue, or remove features at any time without prior notice.
+
+Limitation of liability
+To the fullest extent permitted by applicable law, HereNow and its owners, officers, employees, contractors, affiliates, licensors, and partners will not be liable for any indirect, incidental, consequential, special, exemplary, or punitive damages arising from or relating to your use of the platform.
+Nothing in these Terms limits liability where such limitations are prohibited by law.
+
+Ending your use
+You may stop using HereNow and delete your account at any time.
+We may suspend or terminate your account if you violate these Terms, engage in fraudulent activity, threaten the safety of others, interfere with the operation of the platform, or otherwise misuse HereNow.
+Certain provisions of these Terms, including those relating to intellectual property, limitation of liability, and any rights or obligations that by their nature should survive termination, will remain in effect after your account is terminated.
+
+Changes to these terms
+We may update these Terms from time to time as HereNow evolves. If we make material changes, we will update the Effective Date above and, when appropriate, notify users through the app or by other reasonable means.
+Your continued use of HereNow after those changes become effective constitutes acceptance of the revised Terms.
+
+Governing law
+These Terms are governed by the laws of the State of Tennessee, without regard to its conflict of law principles.
+
+Privacy
+Your use of HereNow is also governed by our Privacy Policy, which explains how we collect, use, and protect your information.
+
+Contact
+If you have questions about these Terms, email us at support@herenowsocial.com.
+
+Apple App Store terms
+These additional terms apply because you are getting HereNow from the Apple App Store.
+Acknowledgement. This agreement is between you and HereNow only, not Apple Inc. ("Apple"). HereNow, not Apple, is solely responsible for the app and its content. This agreement cannot give you rights to the app that conflict with the Apple Media Services Terms and Conditions.
+Scope of license. The license granted to you is a limited, non-transferable license to use the app on any Apple-branded products that you own or control, as permitted by the Usage Rules in the Apple Media Services Terms and Conditions, except that the app may also be accessed and used by other accounts associated with you through Family Sharing or volume purchasing.
+Maintenance and support. HereNow, not Apple, is solely responsible for providing any maintenance and support services for the app. Apple has no obligation to provide any maintenance or support. Contact support@herenowsocial.com.
+Warranty. HereNow, not Apple, is solely responsible for any product warranties, whether express or implied by law. If the app fails to conform to any applicable warranty, you may notify Apple, and Apple will refund the purchase price for the app to you, if any. To the maximum extent permitted by law, Apple has no other warranty obligation with respect to the app.
+Product claims. HereNow, not Apple, is responsible for addressing any claims by you or any third party relating to the app or your possession or use of it, including product liability claims, any claim that the app fails to conform to a legal or regulatory requirement, and claims under consumer protection, privacy or similar laws.
+Intellectual property rights. If a third party claims that the app or your possession and use of it infringes that party's intellectual property rights, HereNow, not Apple, is solely responsible for the investigation, defense, settlement and discharge of the claim.
+Legal compliance. You represent and warrant that you are not located in a country that is subject to a United States Government embargo or that has been designated by the United States Government as a terrorist supporting country, and that you are not listed on any United States Government list of prohibited or restricted parties.
+Developer name and address. Questions, complaints or claims about HereNow can be sent to HereNow Technologies LLC, 2418 Branch St, Nashville, TN 37216, or by email to support@herenowsocial.com.
+Third-party terms. You must comply with any applicable third-party terms of agreement when using the app, for example your wireless data service agreement.
+Third-party beneficiary. Apple and its subsidiaries are third-party beneficiaries of this agreement. Once you accept it, Apple will have the right, and will be deemed to have accepted the right, to enforce this agreement against you as a third-party beneficiary.

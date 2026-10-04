@@ -11,7 +11,7 @@ import BackButton from '@/components/BackButton'
 import { fetchVenueRecap, type VenueRecap } from '@/lib/venueRecap'
 
 const SOCIAL_LABELS: Record<string, { label: string; color: string }> = {
-  dating:     { label: 'Dating',     color: '#f43f5e' },
+  dating:     { label: 'Connection', color: '#f43f5e' },
   friends:    { label: 'Friends',    color: '#22c55e' },
   networking: { label: 'Networking', color: '#3b82f6' },
   just_vibes: { label: 'Just Vibes', color: '#a855f7' },
