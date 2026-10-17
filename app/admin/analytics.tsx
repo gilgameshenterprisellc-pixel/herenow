@@ -73,12 +73,17 @@ export default function AdminAnalytics() {
             ))}
           </View>
           <Text style={styles.filterNote}>Range applies to totals, funnel, placements and venues. WAU/MAU and retention are fixed windows.</Text>
+          {(o?.excluded_accounts ?? 0) > 0 && (
+            <Text style={styles.filterNote}>
+              Real pilot users only: {o?.excluded_accounts} team, demo and venue accounts are left out of every number.
+            </Text>
+          )}
 
           {/* Headline cards */}
           <View style={styles.cards}>
             {stat('QR scans', o?.total_scans ?? 0, `${o?.scans_7d ?? 0} in 7d`)}
             {stat('Accounts', o?.total_accounts ?? 0, `${o?.accounts_7d ?? 0} in 7d`)}
-            {stat('Check-ins', o?.total_checkins ?? 0, `${o?.checkins_7d ?? 0} in 7d`)}
+            {stat('Visits', o?.total_checkins ?? 0, `${o?.checkins_7d ?? 0} in 7d`)}
             {stat('Weekly active', o?.wau ?? 0, 'WAU')}
             {stat('Monthly active', o?.mau ?? 0, 'MAU')}
             {stat('Subscriptions', o?.total_subscriptions ?? 0, `${o?.total_venues ?? 0} venues`)}
@@ -92,19 +97,25 @@ export default function AdminAnalytics() {
             {funnelRow('Accounts created', o?.total_accounts ?? 0, null)}
             {funnelRow('Profile completed', o?.profiles_completed ?? 0, pct(o?.profiles_completed ?? 0, o?.total_accounts ?? 0))}
             {funnelRow('Checked in (activated)', o?.checked_in_users ?? 0, pct(o?.checked_in_users ?? 0, o?.total_accounts ?? 0))}
-            {funnelRow('Repeat check-in', o?.repeat_users ?? 0, pct(o?.repeat_users ?? 0, o?.checked_in_users ?? 0))}
-            {funnelRow('Multi-venue', o?.multi_venue_users ?? 0, pct(o?.multi_venue_users ?? 0, o?.checked_in_users ?? 0))}
+            {funnelRow('Came back another night', o?.repeat_users ?? 0, pct(o?.repeat_users ?? 0, o?.checked_in_users ?? 0))}
+            {funnelRow('Visited 2+ venues', o?.multi_venue_users ?? 0, pct(o?.multi_venue_users ?? 0, o?.checked_in_users ?? 0))}
+            <Text style={styles.funnelNote}>Every step is the same people: accounts created in the range, and what they went on to do.</Text>
           </View>
 
           {/* Retention & activation */}
           <Text style={styles.section}>Retention &amp; activation</Text>
           <View style={styles.panel}>
-            <View style={styles.row}><Text style={styles.rowLabel}>Day 1 retention</Text><Text style={styles.rowValue}>{retention?.d1 ?? 0}%</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>Day 7 retention</Text><Text style={styles.rowValue}>{retention?.d7 ?? 0}%</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>Day 30 retention</Text><Text style={styles.rowValue}>{retention?.d30 ?? 0}%</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>Avg check-ins per user</Text><Text style={styles.rowValue}>{retention?.avg_checkins_per_user ?? 0}</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>Avg venues per user</Text><Text style={styles.rowValue}>{retention?.avg_venues_per_user ?? 0}</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>Avg time checked in</Text><Text style={styles.rowValue}>{retention?.avg_session_minutes ?? 0} min</Text></View>
+            {retentionRow('Came back on another night', retention?.d1, retention?.d1_kept, retention?.d1_of)}
+            {retentionRow('Still checking in a week later', retention?.d7, retention?.d7_kept, retention?.d7_of)}
+            {retentionRow('Still checking in a month later', retention?.d30, retention?.d30_kept, retention?.d30_of)}
+            <Text style={styles.funnelNote}>
+              Measured from each person's first check-in. A week later means they checked in
+              again on a night at least 7 days after their first. Each row only counts people
+              whose first check-in was long enough ago, so the rows have different totals.
+            </Text>
+            <View style={styles.row}><Text style={styles.rowLabel}>Visits per person</Text><Text style={styles.rowValue}>{retention?.avg_checkins_per_user ?? 0}</Text></View>
+            <View style={styles.row}><Text style={styles.rowLabel}>Venues per person</Text><Text style={styles.rowValue}>{retention?.avg_venues_per_user ?? 0}</Text></View>
+            <View style={styles.row}><Text style={styles.rowLabel}>Typical time checked in</Text><Text style={styles.rowValue}>{retention?.median_session_minutes ?? retention?.avg_session_minutes ?? 0} min</Text></View>
             <View style={styles.row}><Text style={styles.rowLabel}>Never checked in</Text><Text style={styles.rowValue}>{pct((o?.total_accounts ?? 0) - (o?.checked_in_users ?? 0), o?.total_accounts ?? 0)}%</Text></View>
           </View>
 
@@ -112,13 +123,17 @@ export default function AdminAnalytics() {
           <Text style={styles.section}>Which placement converts</Text>
           <View style={styles.panel}>
             {placements.length === 0 ? (
-              <Text style={styles.empty}>No QR codes scanned yet.</Text>
+              <Text style={styles.empty}>No QR codes made yet. Create one per placement in Admin, QR codes.</Text>
             ) : placements.map((p) => (
               <View key={p.placement} style={styles.row}>
                 <Text style={styles.rowLabel}>{placementLabel(p.placement)}</Text>
                 <Text style={styles.rowValue}>{p.scans} scans</Text>
               </View>
             ))}
+            <Text style={styles.funnelNote}>
+              Only codes made in Admin, QR codes are counted. A QR that links straight to the
+              App Store opens Apple's page without passing through HereNow, so it can't be counted.
+            </Text>
           </View>
 
           {/* Venue performance */}
@@ -128,7 +143,7 @@ export default function AdminAnalytics() {
               <View>
                 <View style={[styles.vRow, styles.vHead]}>
                   <Text style={[styles.vName, styles.vHeadText]}>Venue</Text>
-                  <Text style={[styles.vCell, styles.vHeadText]}>Chk</Text>
+                  <Text style={[styles.vCell, styles.vHeadText]}>Vis</Text>
                   <Text style={[styles.vCell, styles.vHeadText]}>Uniq</Text>
                   <Text style={[styles.vCell, styles.vHeadText]}>Ret</Text>
                   <Text style={[styles.vCell, styles.vHeadText]}>Scan</Text>
@@ -151,11 +166,13 @@ export default function AdminAnalytics() {
               </View>
             </ScrollView>
           </View>
-          <Text style={styles.legend}>Chk check-ins · Uniq unique visitors · Ret returning · Scan QR scans · Sgn signups driven · Sub subscriptions</Text>
+          <Text style={styles.legend}>Vis visits · Uniq unique visitors · Ret came back another night · Scan QR scans · Sgn signups driven · Sub subscriptions</Text>
 
           <Text style={styles.footnote}>
-            Check-ins come from the sessions table. Retention is rolling: the share
-            of signups still active on or after day 1 / 7 / 30.
+            A visit is one person at one venue on one night (Nashville time, a night runs
+            until 6am), so re-checking in after the app drops you counts once. Team, demo
+            and venue-owner accounts are left out, and so is an owner checking in at their
+            own venue.
           </Text>
         </ScrollView>
       )}
@@ -169,6 +186,27 @@ function stat(label: string, value: number, sub: string) {
       <Text style={styles.cardValue}>{value.toLocaleString()}</Text>
       <Text style={styles.cardLabel}>{label}</Text>
       <Text style={styles.cardSub}>{sub}</Text>
+    </View>
+  )
+}
+
+// A retention percentage is only as good as the number of people behind it, so
+// the count always shows, and a cohort too small to trust says so.
+function retentionRow(label: string, value?: number, kept?: number, of?: number) {
+  const known = typeof of === 'number'
+  return (
+    <View style={styles.row} key={label}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      {known && of === 0 ? (
+        <Text style={styles.rowMuted}>Too early</Text>
+      ) : (
+        <View style={styles.retRight}>
+          <Text style={styles.rowValue}>{value ?? 0}%</Text>
+          {known && (
+            <Text style={styles.rowMuted}>{kept ?? 0} of {of}{(of ?? 0) < 10 ? ' · small sample' : ''}</Text>
+          )}
+        </View>
+      )}
     </View>
   )
 }
@@ -213,6 +251,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#0A1626' },
   rowLabel: { color: '#cde0f0', fontSize: 14 },
   rowValue: { color: '#29B6F6', fontSize: 14, fontWeight: '700' },
+  rowMuted: { color: '#7A93AC', fontSize: 12 },
+  retRight: { alignItems: 'flex-end', gap: 2 },
   empty: { color: '#7A93AC', fontSize: 13, padding: 12, textAlign: 'center' },
   vRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#0A1626' },
   vHead: { borderBottomColor: '#1A2E4A' },

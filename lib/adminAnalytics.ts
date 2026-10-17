@@ -19,6 +19,7 @@ export interface PilotOverview {
   mau:                 number
   total_subscriptions: number
   total_venues:        number
+  excluded_accounts?:  number  // team, demo and venue accounts left out of every number
 }
 
 // days: null = all time, or 7 / 30 / 90 for a rolling window.
@@ -56,13 +57,26 @@ export async function fetchPlacementStats(days: number | null = null): Promise<P
   return (data as PlacementStat[]) ?? []
 }
 
+// See supabase/pilot_dashboard_accuracy.sql. Retention is measured from each
+// person's first visit; d7 = of people whose first visit was 7+ days ago, the
+// share who checked in again on a night 7+ days after it. *_kept / *_of are the
+// counts behind each percentage. A "check-in" here is a visit: one person, one
+// venue, one night.
 export interface Retention {
-  d1:                    number  // rolling retention %, see admin_retention.sql
-  d7:                    number
-  d30:                   number
-  avg_checkins_per_user: number
-  avg_venues_per_user:   number
-  avg_session_minutes:   number
+  d1:                      number
+  d7:                      number
+  d30:                     number
+  d1_kept?:                number
+  d1_of?:                  number
+  d7_kept?:                number
+  d7_of?:                  number
+  d30_kept?:               number
+  d30_of?:                 number
+  activated_users?:        number
+  avg_checkins_per_user:   number
+  avg_venues_per_user:     number
+  avg_session_minutes:     number
+  median_session_minutes?: number
 }
 
 export async function fetchRetention(): Promise<Retention | null> {
