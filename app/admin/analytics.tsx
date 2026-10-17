@@ -93,7 +93,7 @@ export default function AdminAnalytics() {
           <Text style={styles.section}>Funnel</Text>
           <View style={styles.panel}>
             {funnelRow('QR scans', o?.total_scans ?? 0, null)}
-            <Text style={styles.funnelNote}>App Store visits + installs aren't measurable (Apple/Google don't expose them), so the funnel picks up at account creation.</Text>
+            <Text style={styles.funnelNote}>App Store page views and downloads only reach Apple: see App Store Connect, Analytics. So the funnel picks up again at account creation.</Text>
             {funnelRow('Accounts created', o?.total_accounts ?? 0, null)}
             {funnelRow('Profile completed', o?.profiles_completed ?? 0, pct(o?.profiles_completed ?? 0, o?.total_accounts ?? 0))}
             {funnelRow('Checked in (activated)', o?.checked_in_users ?? 0, pct(o?.checked_in_users ?? 0, o?.total_accounts ?? 0))}
@@ -132,7 +132,9 @@ export default function AdminAnalytics() {
             ))}
             <Text style={styles.funnelNote}>
               Only codes made in Admin, QR codes are counted. A QR that links straight to the
-              App Store opens Apple's page without passing through HereNow, so it can't be counted.
+              App Store, like the launch flyer, opens Apple's page without passing through
+              HereNow. Its scans can't be counted here, but the downloads it drives show up in
+              App Store Connect, under Analytics.
             </Text>
           </View>
 
