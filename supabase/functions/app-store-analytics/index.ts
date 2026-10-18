@@ -7,6 +7,12 @@
 // supabase/app_store_daily.sql. All parsing and merge logic lives in
 // ../_shared/app-store-analytics.ts, which has node tests.
 //
+// Secrets: APP_STORE_CONNECT_ISSUER_ID, plus the everyday key (role Sales and
+// Reports) in APP_STORE_CONNECT_KEY_ID / APP_STORE_CONNECT_PRIVATE_KEY. For the
+// first run only, an Admin key in APP_STORE_CONNECT_ADMIN_KEY_ID /
+// APP_STORE_CONNECT_ADMIN_PRIVATE_KEY, because only Admin may create the report
+// request. The run log says when the Admin key can be removed.
+//
 // Deploy WITHOUT Supabase JWT verification. The caller is pg_cron, and the
 // trust comes from the x-sync-secret header, checked below against a random
 // secret that app_store_daily.sql created in Vault:
@@ -19,7 +25,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import {
   ASC_API, AscError, makeAscToken, runSync,
-  type DayRow, type AscKey,
+  type DayRow, type AscKey, type SavedRequest,
 } from '../_shared/app-store-analytics.ts'
 
 declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void } | undefined
@@ -39,10 +45,13 @@ const db = createClient(Deno.env.get('SUPABASE_URL') ?? '', serviceKey(), {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
-function ascKey(): AscKey | null {
+// The everyday key (role Sales and Reports) reads the reports. The Admin key is
+// only needed once, to create the report request; set it for the first run,
+// then unset it and revoke it in App Store Connect.
+function ascKey(prefix: 'APP_STORE_CONNECT' | 'APP_STORE_CONNECT_ADMIN'): AscKey | null {
   const issuerId = Deno.env.get('APP_STORE_CONNECT_ISSUER_ID') ?? ''
-  const keyId = Deno.env.get('APP_STORE_CONNECT_KEY_ID') ?? ''
-  const privateKey = Deno.env.get('APP_STORE_CONNECT_PRIVATE_KEY') ?? ''
+  const keyId = Deno.env.get(`${prefix}_KEY_ID`) ?? ''
+  const privateKey = Deno.env.get(`${prefix}_PRIVATE_KEY`) ?? ''
   return issuerId && keyId && privateKey ? { issuerId, keyId, privateKey } : null
 }
 
@@ -55,19 +64,24 @@ async function recordRun(ok: boolean, message: string, details: unknown) {
   if (pruneErr) console.warn('[app-store-analytics] prune:', pruneErr.message)
 }
 
-async function sync(key: AscKey) {
-  // One token per 10 minutes of run time; each lives 15 (Apple's cap is 20).
+// A bearer token per key, renewed every 10 minutes; each lives 15 (Apple's cap is 20).
+function tokenFor(key: AscKey) {
   let token = ''
   let tokenAt = 0
-  const auth = async () => {
+  return async () => {
     if (!token || Date.now() - tokenAt > 10 * 60_000) {
       token = await makeAscToken(key)
       tokenAt = Date.now()
     }
     return `Bearer ${token}`
   }
+}
 
-  const call = async (method: 'GET' | 'POST', pathOrUrl: string, body?: unknown) => {
+async function sync(key: AscKey, adminKey: AscKey | null) {
+  const everyday = tokenFor(key)
+  const admin = adminKey ? tokenFor(adminKey) : everyday
+
+  const call = async (auth: () => Promise<string>, method: 'GET' | 'POST', pathOrUrl: string, body?: unknown) => {
     const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${ASC_API}${pathOrUrl}`
     const res = await fetch(url, {
       method,
@@ -88,13 +102,27 @@ async function sync(key: AscKey) {
 
   return await runSync({
     appId: APP_ID,
-    get: (p) => call('GET', p),
-    post: (p, b) => call('POST', p, b),
+    get: (p) => call(everyday, 'GET', p),
+    manage: {
+      get: (p) => call(admin, 'GET', p),
+      post: (p, b) => call(admin, 'POST', p, b),
+    },
     // Presigned S3 URL: no Authorization header (it would be rejected).
     download: async (url) => {
       const res = await fetch(url)
       if (!res.ok) throw new Error(`segment download -> ${res.status}`)
       return new Uint8Array(await res.arrayBuffer())
+    },
+    savedRequests: async () => {
+      const { data, error } = await db.from('app_store_report_requests').select('request_id, access_type, stopped')
+      if (error) throw new Error(`read app_store_report_requests: ${error.message}`)
+      return (data ?? []) as SavedRequest[]
+    },
+    saveRequests: async (reqs) => {
+      const now = new Date().toISOString()
+      const { error } = await db.from('app_store_report_requests')
+        .upsert(reqs.map((r) => ({ ...r, seen_at: now })), { onConflict: 'request_id' })
+      if (error) throw new Error(`write app_store_report_requests: ${error.message}`)
     },
     ingestedInstanceIds: async () => {
       const { data, error } = await db.from('app_store_report_instances').select('instance_id')
@@ -120,13 +148,18 @@ async function sync(key: AscKey) {
   })
 }
 
-async function runAndRecord(key: AscKey) {
+async function runAndRecord(key: AscKey, adminKey: AscKey | null) {
   try {
-    const r = await sync(key)
-    const msg = r.instancesIngested > 0
+    const r = await sync(key, adminKey)
+    let msg = r.instancesIngested > 0
       ? `Read ${r.instancesIngested} report file(s), updated ${r.daysWritten} day(s).`
       : (r.notes[0] ?? 'Up to date: no new report files from Apple.')
-    await recordRun(true, msg, r)
+    if (r.created.includes('ONGOING')) msg = `Asked Apple for daily reports. ${msg}`
+    // The Admin key has done its one job once the request exists.
+    if (adminKey && r.ongoingReady) {
+      msg += ' The report request exists, so the Admin key is no longer needed: unset its two secrets and have Jacob revoke it.'
+    }
+    await recordRun(true, msg, { ...r, admin_key_set: !!adminKey })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[app-store-analytics] sync failed:', msg)
@@ -146,16 +179,17 @@ Deno.serve(async (req) => {
   }
   if (allowed !== true) return json({ ok: false, reason: 'unauthorized' }, 401)
 
-  const key = ascKey()
+  const key = ascKey('APP_STORE_CONNECT')
   if (!key) {
     const msg = 'App Store Connect secrets are not set (APP_STORE_CONNECT_ISSUER_ID, _KEY_ID, _PRIVATE_KEY).'
     await recordRun(false, msg, null)
     return json({ ok: false, reason: 'not_configured' }, 200)
   }
+  const adminKey = ascKey('APP_STORE_CONNECT_ADMIN')
 
   // pg_net gives up waiting after a few seconds, so answer at once and keep
   // working in the background. The result lands in app_store_sync_runs.
-  const work = runAndRecord(key)
+  const work = runAndRecord(key, adminKey)
   if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
     EdgeRuntime.waitUntil(work)
     return json({ ok: true, started: true }, 202)

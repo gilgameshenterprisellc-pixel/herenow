@@ -2,13 +2,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { shortDay, downloadSources, appStoreNote } from '../lib/appStoreNote.ts'
 
-// The lines under the App Store rows of the Pilot Dashboard funnel. Investors
-// will read this, so it has to say plainly where the numbers come from and how
-// late they are.
+// The lines under the App Store downloads row, the top of the Pilot Dashboard
+// funnel (the pilot has no per-venue QR codes). Investors will read this, so it
+// has to say plainly where the numbers come from and how late they are.
 
 const base = {
   connected: true,
   redownloads: 0,
+  page_views: 0,
   sources: [] as { source: string; first_downloads: number; redownloads: number; page_views: number }[],
   latest_day: '2026-10-16',
   last_error: null as string | null,
@@ -40,16 +41,19 @@ test('connected but no report yet says Apple takes a day or two', () => {
   assert.match(appStoreNote({ ...base, latest_day: null })[0], /first reports take one to two days/)
 })
 
-test('with data: the lag, the small-count caveat, reinstalls and sources', () => {
+test('with data: the lag, the small-count caveat, reinstalls, page views and sources', () => {
   const lines = appStoreNote({
     ...base,
     redownloads: 2,
+    page_views: 1240,
     sources: [{ source: 'Web referrer', first_downloads: 3, redownloads: 2, page_views: 10 }],
   })
   assert.equal(lines[0], "From Apple, through Oct 16. Apple's numbers arrive one to two days late, and Apple may hide very small counts.")
-  assert.match(lines[1], /^Downloads count new people only \(2 reinstalls left out\)\./)
+  assert.equal(lines[1], 'Downloads count new people only (2 reinstalls left out). The App Store page was viewed 1,240 times.')
   assert.equal(lines[2], 'Where downloads came from: Web referrer 3.')
-  assert.equal(appStoreNote({ ...base, redownloads: 1 })[1].includes('(1 reinstall left out)'), true)
+  assert.equal(appStoreNote({ ...base, redownloads: 1, page_views: 1 })[1],
+    'Downloads count new people only (1 reinstall left out). The App Store page was viewed 1 time.')
+  assert.equal(appStoreNote(base)[1], 'Downloads count new people only.')
 })
 
 test('a failed latest sync is shown even when older data is there', () => {

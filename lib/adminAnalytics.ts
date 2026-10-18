@@ -101,6 +101,7 @@ export interface AppStoreOverview {
   first_downloads: number
   redownloads:     number
   page_views:      number
+  downloads_7d?:   number         // first-time downloads in the last 7 days, whatever the range
   sources:         AppStoreSource[]
   latest_day:      string | null  // newest day Apple has reported, YYYY-MM-DD
   last_sync_at:    string | null

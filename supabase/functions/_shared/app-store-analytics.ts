@@ -309,11 +309,27 @@ export interface Instance {
   accessType: string
 }
 
+// A report request as saved in app_store_report_requests.
+export interface SavedRequest {
+  request_id: string
+  access_type: string
+  stopped: boolean
+}
+
+// Two keys. The everyday one (Sales and Reports) reads the reports. Apple only
+// lets an Admin key create a report request, so while an Admin key is set,
+// `manage` uses it to list and create requests. Without one, `manage` is the
+// everyday key.
 export interface SyncDeps {
   appId: string
   get: (pathOrUrl: string) => Promise<any>          // JSON:API GET; throws AscError on non-2xx
-  post: (path: string, body: unknown) => Promise<any>
+  manage: {
+    get: (pathOrUrl: string) => Promise<any>
+    post: (path: string, body: unknown) => Promise<any>
+  }
   download: (url: string) => Promise<Uint8Array>   // a presigned segment URL (valid 5 minutes)
+  savedRequests: () => Promise<SavedRequest[]>
+  saveRequests: (reqs: SavedRequest[]) => Promise<void>
   ingestedInstanceIds: () => Promise<Set<string>>
   loadDays: (days: string[]) => Promise<DayRow[]>
   saveDays: (rows: DayRow[]) => Promise<void>
@@ -326,6 +342,8 @@ export interface SyncDeps {
 
 export interface SyncResult {
   created: string[]           // report requests created this run ('ONGOING', 'ONE_TIME_SNAPSHOT')
+  ongoingReady: boolean       // a live ONGOING request exists after this run
+  usedSavedRequests: boolean  // the key could not list requests, so the saved ids were used
   reportsFound: ReportKind[]
   instancesIngested: number
   daysWritten: number
@@ -358,31 +376,55 @@ export function requestBody(appId: string, accessType: 'ONGOING' | 'ONE_TIME_SNA
 export async function runSync(deps: SyncDeps): Promise<SyncResult> {
   const log = deps.log ?? (() => {})
   const max = deps.maxInstances ?? 25
-  const result: SyncResult = { created: [], reportsFound: [], instancesIngested: 0, daysWritten: 0, pending: 0, notes: [] }
+  const result: SyncResult = {
+    created: [], ongoingReady: false, usedSavedRequests: false,
+    reportsFound: [], instancesIngested: 0, daysWritten: 0, pending: 0, notes: [],
+  }
+  const toSaved = (r: any): SavedRequest => ({
+    request_id: r.id,
+    access_type: r?.attributes?.accessType ?? '',
+    stopped: r?.attributes?.stoppedDueToInactivity === true,
+  })
 
-  // 1. Report requests. Apple generates nothing until one exists.
-  let requests = await getAll(deps.get, `/v1/apps/${deps.appId}/analyticsReportRequests?limit=200`)
+  // 1. Report requests. Apple generates nothing until one exists. Every request
+  //    seen or made is saved, because Apple's docs only promise a Sales and
+  //    Reports key the reports themselves: if it may not list requests, the
+  //    saved ids are used instead.
+  let requests: any[]
+  try {
+    requests = await getAll(deps.manage.get, `/v1/apps/${deps.appId}/analyticsReportRequests?limit=200`)
+    if (requests.length > 0) await deps.saveRequests(requests.filter((r) => r?.id).map(toSaved))
+  } catch (e) {
+    if (!(e instanceof AscError && e.status === 403)) throw e
+    result.usedSavedRequests = true
+    requests = (await deps.savedRequests()).map((s) => ({
+      id: s.request_id,
+      attributes: { accessType: s.access_type, stoppedDueToInactivity: s.stopped },
+    }))
+  }
   const live = requests.filter((r) =>
     r?.attributes?.accessType === 'ONGOING' && r?.attributes?.stoppedDueToInactivity !== true)
   if (live.length === 0) {
     try {
-      const created = await deps.post('/v1/analyticsReportRequests', requestBody(deps.appId, 'ONGOING'))
+      const created = await deps.manage.post('/v1/analyticsReportRequests', requestBody(deps.appId, 'ONGOING'))
       requests = [...requests, created.data]
+      await deps.saveRequests([toSaved(created.data)])
       result.created.push('ONGOING')
       log('created ONGOING report request')
     } catch (e) {
       if (e instanceof AscError && e.status === 403) {
         throw new AscError(403,
-          'Apple refused to create the report request (403). Creating it needs a Team API key with the Admin role. ' +
-          'After the first successful run a Sales and Reports key is enough.')
+          'Apple refused to create the report request (403). Only an Admin key can create it: set ' +
+          'APP_STORE_CONNECT_ADMIN_KEY_ID and APP_STORE_CONNECT_ADMIN_PRIVATE_KEY for one run.')
       }
       throw e
     }
     // An ONGOING request only reports from now on. A one-time snapshot fills in
     // the days before it (Apple allows one per month), so the launch days count.
     try {
-      const snap = await deps.post('/v1/analyticsReportRequests', requestBody(deps.appId, 'ONE_TIME_SNAPSHOT'))
+      const snap = await deps.manage.post('/v1/analyticsReportRequests', requestBody(deps.appId, 'ONE_TIME_SNAPSHOT'))
       requests = [...requests, snap.data]
+      await deps.saveRequests([toSaved(snap.data)])
       result.created.push('ONE_TIME_SNAPSHOT')
       log('created ONE_TIME_SNAPSHOT report request')
     } catch (e) {
@@ -390,6 +432,7 @@ export async function runSync(deps: SyncDeps): Promise<SyncResult> {
       result.notes.push(`History snapshot not created: ${msg}`)
     }
   }
+  result.ongoingReady = true
 
   // 2. The two reports we read, from every request (ongoing and snapshot).
   const reports: { id: string; kind: ReportKind; accessType: string }[] = []

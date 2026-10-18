@@ -4,7 +4,7 @@ import { gzipSync } from 'node:zlib'
 import {
   makeAscToken, pemToPkcs8, gunzipText, parseReport, summarizeDownloads, summarizeEngagement,
   mergeInstance, reportKind, runSync, emptyDay, AscError, MAX_TOKEN_SECONDS,
-  type DayRow, type SyncDeps,
+  type DayRow, type SyncDeps, type SavedRequest,
 } from '../supabase/functions/_shared/app-store-analytics.ts'
 
 // The Pilot Dashboard's App Store rows (Oct 2026). Jacob's launch flyer QR goes
@@ -196,9 +196,16 @@ interface FakeApple {
   failPost?: (accessType: string) => AscError | null
 }
 
-function deps(apple: FakeApple, opts: { ingested?: string[]; max?: number } = {}) {
+// The everyday key (Sales and Reports) goes through `get`; the Admin key, when
+// set, through `manage`. `listForbidden` makes request listing refuse the key,
+// which Apple's docs leave open for a Sales and Reports key.
+function deps(apple: FakeApple, opts: {
+  ingested?: string[]; max?: number; listForbidden?: boolean; saved?: SavedRequest[]
+} = {}) {
   const db = new Map<string, DayRow>()
   const ingested = new Set(opts.ingested ?? [])
+  const saved = new Map<string, SavedRequest>((opts.saved ?? []).map((r) => [r.request_id, r]))
+  const calls = { everyday: [] as string[], manage: [] as string[] }
   const files = new Map<string, Uint8Array>()
   for (const segs of Object.values(apple.segments)) {
     for (const s of segs) files.set(s.url, new Uint8Array(gzipSync(s.body)))
@@ -210,51 +217,62 @@ function deps(apple: FakeApple, opts: { ingested?: string[]; max?: number } = {}
     u.searchParams.set('cursor', String(start + 2))
     return { data: data.slice(start, start + 2), links: start + 2 < data.length ? { next: u.pathname + u.search } : {} }
   }
+  const route = async (raw: string) => {
+    // Apple's links.next URLs encode the brackets (filter%5Bgranularity%5D), as
+    // in its own examples. The sync passes them through untouched.
+    const path = decodeURIComponent(raw)
+    let m
+    if ((m = /^\/v1\/apps\/(\d+)\/analyticsReportRequests/.exec(path))) {
+      assert.equal(m[1], APP_ID)
+      return page(apple.requests, path)
+    }
+    if ((m = /^\/v1\/analyticsReportRequests\/([^/]+)\/reports\?filter\[category\]=([A-Z_]+)/.exec(path))) {
+      const list = (apple.reports[m[1]] ?? []).filter((r) => r.category === m![2])
+      return page(list.map((r) => ({ id: r.id, attributes: { name: r.name, category: r.category } })), path)
+    }
+    if ((m = /^\/v1\/analyticsReports\/([^/]+)\/instances\?filter\[granularity\]=DAILY/.exec(path))) {
+      const list = apple.instances[m[1]] ?? []
+      return page(list.map((i) => ({ id: i.id, attributes: { granularity: 'DAILY', processingDate: i.processingDate } })), path)
+    }
+    if ((m = /^\/v1\/analyticsReportInstances\/([^/]+)\/segments/.exec(path))) {
+      const list = apple.segments[m[1]] ?? []
+      return page(list.map((s, i) => ({
+        id: `${m![1]}-seg${i}`,
+        attributes: { url: s.url, sizeInBytes: s.size ?? files.get(s.url)!.length, checksum: 'x' },
+      })), path)
+    }
+    throw new Error(`unexpected GET ${path}`)
+  }
   const d: SyncDeps = {
     appId: APP_ID,
     maxInstances: opts.max,
-    get: async (raw) => {
-      // Apple's links.next URLs encode the brackets (filter%5Bgranularity%5D), as
-      // in its own examples. The sync passes them through untouched.
-      const path = decodeURIComponent(raw)
-      let m
-      if ((m = /^\/v1\/apps\/(\d+)\/analyticsReportRequests/.exec(path))) {
-        assert.equal(m[1], APP_ID)
-        return page(apple.requests, path)
-      }
-      if ((m = /^\/v1\/analyticsReportRequests\/([^/]+)\/reports\?filter\[category\]=([A-Z_]+)/.exec(path))) {
-        const list = (apple.reports[m[1]] ?? []).filter((r) => r.category === m![2])
-        return page(list.map((r) => ({ id: r.id, attributes: { name: r.name, category: r.category } })), path)
-      }
-      if ((m = /^\/v1\/analyticsReports\/([^/]+)\/instances\?filter\[granularity\]=DAILY/.exec(path))) {
-        const list = apple.instances[m[1]] ?? []
-        return page(list.map((i) => ({ id: i.id, attributes: { granularity: 'DAILY', processingDate: i.processingDate } })), path)
-      }
-      if ((m = /^\/v1\/analyticsReportInstances\/([^/]+)\/segments/.exec(path))) {
-        const list = apple.segments[m[1]] ?? []
-        return page(list.map((s, i) => ({
-          id: `${m![1]}-seg${i}`,
-          attributes: { url: s.url, sizeInBytes: s.size ?? files.get(s.url)!.length, checksum: 'x' },
-        })), path)
-      }
-      throw new Error(`unexpected GET ${path}`)
+    get: async (p) => { calls.everyday.push(p); return route(p) },
+    manage: {
+      get: async (p) => {
+        calls.manage.push(p)
+        if (opts.listForbidden) throw new AscError(403, 'GET requests -> 403 FORBIDDEN_ERROR')
+        return route(p)
+      },
+      post: async (path, body: any) => {
+        calls.manage.push(`POST ${path}`)
+        assert.equal(path, '/v1/analyticsReportRequests')
+        const accessType = body.data.attributes.accessType
+        const err = apple.failPost?.(accessType)
+        if (err) throw err
+        apple.posts.push(body)
+        const created = { id: `req-${accessType}`, attributes: { accessType, stoppedDueToInactivity: false } }
+        return { data: created }
+      },
     },
-    post: async (path, body: any) => {
-      assert.equal(path, '/v1/analyticsReportRequests')
-      const accessType = body.data.attributes.accessType
-      const err = apple.failPost?.(accessType)
-      if (err) throw err
-      apple.posts.push(body)
-      const created = { id: `req-${accessType}`, attributes: { accessType, stoppedDueToInactivity: false } }
-      return { data: created }
-    },
+    savedRequests: async () => Array.from(saved.values()),
+    saveRequests: async (reqs) => { for (const r of reqs) saved.set(r.request_id, r) },
     download: async (url) => files.get(url)!,
     ingestedInstanceIds: async () => new Set(ingested),
     loadDays: async (days) => days.filter((x) => db.has(x)).map((x) => db.get(x)!),
     saveDays: async (rows) => { for (const r of rows) db.set(r.day, r) },
     markIngested: async (rec) => { ingested.add(rec.instance_id) },
   }
-  return { d, db, ingested }
+  return { d, db, ingested, saved, calls }
 }
 
 const DL_STD = 'App Store Downloads Standard'
@@ -296,7 +314,7 @@ test('a key without the Admin role gets a message that says so', async () => {
     requests: [], reports: {}, instances: {}, segments: {}, posts: [],
     failPost: () => new AscError(403, 'POST /v1/analyticsReportRequests -> 403 FORBIDDEN_ERROR'),
   }
-  await assert.rejects(runSync(deps(apple).d), /Admin role/)
+  await assert.rejects(runSync(deps(apple).d), /Only an Admin key can create it/)
 })
 
 test('if the monthly snapshot is refused, the ongoing request still stands', async () => {
@@ -409,4 +427,60 @@ test('a segment that arrives short is an error, not a smaller number', async () 
   const apple = liveApple()
   apple.segments['i-snap'][0].size = 999_999
   await assert.rejects(runSync(deps(apple).d), /Apple says 999999/)
+})
+
+// ── Two keys (Jacob made both, Oct 18) ───────────────────────────────────────
+
+test('the Admin key lists and creates the request; the everyday key reads the reports', async () => {
+  const apple: FakeApple = { requests: [], reports: {}, instances: {}, segments: {}, posts: [] }
+  const { d, calls, saved } = deps(apple)
+  const r = await runSync(d)
+  assert.deepEqual(calls.manage, [
+    `/v1/apps/${APP_ID}/analyticsReportRequests?limit=200`,
+    'POST /v1/analyticsReportRequests',
+    'POST /v1/analyticsReportRequests',
+  ])
+  assert.equal(calls.everyday.every((p) => p.startsWith('/v1/analyticsReportRequests/req-')), true)
+  assert.equal(r.ongoingReady, true)
+  // Both new requests are saved for the everyday key to use later.
+  assert.deepEqual(Array.from(saved.keys()).sort(), ['req-ONE_TIME_SNAPSHOT', 'req-ONGOING'])
+})
+
+test('requests Apple lists are saved too', async () => {
+  const { d, saved } = deps(liveApple())
+  await runSync(d)
+  assert.deepEqual(saved.get('ongoing'), { request_id: 'ongoing', access_type: 'ONGOING', stopped: false })
+  assert.deepEqual(saved.get('snap'), { request_id: 'snap', access_type: 'ONE_TIME_SNAPSHOT', stopped: false })
+})
+
+test('if the everyday key may not list requests, the saved ones are used', async () => {
+  const apple = liveApple()
+  const { d, db } = deps(apple, {
+    listForbidden: true,
+    saved: [
+      { request_id: 'ongoing', access_type: 'ONGOING', stopped: false },
+      { request_id: 'snap', access_type: 'ONE_TIME_SNAPSHOT', stopped: false },
+    ],
+  })
+  const r = await runSync(d)
+  assert.equal(r.usedSavedRequests, true)
+  assert.deepEqual(r.created, [])
+  assert.equal(apple.posts.length, 0)
+  assert.equal(r.instancesIngested, 5)
+  assert.equal(db.get('2026-10-15')!.first_downloads, 4)
+})
+
+test('with nothing saved and no Admin key, the run says an Admin key is needed', async () => {
+  const apple: FakeApple = {
+    requests: [], reports: {}, instances: {}, segments: {}, posts: [],
+    failPost: () => new AscError(403, 'POST -> 403 FORBIDDEN_ERROR'),
+  }
+  await assert.rejects(runSync(deps(apple, { listForbidden: true }).d), /Only an Admin key can create it/)
+})
+
+test('any other refusal to list requests is a real error, not a quiet fallback', async () => {
+  const apple = liveApple()
+  const { d } = deps(apple)
+  d.manage.get = async () => { throw new AscError(401, 'GET -> 401 NOT_AUTHORIZED') }
+  await assert.rejects(runSync(d), /401 NOT_AUTHORIZED/)
 })

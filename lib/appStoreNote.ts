@@ -1,10 +1,11 @@
-// Wording for the App Store rows of the Pilot Dashboard funnel. Pure, so it is
-// tested in test/app-store-note.test.ts. Dates are built by hand: re-parsing a
-// date string is what broke "Your Nights" on Hermes (see lib/nights.ts).
+// Wording for the App Store row at the top of the Pilot Dashboard funnel. Pure,
+// so it is tested in test/app-store-note.test.ts. Dates are built by hand:
+// re-parsing a date string is what broke "Your Nights" on Hermes (lib/nights.ts).
 
 export interface AppStoreNoteInput {
   connected:   boolean
   redownloads: number
+  page_views:  number
   sources:     { source: string; first_downloads: number; redownloads: number; page_views: number }[]
   latest_day:  string | null
   last_error:  string | null
@@ -31,12 +32,12 @@ export function downloadSources(sources: AppStoreNoteInput['sources'], max = 4):
     .join(' · ')
 }
 
-// The lines under the App Store rows. Never empty: when the sync is not set up
+// The lines under the App Store row. Never empty: when the sync is not set up
 // it says where to look instead.
 export function appStoreNote(a: AppStoreNoteInput | null): string[] {
   if (!a || !a.connected) {
     const lines = [
-      'App Store page views and downloads show here once the Apple sync is set up. ' +
+      'App Store downloads show here once the Apple sync is set up. ' +
       'Until then, see App Store Connect, Analytics.',
     ]
     if (a?.last_error) lines.push(`Apple sync failed: ${a.last_error}`)
@@ -54,10 +55,10 @@ export function appStoreNote(a: AppStoreNoteInput | null): string[] {
   const reinstalls = a.redownloads > 0
     ? ` (${a.redownloads} ${a.redownloads === 1 ? 'reinstall' : 'reinstalls'} left out)`
     : ''
-  lines.push(
-    `Downloads count new people only${reinstalls}. ` +
-    'Page views count every view of the App Store page, not people.',
-  )
+  const views = a.page_views > 0
+    ? ` The App Store page was viewed ${a.page_views.toLocaleString('en-US')} ${a.page_views === 1 ? 'time' : 'times'}.`
+    : ''
+  lines.push(`Downloads count new people only${reinstalls}.${views}`)
   const src = downloadSources(a.sources)
   if (src) lines.push(`Where downloads came from: ${src}.`)
   if (a.last_error) lines.push(`Last Apple sync failed: ${a.last_error}`)

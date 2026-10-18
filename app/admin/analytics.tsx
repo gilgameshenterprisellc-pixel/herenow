@@ -4,10 +4,9 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import BackButton from '@/components/BackButton'
-import { placementLabel } from '@/lib/qr'
 import {
-  fetchPilotOverview, fetchVenuePerformance, fetchPlacementStats, fetchRetention, fetchAppStoreOverview,
-  type PilotOverview, type VenuePerformance, type PlacementStat, type Retention, type AppStoreOverview,
+  fetchPilotOverview, fetchVenuePerformance, fetchRetention, fetchAppStoreOverview,
+  type PilotOverview, type VenuePerformance, type Retention, type AppStoreOverview,
 } from '@/lib/adminAnalytics'
 import { appStoreNote } from '@/lib/appStoreNote'
 
@@ -24,7 +23,6 @@ export default function AdminAnalytics() {
   const insets = useSafeAreaInsets()
   const [overview, setOverview]   = useState<PilotOverview | null>(null)
   const [venues, setVenues]       = useState<VenuePerformance[]>([])
-  const [placements, setPlacements] = useState<PlacementStat[]>([])
   const [retention, setRetention]   = useState<Retention | null>(null)
   const [appStore, setAppStore]     = useState<AppStoreOverview | null>(null)
   const [loading, setLoading]     = useState(true)
@@ -32,13 +30,14 @@ export default function AdminAnalytics() {
   const [days, setDays]           = useState<number | null>(null)  // null = all time
 
   const load = useCallback(async () => {
-    const [o, v, p, r, a] = await Promise.all([
-      fetchPilotOverview(days), fetchVenuePerformance(days), fetchPlacementStats(days), fetchRetention(),
-      fetchAppStoreOverview(days),
+    // The pilot has no per-venue QR codes (the one flyer links straight to the
+    // App Store), so scans and placements are not shown. Their RPC keys stay,
+    // because the build in the App Store still reads them.
+    const [o, v, r, a] = await Promise.all([
+      fetchPilotOverview(days), fetchVenuePerformance(days), fetchRetention(), fetchAppStoreOverview(days),
     ])
     setOverview(o)
     setVenues(v)
-    setPlacements(p)
     setRetention(r)
     setAppStore(a)
     setLoading(false)
@@ -76,7 +75,7 @@ export default function AdminAnalytics() {
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={styles.filterNote}>Range applies to totals, funnel, placements and venues. WAU/MAU and retention are fixed windows.</Text>
+          <Text style={styles.filterNote}>Range applies to totals, funnel and venues. WAU/MAU and retention are fixed windows.</Text>
           {(o?.excluded_accounts ?? 0) > 0 && (
             <Text style={styles.filterNote}>
               Real pilot users only: {o?.excluded_accounts} team, demo and venue accounts are left out of every number.
@@ -85,7 +84,8 @@ export default function AdminAnalytics() {
 
           {/* Headline cards */}
           <View style={styles.cards}>
-            {stat('QR scans', o?.total_scans ?? 0, `${o?.scans_7d ?? 0} in 7d`)}
+            {stat('Downloads', appStore?.connected ? appStore.first_downloads : null,
+              appStore?.connected ? `${appStore.downloads_7d ?? 0} in 7d` : 'Apple sync not set up')}
             {stat('Accounts', o?.total_accounts ?? 0, `${o?.accounts_7d ?? 0} in 7d`)}
             {stat('Visits', o?.total_checkins ?? 0, `${o?.checkins_7d ?? 0} in 7d`)}
             {stat('Weekly active', o?.wau ?? 0, 'WAU')}
@@ -96,8 +96,6 @@ export default function AdminAnalytics() {
           {/* Funnel */}
           <Text style={styles.section}>Funnel</Text>
           <View style={styles.panel}>
-            {funnelRow('QR scans', o?.total_scans ?? 0, null)}
-            {appStore?.connected && funnelRow('App Store page views', appStore.page_views, null)}
             {appStore?.connected && funnelRow('App Store downloads', appStore.first_downloads, null)}
             {appStoreNote(appStore).map((line) => (
               <Text key={line} style={[styles.funnelNote, line.includes('sync failed') && styles.funnelWarn]}>{line}</Text>
@@ -107,7 +105,7 @@ export default function AdminAnalytics() {
             {funnelRow('Checked in (activated)', o?.checked_in_users ?? 0, pct(o?.checked_in_users ?? 0, o?.total_accounts ?? 0))}
             {funnelRow('Came back another night', o?.repeat_users ?? 0, pct(o?.repeat_users ?? 0, o?.checked_in_users ?? 0))}
             {funnelRow('Visited 2+ venues', o?.multi_venue_users ?? 0, pct(o?.multi_venue_users ?? 0, o?.checked_in_users ?? 0))}
-            <Text style={styles.funnelNote}>Every step is the same people: accounts created in the range, and what they went on to do.</Text>
+            <Text style={styles.funnelNote}>From Accounts created down, every step is the same people: accounts created in the range, and what they went on to do.</Text>
           </View>
 
           {/* Retention & activation */}
@@ -127,27 +125,6 @@ export default function AdminAnalytics() {
             <View style={styles.row}><Text style={styles.rowLabel}>Never checked in</Text><Text style={styles.rowValue}>{pct((o?.total_accounts ?? 0) - (o?.checked_in_users ?? 0), o?.total_accounts ?? 0)}%</Text></View>
           </View>
 
-          {/* QR placement conversion */}
-          <Text style={styles.section}>Which placement converts</Text>
-          <View style={styles.panel}>
-            {placements.length === 0 ? (
-              <Text style={styles.empty}>No QR codes made yet. Create one per placement in Admin, QR codes.</Text>
-            ) : placements.map((p) => (
-              <View key={p.placement} style={styles.row}>
-                <Text style={styles.rowLabel}>{placementLabel(p.placement)}</Text>
-                <Text style={styles.rowValue}>{p.scans} scans</Text>
-              </View>
-            ))}
-            <Text style={styles.funnelNote}>
-              Only codes made in Admin, QR codes are counted. A QR that links straight to the
-              App Store, like the launch flyer, opens Apple's page without passing through
-              HereNow. Its scans can't be counted here, but the downloads it drives
-              {appStore?.connected
-                ? ' are in the App Store rows of the funnel above.'
-                : ' show up in App Store Connect, under Analytics.'}
-            </Text>
-          </View>
-
           {/* Venue performance */}
           <Text style={styles.section}>Venue performance</Text>
           <View style={styles.panel}>
@@ -158,7 +135,6 @@ export default function AdminAnalytics() {
                   <Text style={[styles.vCell, styles.vHeadText]}>Vis</Text>
                   <Text style={[styles.vCell, styles.vHeadText]}>Uniq</Text>
                   <Text style={[styles.vCell, styles.vHeadText]}>Ret</Text>
-                  <Text style={[styles.vCell, styles.vHeadText]}>Scan</Text>
                   <Text style={[styles.vCell, styles.vHeadText]}>Sgn</Text>
                   <Text style={[styles.vCell, styles.vHeadText]}>Sub</Text>
                 </View>
@@ -170,7 +146,6 @@ export default function AdminAnalytics() {
                     <Text style={styles.vCell}>{v.checkins}</Text>
                     <Text style={styles.vCell}>{v.unique_visitors}</Text>
                     <Text style={styles.vCell}>{v.returning_visitors}</Text>
-                    <Text style={styles.vCell}>{v.scans}</Text>
                     <Text style={styles.vCell}>{v.attributed_signups}</Text>
                     <Text style={styles.vCell}>{v.subscriptions}</Text>
                   </View>
@@ -178,7 +153,7 @@ export default function AdminAnalytics() {
               </View>
             </ScrollView>
           </View>
-          <Text style={styles.legend}>Vis visits · Uniq unique visitors · Ret came back another night · Scan QR scans · Sgn signups driven · Sub subscriptions</Text>
+          <Text style={styles.legend}>Vis visits · Uniq unique visitors · Ret came back another night · Sgn signups driven · Sub subscriptions</Text>
 
           <Text style={styles.footnote}>
             A visit is one person at one venue on one night (Nashville time, a night runs
@@ -192,10 +167,11 @@ export default function AdminAnalytics() {
   )
 }
 
-function stat(label: string, value: number, sub: string) {
+// null = not known yet (shown as a dash, never as a misleading 0).
+function stat(label: string, value: number | null, sub: string) {
   return (
     <View style={styles.card} key={label}>
-      <Text style={styles.cardValue}>{value.toLocaleString()}</Text>
+      <Text style={styles.cardValue}>{value === null ? '-' : value.toLocaleString()}</Text>
       <Text style={styles.cardLabel}>{label}</Text>
       <Text style={styles.cardSub}>{sub}</Text>
     </View>

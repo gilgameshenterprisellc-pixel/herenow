@@ -48,6 +48,20 @@ DROP POLICY IF EXISTS "admin reads app_store_report_instances" ON app_store_repo
 CREATE POLICY "admin reads app_store_report_instances" ON app_store_report_instances FOR SELECT
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
 
+-- Report requests made or seen, so the everyday Sales and Reports key can find
+-- them even if Apple only lets an Admin key list requests.
+CREATE TABLE IF NOT EXISTS app_store_report_requests (
+  request_id  text PRIMARY KEY,
+  access_type text NOT NULL,       -- 'ONGOING' | 'ONE_TIME_SNAPSHOT'
+  stopped     boolean NOT NULL DEFAULT false,
+  seen_at     timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE app_store_report_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "admin reads app_store_report_requests" ON app_store_report_requests;
+CREATE POLICY "admin reads app_store_report_requests" ON app_store_report_requests FOR SELECT
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+
 -- Every run, success or failure, so a broken sync is visible.
 CREATE TABLE IF NOT EXISTS app_store_sync_runs (
   id      bigserial PRIMARY KEY,
@@ -120,8 +134,9 @@ SELECT cron.schedule('herenow-app-store-sync', '20 */6 * * *', 'SELECT app_store
 
 -- ── 4. Dashboard: App Store numbers for the selected range ───────────────────
 -- p_days NULL = all time, else the last p_days calendar days (Apple's dates).
--- latest_day is the newest day Apple has reported at all, so the dashboard can
--- say how far behind the numbers are.
+-- downloads_7d is always the last 7 days, for the headline card. latest_day is
+-- the newest day Apple has reported at all, so the dashboard can say how far
+-- behind the numbers are.
 CREATE OR REPLACE FUNCTION admin_app_store_overview(p_days int DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE result jsonb; since date;
@@ -155,6 +170,7 @@ BEGIN
     'first_downloads', (SELECT COALESCE(sum(first_downloads), 0) FROM d),
     'redownloads',     (SELECT COALESCE(sum(redownloads), 0) FROM d),
     'page_views',      (SELECT COALESCE(sum(page_views), 0) FROM d),
+    'downloads_7d',    (SELECT COALESCE(sum(first_downloads), 0) FROM app_store_daily WHERE day > current_date - 7),
     'sources',         (SELECT COALESCE(jsonb_agg(row_to_json(s) ORDER BY s.first_downloads DESC, s.page_views DESC, s.source), '[]'::jsonb)
                         FROM src s WHERE s.first_downloads + s.redownloads + s.page_views > 0),
     'latest_day',      (SELECT max(day) FROM app_store_daily),
