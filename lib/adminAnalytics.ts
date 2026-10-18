@@ -84,3 +84,31 @@ export async function fetchRetention(): Promise<Retention | null> {
   if (error) { console.warn('[analytics] retention:', error.message); return null }
   return data as Retention
 }
+
+// Daily numbers from Apple (supabase/app_store_daily.sql), synced by the
+// app-store-analytics Edge Function. Null until that SQL has been run.
+// first_downloads counts new people; redownloads are reinstalls. page_views is
+// every product page view, not unique people.
+export interface AppStoreSource {
+  source:          string
+  first_downloads: number
+  redownloads:     number
+  page_views:      number
+}
+
+export interface AppStoreOverview {
+  connected:       boolean        // at least one sync with Apple has succeeded
+  first_downloads: number
+  redownloads:     number
+  page_views:      number
+  sources:         AppStoreSource[]
+  latest_day:      string | null  // newest day Apple has reported, YYYY-MM-DD
+  last_sync_at:    string | null
+  last_error:      string | null  // set when the most recent sync failed
+}
+
+export async function fetchAppStoreOverview(days: number | null = null): Promise<AppStoreOverview | null> {
+  const { data, error } = await supabase.rpc('admin_app_store_overview', { p_days: days })
+  if (error) { console.warn('[analytics] app store:', error.message); return null }
+  return data as AppStoreOverview
+}

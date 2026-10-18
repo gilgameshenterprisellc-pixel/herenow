@@ -6,9 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import BackButton from '@/components/BackButton'
 import { placementLabel } from '@/lib/qr'
 import {
-  fetchPilotOverview, fetchVenuePerformance, fetchPlacementStats, fetchRetention,
-  type PilotOverview, type VenuePerformance, type PlacementStat, type Retention,
+  fetchPilotOverview, fetchVenuePerformance, fetchPlacementStats, fetchRetention, fetchAppStoreOverview,
+  type PilotOverview, type VenuePerformance, type PlacementStat, type Retention, type AppStoreOverview,
 } from '@/lib/adminAnalytics'
+import { appStoreNote } from '@/lib/appStoreNote'
 
 const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0)
 
@@ -25,18 +26,21 @@ export default function AdminAnalytics() {
   const [venues, setVenues]       = useState<VenuePerformance[]>([])
   const [placements, setPlacements] = useState<PlacementStat[]>([])
   const [retention, setRetention]   = useState<Retention | null>(null)
+  const [appStore, setAppStore]     = useState<AppStoreOverview | null>(null)
   const [loading, setLoading]     = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [days, setDays]           = useState<number | null>(null)  // null = all time
 
   const load = useCallback(async () => {
-    const [o, v, p, r] = await Promise.all([
+    const [o, v, p, r, a] = await Promise.all([
       fetchPilotOverview(days), fetchVenuePerformance(days), fetchPlacementStats(days), fetchRetention(),
+      fetchAppStoreOverview(days),
     ])
     setOverview(o)
     setVenues(v)
     setPlacements(p)
     setRetention(r)
+    setAppStore(a)
     setLoading(false)
     setRefreshing(false)
   }, [days])
@@ -93,7 +97,11 @@ export default function AdminAnalytics() {
           <Text style={styles.section}>Funnel</Text>
           <View style={styles.panel}>
             {funnelRow('QR scans', o?.total_scans ?? 0, null)}
-            <Text style={styles.funnelNote}>App Store page views and downloads only reach Apple: see App Store Connect, Analytics. So the funnel picks up again at account creation.</Text>
+            {appStore?.connected && funnelRow('App Store page views', appStore.page_views, null)}
+            {appStore?.connected && funnelRow('App Store downloads', appStore.first_downloads, null)}
+            {appStoreNote(appStore).map((line) => (
+              <Text key={line} style={[styles.funnelNote, line.includes('sync failed') && styles.funnelWarn]}>{line}</Text>
+            ))}
             {funnelRow('Accounts created', o?.total_accounts ?? 0, null)}
             {funnelRow('Profile completed', o?.profiles_completed ?? 0, pct(o?.profiles_completed ?? 0, o?.total_accounts ?? 0))}
             {funnelRow('Checked in (activated)', o?.checked_in_users ?? 0, pct(o?.checked_in_users ?? 0, o?.total_accounts ?? 0))}
@@ -133,8 +141,10 @@ export default function AdminAnalytics() {
             <Text style={styles.funnelNote}>
               Only codes made in Admin, QR codes are counted. A QR that links straight to the
               App Store, like the launch flyer, opens Apple's page without passing through
-              HereNow. Its scans can't be counted here, but the downloads it drives show up in
-              App Store Connect, under Analytics.
+              HereNow. Its scans can't be counted here, but the downloads it drives
+              {appStore?.connected
+                ? ' are in the App Store rows of the funnel above.'
+                : ' show up in App Store Connect, under Analytics.'}
             </Text>
           </View>
 
@@ -250,6 +260,7 @@ const styles = StyleSheet.create({
   funnelCount: { color: '#f8fafc', fontSize: 15, fontWeight: '700' },
   funnelPct: { color: '#29B6F6', fontSize: 13, fontWeight: '700', minWidth: 42, textAlign: 'right' },
   funnelNote: { color: '#5b7089', fontSize: 11, paddingHorizontal: 10, paddingVertical: 6, lineHeight: 15 },
+  funnelWarn: { color: '#F59E0B' },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#0A1626' },
   rowLabel: { color: '#cde0f0', fontSize: 14 },
   rowValue: { color: '#29B6F6', fontSize: 14, fontWeight: '700' },
