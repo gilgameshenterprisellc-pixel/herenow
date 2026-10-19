@@ -34,6 +34,8 @@ import { reportUser, reportContent, type ReportReason, type ContentReportReason 
 import { blockUser, fetchBlockedIds } from '@/lib/blocks'
 import { publicName } from '@/lib/format'
 import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
+import LiveContestCard from '@/components/LiveContestCard'
+import { useVenueContests } from '@/hooks/useContestBoard'
 import { openDirections } from '@/lib/directions'
 import { successBuzz } from '@/lib/haptics'
 import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFoundingBadge, BADGE_ICON_BY_SLUG, badgeInfo, type VenueBadge } from '@/lib/venueBadges'
@@ -118,6 +120,9 @@ export default function ZoneScreen() {
 
   // Chat
   const { messages: chatMsgs, refresh: refreshChat } = useVenueChat(id)
+  // Live contests here (a bull night, darts...). The card shows to anyone
+  // looking at the venue; the database decides which contests they may see.
+  const { contests: liveContests } = useVenueContests(id)
   const [chatInput, setChatInput] = useState('')
   const [sendingChat, setSendingChat] = useState(false)
   const chatListRef = useRef<FlatList>(null)
@@ -1110,6 +1115,8 @@ export default function ZoneScreen() {
           ) : null}
         </View>
       )}
+
+      {liveContests.map((c) => <LiveContestCard key={c.id} contest={c} />)}
 
       {/* (Badges / highlights / gallery / submit-photo moved into the Pulse feed
           header — see `venueInfo` — so they scroll instead of squeezing the tabs.) */}

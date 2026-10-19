@@ -231,6 +231,14 @@ export default function OrganizationScreen() {
                     <Text style={styles.eventBtnText}>＋ Event</Text>
                   </TouchableOpacity>
                 )}
+                {org.host_zone_id && (
+                  <TouchableOpacity
+                    style={styles.eventBtn}
+                    onPress={() => router.push(`/contest/manage?orgId=${org.id}` as any)}
+                  >
+                    <Text style={styles.eventBtnText}>Contests</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}
