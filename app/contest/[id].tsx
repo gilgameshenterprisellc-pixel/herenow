@@ -171,6 +171,7 @@ export default function ContestScreen() {
           </View>
         </View>
 
+        <View style={styles.column}>
         {error ? (
           <View style={styles.staleBar}>
             <Ionicons name="cloud-offline-outline" size={14} color="#F5B700" />
@@ -280,6 +281,7 @@ export default function ContestScreen() {
           <Text style={styles.rulesBtnText}>{c.prizes ? 'Prizes and official rules' : 'Official rules'}</Text>
           <Ionicons name="chevron-forward" size={16} color="#4A6580" />
         </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {board.role ? (
@@ -515,7 +517,12 @@ const styles = StyleSheet.create({
     paddingLeft: 6, paddingRight: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
   },
   statusPillText: { fontSize: 12, fontWeight: '900', letterSpacing: 1.4 },
-  heroBottom: { paddingHorizontal: 20, paddingTop: 110, paddingBottom: 20, gap: 6 },
+  heroBottom: {
+    paddingHorizontal: 20, paddingTop: 110, paddingBottom: 20, gap: 6,
+    ...Platform.select({ web: { maxWidth: 640, width: '100%', alignSelf: 'center' } as any, default: {} }),
+  },
+  // Everything under the hero: a centered column on a laptop, full width on a phone.
+  column: Platform.select({ web: { maxWidth: 640, width: '100%', alignSelf: 'center' } as any, default: {} }),
   presentedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   presentedLogo: { width: 28, height: 28, borderRadius: 6 },
   presentedText: { fontSize: 11, fontWeight: '800', color: '#CBD5E1', letterSpacing: 1.6, flexShrink: 1 },
@@ -608,10 +615,12 @@ const styles = StyleSheet.create({
     position: 'absolute', left: 0, right: 0, bottom: 0,
     flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12,
     backgroundColor: 'rgba(5,10,21,0.96)', borderTopWidth: 1, borderTopColor: '#0D1B2E',
+    ...Platform.select({ web: { justifyContent: 'center' } as any, default: {} }),
   },
   opsPrimary: {
     flex: 1, height: 50, borderRadius: 14, flexDirection: 'row', gap: 8,
     alignItems: 'center', justifyContent: 'center',
+    ...Platform.select({ web: { maxWidth: 520 } as any, default: {} }),
   },
   opsPrimaryText: { fontSize: 15, fontWeight: '900' },
   opsSecondary: {
