@@ -29,11 +29,13 @@ WHERE z.name = 'The Lantern Room'
     SELECT 1 FROM contests c WHERE c.zone_id = z.id AND c.title = 'Mechanical Bull Showdown'
   );
 
+-- Found by email, the same way apple_demo_account.sql finds it.
 INSERT INTO contest_operators (contest_id, user_id)
 SELECT c.id, p.id
 FROM contests c
 JOIN zones z ON z.id = c.zone_id AND z.name = 'The Lantern Room'
-JOIN profiles p ON p.username = 'herenow_demo'
+JOIN auth.users u ON u.email = 'herenowdemo@gmail.com'
+JOIN profiles p ON p.id = u.id
 WHERE c.title = 'Mechanical Bull Showdown'
 ON CONFLICT (contest_id, user_id) DO NOTHING;
 
