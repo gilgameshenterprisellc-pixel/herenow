@@ -3,8 +3,9 @@
 --
 -- App Review has to be able to reach the contest screens, so the reviewer
 -- needs a contest that is live with signups open at the venue the demo
--- account checks into. The demo account is also made an operator, so the
--- reviewer can see the console that runs it.
+-- account checks into: The Lantern Room (the seeded demo zone, renamed from
+-- "HereNow Demo (Apple Park)"; see apple_demo_account.sql). The demo account
+-- is also made an operator, so the reviewer can see the console that runs it.
 --
 -- Runs in the SQL editor as the database owner, which is why it can insert
 -- directly; the app itself only ever goes through the contest_* functions.
@@ -23,16 +24,18 @@ SELECT
   'Sign up while checked in at the venue. The host calls riders up in the order they signed up and times each ride; the longest ride wins. Riders must sign the venue''s waiver before riding. The host may skip anyone not present when called and may remove anyone at their discretion.',
   'live', true, true
 FROM zones z
-WHERE z.name = 'HereNow Demo (Apple Park)'
+WHERE z.name = 'The Lantern Room'
   AND NOT EXISTS (
     SELECT 1 FROM contests c WHERE c.zone_id = z.id AND c.title = 'Mechanical Bull Showdown'
   );
 
+-- Found by email, the same way apple_demo_account.sql finds it.
 INSERT INTO contest_operators (contest_id, user_id)
 SELECT c.id, p.id
 FROM contests c
-JOIN zones z ON z.id = c.zone_id AND z.name = 'HereNow Demo (Apple Park)'
-JOIN profiles p ON p.username = 'herenow_demo'
+JOIN zones z ON z.id = c.zone_id AND z.name = 'The Lantern Room'
+JOIN auth.users u ON u.email = 'herenowdemo@gmail.com'
+JOIN profiles p ON p.id = u.id
 WHERE c.title = 'Mechanical Bull Showdown'
 ON CONFLICT (contest_id, user_id) DO NOTHING;
 
@@ -40,13 +43,13 @@ ON CONFLICT (contest_id, user_id) DO NOTHING;
 SELECT c.title, c.status, c.signups_open, c.venue_approved,
        (SELECT count(*) FROM contest_operators o WHERE o.contest_id = c.id) AS operators
 FROM contests c JOIN zones z ON z.id = c.zone_id
-WHERE z.name = 'HereNow Demo (Apple Park)';
+WHERE z.name = 'The Lantern Room';
 
 -- ── App Review notes (add to Review Information with the build) ───────────────
 -- Live contests: a venue (or a brand it approves) can run a contest such as a
 -- mechanical bull night. People checked in at the venue sign up in the app and
 -- watch a live leaderboard; the host runs it from an operator screen.
---   1. Sign in with the demo account and check in at HereNow Demo (Apple Park).
+--   1. Sign in with the demo account and check in at The Lantern Room.
 --   2. On the venue page, tap the "Mechanical Bull Showdown" card at the top.
 --   3. Tap "Sign me up". You join the line and appear on the leaderboard after
 --      a score is recorded.
