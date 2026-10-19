@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, Easing, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import type { Contest } from '@/lib/contests'
@@ -97,6 +97,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A1424', overflow: 'hidden',
     shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
     elevation: 4,
+    // On a wide screen, sit in the venue page's centered 560px column (its
+    // 16px padding included) instead of stretching edge to edge.
+    ...Platform.select({
+      web: { width: 'calc(100% - 32px)', maxWidth: 528, alignSelf: 'center' } as any,
+      default: {},
+    }),
   },
   glow: { ...StyleSheet.absoluteFillObject },
   logo: { width: 44, height: 44, borderRadius: 12 },
