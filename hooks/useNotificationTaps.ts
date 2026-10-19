@@ -42,6 +42,9 @@ export function useNotificationTaps() {
         } else if (data.type === 'org_announcement' && data.org_id) {
           // Organization announcement — open the org page.
           router.push(`/org/${data.org_id}` as any)
+        } else if (typeof data.type === 'string' && data.type.startsWith('contest_') && data.contest_id) {
+          // "You're up" / "You're on deck" — open the contest, not the venue.
+          router.push(`/contest/${data.contest_id}` as any)
         } else if (data.we_met_id) {
           router.push('/we-met' as any)
         } else if (data.zone_id) {

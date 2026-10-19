@@ -155,6 +155,10 @@ function RootLayout() {
           <Stack.Screen name="venue/announcements" />
           <Stack.Screen name="venue/submit" />
           <Stack.Screen name="my-venues" />
+          <Stack.Screen name="contest/[id]" />
+          <Stack.Screen name="contest/run/[id]" />
+          <Stack.Screen name="contest/edit" />
+          <Stack.Screen name="contest/manage" />
           <Stack.Screen name="admin" />
         </Stack>
         <ConsentGate />

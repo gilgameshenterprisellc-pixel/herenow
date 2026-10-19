@@ -210,6 +210,8 @@ export default function UpdatesScreen() {
       router.push(`/messages/${d.we_met_id}` as any)
     } else if (n.type === 'badge_earned') {
       router.push('/badges')
+    } else if (n.type.startsWith('contest_') && d?.contest_id) {
+      router.push(`/contest/${d.contest_id}` as any)
     } else if (d?.zone_id) {
       router.push(`/zone/${d.zone_id}`)
     }

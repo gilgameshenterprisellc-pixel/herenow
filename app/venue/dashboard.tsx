@@ -1429,6 +1429,10 @@ export default function VenueDashboard() {
             <Ionicons name={UI.board} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>The Board</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard} onPress={() => venue && router.push(`/contest/manage?zoneId=${venue.id}` as any)}>
+            <Ionicons name="trophy-outline" size={24} color="#29B6F6" style={styles.actionEmoji} />
+            <Text style={styles.actionLabel}>Contests</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/highlights' as any)}>
             <Ionicons name={UI.highlights} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Highlights</Text>
