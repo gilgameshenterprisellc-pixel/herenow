@@ -142,8 +142,8 @@ export default function RunContestScreen() {
       const s = screenText(text)
       if (!s.ok) { showToast(blockedMessage(s.category), 'error'); return }
     }
-    const ok = await run('ticker', () => setTicker(c.id, text), text ? 'Posted' : 'Cleared')
-    if (ok) setTickerText(null)
+    const ok = await run('ticker', () => setTicker(c.id, text), text ? 'Posted to everyone' : 'Taken down')
+    if (ok) setTickerText('')
   }
 
   const lineMenu = (entryId: string, name: string | null) => setSheet({
@@ -345,22 +345,37 @@ export default function RunContestScreen() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Announcement</Text>
             <Text style={styles.cardBody}>One line at the top of everyone's screen.</Text>
+            {/* What people see right now, so posting has visible proof it worked. */}
+            {c.ticker ? (
+              <View style={[styles.liveTicker, { borderLeftColor: accent }]}>
+                <Text style={[styles.liveTickerLabel, { color: accent }]}>ON SCREENS NOW</Text>
+                <Text style={styles.liveTickerText}>{c.ticker}</Text>
+              </View>
+            ) : (
+              <Text style={styles.cardBody}>Nothing posted right now.</Text>
+            )}
             <TextInput
               style={styles.input}
-              value={tickerText ?? c.ticker ?? ''}
+              value={tickerText ?? ''}
               onChangeText={setTickerText}
-              placeholder="Back in 10 minutes"
+              placeholder={c.ticker ? 'Replace it with something new' : 'Back in 10 minutes'}
               placeholderTextColor="#4A6580"
               maxLength={140}
+              returnKeyType="send"
+              onSubmitEditing={() => { if ((tickerText ?? '').trim()) postTicker((tickerText ?? '').trim()) }}
             />
             <View style={styles.row2}>
-              <TouchableOpacity style={[styles.ghostBtn, { borderColor: withAlpha(accent, 0.6) }]} disabled={!!busy || tickerText === null}
+              <TouchableOpacity
+                style={[styles.ghostBtn, { borderColor: withAlpha(accent, 0.6) }, (!!busy || !(tickerText ?? '').trim()) && styles.dim]}
+                disabled={!!busy || !(tickerText ?? '').trim()}
                 onPress={() => postTicker((tickerText ?? '').trim())}>
                 <Text style={[styles.ghostBtnText, { color: accent }]}>Post</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.ghostBtn} disabled={!!busy || !c.ticker}
+              <TouchableOpacity
+                style={[styles.ghostBtn, (!!busy || !c.ticker) && styles.dim]}
+                disabled={!!busy || !c.ticker}
                 onPress={() => postTicker('')}>
-                <Text style={styles.ghostBtnText}>Clear</Text>
+                <Text style={styles.ghostBtnText}>Take it down</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -521,6 +536,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#07101F',
   },
   ghostBtnText: { fontSize: 14, fontWeight: '800', color: '#CBD5E1' },
+  dim: { opacity: 0.4 },
+  liveTicker: {
+    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, gap: 2,
+    backgroundColor: '#07101F', borderLeftWidth: 3,
+  },
+  liveTickerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  liveTickerText: { fontSize: 15, fontWeight: '700', color: '#F8FAFC' },
   input: {
     backgroundColor: '#07101F', borderRadius: 10, padding: 12, minHeight: 46,
     color: '#F8FAFC', fontSize: 15, borderWidth: 1, borderColor: '#1A2E4A',
