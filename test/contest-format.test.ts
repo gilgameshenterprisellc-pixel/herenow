@@ -115,6 +115,9 @@ test('a saved contest maps back to its scoring preset', () => {
 test('database errors become something a person can act on', () => {
   assert.equal(contestErrorMessage('not_checked_in'), 'Check in here to sign up.')
   assert.equal(contestErrorMessage('ERROR: full'), 'This contest is full.')
+  // A longer code that starts with a shorter one gets its own message.
+  assert.match(contestErrorMessage('cannot_score_self'), /your own turn/)
+  assert.match(contestErrorMessage('cannot_score'), /isn't in the contest/)
   assert.match(contestErrorMessage('new row violates check constraint "contests_title_len"'), /too long/)
   assert.match(contestErrorMessage('TypeError: Network request failed'), /connection/)
   assert.equal(contestErrorMessage(undefined), 'Something went wrong. Try again.')
