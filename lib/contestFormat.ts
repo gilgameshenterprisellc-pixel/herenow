@@ -188,6 +188,7 @@ const ERRORS: Record<string, string> = {
   cannot_call:      "That person can't be called up right now.",
   cannot_score:     "That person isn't in the contest anymore.",
   no_attempts_left: 'They have used all their attempts. Void one to give a re-do.',
+  cannot_score_self: "You can't score your own turn. Another operator has to.",
   bad_score:        "That score doesn't look like a number.",
   not_open:         "This contest isn't taking signups.",
   signups_closed:   'Signups are closed right now.',

@@ -146,7 +146,13 @@ export default function RunContestScreen() {
     if (ok) setTickerText('')
   }
 
-  const lineMenu = (entryId: string, name: string | null) => setSheet({
+  // Your own entry (an operator who signed up too) only gets "Call up". Leaving
+  // happens from the contest screen, and nobody removes or skips themselves.
+  const lineMenu = (entryId: string, name: string | null, isMe = false) => setSheet(isMe ? {
+    title: 'You',
+    message: 'To leave the line, use Leave on the contest screen.',
+    options: [{ label: 'Call up now', onPress: () => onCall(entryId) }],
+  } : {
     title: name ?? 'Entrant',
     options: [
       { label: 'Call up now', onPress: () => onCall(entryId) },
@@ -157,7 +163,11 @@ export default function RunContestScreen() {
     ],
   })
 
-  const resultMenu = (entryId: string, name: string | null) => {
+  const resultMenu = (entryId: string, name: string | null, isMe = false) => {
+    if (isMe) {
+      showToast("You can't fix or void your own score. Another operator has to.", 'info')
+      return
+    }
     const attempts = attemptsByEntry.get(entryId) ?? []
     setSheet({
       title: name ?? 'Entrant',
@@ -291,6 +301,9 @@ export default function RunContestScreen() {
               {c.attempts_per_entry > 1 ? (
                 <Text style={styles.cardBody}>Attempt {nowUp.attempts_used + 1} of {c.attempts_per_entry}</Text>
               ) : null}
+              {nowUp.is_me ? (
+                <Text style={styles.selfNote}>It's your turn, so another operator has to record your score.</Text>
+              ) : (<>
               <Text style={styles.inputLabel}>{c.score_label}</Text>
               <TextInput
                 style={[styles.scoreInput, { borderColor: parsed === null && scoreText ? '#F43F5E' : withAlpha(accent, 0.6) }]}
@@ -310,11 +323,14 @@ export default function RunContestScreen() {
                 {busy === 'score' ? <ActivityIndicator color={onAccent} /> :
                   <Text style={[styles.bigBtnText, { color: onAccent }]}>Record score</Text>}
               </TouchableOpacity>
+              </>)}
               <View style={styles.row2}>
+                {!nowUp.is_me ? (
                 <TouchableOpacity style={styles.ghostBtn} disabled={!!busy}
                   onPress={() => run('entry', () => setEntryStatus(nowUp.entry_id, 'no_show'))}>
                   <Text style={styles.ghostBtnText}>No-show</Text>
                 </TouchableOpacity>
+                ) : null}
                 <TouchableOpacity style={styles.ghostBtn} disabled={!!busy}
                   onPress={() => run('entry', () => setEntryStatus(nowUp.entry_id, 'waiting'))}>
                   <Text style={styles.ghostBtnText}>Back to line</Text>
@@ -388,15 +404,17 @@ export default function RunContestScreen() {
         ) : board.line.filter((l) => l.status === 'waiting').map((l) => (
           <View key={l.entry_id} style={styles.listRow}>
             <Text style={styles.pos}>{l.position}</Text>
-            <Text style={styles.listName} numberOfLines={1}>{l.name ?? 'Entrant'}</Text>
+            <Text style={styles.listName} numberOfLines={1}>{l.is_me ? `${l.name ?? 'You'} (you)` : (l.name ?? 'Entrant')}</Text>
             {c.attempts_per_entry > 1 && l.attempts_used > 0 ? (
               <Text style={styles.listSub}>{l.attempts_used}/{c.attempts_per_entry}</Text>
             ) : null}
             <TouchableOpacity style={[styles.chipBtn, { borderColor: withAlpha(accent, 0.6) }]}
-              disabled={!!busy || hidden || isDraft || c.status === 'ended'} onPress={() => onCall(l.entry_id)}>
+              disabled={!!busy || hidden || isDraft || c.status === 'ended'} onPress={() => onCall(l.entry_id)}
+              accessibilityRole="button" accessibilityLabel={`Call up ${l.is_me ? 'yourself' : (l.name ?? 'this entrant')}`}>
               <Text style={[styles.chipBtnText, { color: accent }]}>Call</Text>
             </TouchableOpacity>
-            <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => lineMenu(l.entry_id, l.name)}>
+            <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => lineMenu(l.entry_id, l.name, l.is_me)}
+              accessibilityRole="button" accessibilityLabel={`More options for ${l.is_me ? 'you' : (l.name ?? 'this entrant')}`}>
               <Ionicons name="ellipsis-horizontal" size={20} color="#8EADC7" />
             </TouchableOpacity>
           </View>
@@ -410,12 +428,13 @@ export default function RunContestScreen() {
               <View key={s.entry_id} style={styles.listRow}>
                 <Text style={[styles.listName, { color: '#8EADC7' }]} numberOfLines={1}>{s.name}</Text>
                 <Text style={styles.listSub}>{s.status === 'no_show' ? 'No-show' : 'Removed'}</Text>
-                {s.status === 'no_show' ? (
-                  <TouchableOpacity style={styles.chipBtn} disabled={!!busy}
-                    onPress={() => run('entry', () => setEntryStatus(s.entry_id, 'waiting'), 'Back in line')}>
-                    <Text style={styles.chipBtnText}>Back in line</Text>
-                  </TouchableOpacity>
-                ) : null}
+                <TouchableOpacity style={styles.chipBtn} disabled={!!busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={s.status === 'no_show' ? `Put ${s.name} back in line` : `Restore ${s.name} to the contest`}
+                  onPress={() => run('entry', () => setEntryStatus(s.entry_id, 'waiting'),
+                    s.status === 'no_show' ? 'Back in line' : 'Restored')}>
+                  <Text style={styles.chipBtnText}>{s.status === 'no_show' ? 'Back in line' : 'Restore'}</Text>
+                </TouchableOpacity>
               </View>
             ))}
           </>
@@ -426,9 +445,10 @@ export default function RunContestScreen() {
         {board.leaderboard.length === 0 ? (
           <Text style={styles.empty}>No scores yet.</Text>
         ) : board.leaderboard.map((r) => (
-          <TouchableOpacity key={r.entry_id} style={styles.listRow} onPress={() => resultMenu(r.entry_id, r.name)}>
+          <TouchableOpacity key={r.entry_id} style={styles.listRow} onPress={() => resultMenu(r.entry_id, r.name, r.is_me)}
+            accessibilityRole="button" accessibilityLabel={`${r.is_me ? 'Your score' : (r.name ?? 'Entrant')}, ${fmt(r.best_score)}. Fix or void.`}>
             <Text style={styles.pos}>{r.rank}</Text>
-            <Text style={styles.listName} numberOfLines={1}>{r.name ?? 'Entrant'}</Text>
+            <Text style={styles.listName} numberOfLines={1}>{r.is_me ? `${r.name ?? 'You'} (you)` : (r.name ?? 'Entrant')}</Text>
             <Text style={[styles.listScore, r.rank === 1 && { color: accent }]}>{fmt(r.best_score)}</Text>
           </TouchableOpacity>
         ))}
@@ -528,6 +548,7 @@ const styles = StyleSheet.create({
     textAlign: 'center', fontVariant: ['tabular-nums'],
   },
   previewText: { fontSize: 13, color: '#8EADC7', textAlign: 'center' },
+  selfNote: { fontSize: 14, color: '#F5B700', lineHeight: 20, paddingVertical: 6 },
   bigBtn: { height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   bigBtnText: { fontSize: 17, fontWeight: '900' },
   row2: { flexDirection: 'row', gap: 10 },

@@ -377,7 +377,8 @@ export default function EditContestScreen() {
                 <Text style={styles.opName} numberOfLines={1}>
                   {op.display_name ?? op.username}{op.username ? <Text style={styles.opUser}>  @{op.username}</Text> : null}
                 </Text>
-                <TouchableOpacity onPress={() => onRemoveOperator(op)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={() => onRemoveOperator(op)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button" accessibilityLabel={`Remove ${op.display_name ?? op.username} as an operator`}>
                   <Ionicons name="close" size={20} color="#7A93AC" />
                 </TouchableOpacity>
               </View>

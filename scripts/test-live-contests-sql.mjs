@@ -367,3 +367,46 @@ test('admin can create at any venue and approve', async () => {
   assert.equal((await db.query(`SELECT venue_approved FROM contests WHERE id=$1`, [c])).rows[0].venue_approved, true)
   assert.equal((await board('admin', c)).role, 'manager')
 })
+
+test('operators in their own contest: no self-scoring, and removing yourself is leaving', async () => {
+  const c3 = await rpc('venue', 'contest_save', { p_contest: null, p_zone: ids.zone, p_org: null,
+    p: { title: 'Staff Night', score_decimals: 0, status: 'scheduled' } })
+  await rpc('venue', 'contest_set_signups', { p_contest: c3, p_open: true })
+  for (const u of ['staff', 'u1']) await rpc('venue', 'contest_add_operator', { p_contest: c3, p_username: u })
+  await checkIn('staff', ids.zone)
+  await db.query(`UPDATE sessions SET is_active = true, checked_out_at = NULL WHERE user_id = $1`, [uid('u1')])
+  for (const u of ['staff', 'u1', 'u2']) await rpc(u, 'contest_join', { p_contest: c3 })
+
+  const called = await rpc('venue', 'contest_call', { p_contest: c3 })
+  assert.equal(called.called.user_id, uid('staff'))
+  const staffEntry = called.called.entry_id
+  // Staff can't score their own turn; the venue owner can.
+  await rejects(rpc('staff', 'contest_record_score', { p_contest: c3, p_entry: staffEntry, p_score: 12 }), 'cannot_score_self')
+  await rpc('venue', 'contest_record_score', { p_contest: c3, p_entry: staffEntry, p_score: 12 })
+  const attempt = (await board('venue', c3)).ops.attempts.find((a) => a.entry_id === staffEntry)
+  await rejects(rpc('staff', 'contest_edit_attempt', { p_attempt: attempt.id, p_score: 99 }), 'cannot_score_self')
+  await rejects(rpc('staff', 'contest_void_attempt', { p_attempt: attempt.id }), 'cannot_score_self')
+  // Staff can still score someone else.
+  const call2 = await rpc('staff', 'contest_call', { p_contest: c3 })
+  assert.equal(call2.called.user_id, uid('u1'))
+
+  // u1, an operator, "removes" their own entry from the console: that's leaving,
+  // not being removed, so they can sign up again.
+  await rpc('u1', 'contest_set_entry_status', { p_entry: call2.called.entry_id, p_status: 'removed' })
+  assert.equal((await board('u1', c3)).me.status, 'withdrawn')
+  await rpc('u1', 'contest_join', { p_contest: c3 })
+  assert.equal((await board('u1', c3)).me.status, 'waiting')
+  // Staff removing themselves after scoring keeps the score on the board.
+  await rpc('staff', 'contest_set_entry_status', { p_entry: staffEntry, p_status: 'removed' })
+  const sb = await board('staff', c3)
+  assert.equal(sb.me.status, 'done')
+  assert.equal(Number(sb.me.best_score), 12)
+
+  // Someone else removing you is a removal, and an operator can undo it.
+  const u2entry = (await board('u2', c3)).me.entry_id
+  await rpc('staff', 'contest_set_entry_status', { p_entry: u2entry, p_status: 'removed' })
+  assert.equal((await board('u2', c3)).me.status, 'removed')
+  await rejects(rpc('u2', 'contest_join', { p_contest: c3 }), 'removed')
+  await rpc('staff', 'contest_set_entry_status', { p_entry: u2entry, p_status: 'waiting' })
+  assert.equal((await board('u2', c3)).me.status, 'waiting')
+})

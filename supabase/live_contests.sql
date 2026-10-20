@@ -506,6 +506,9 @@ BEGIN
   IF v_c.status IN ('draft','hidden') THEN RAISE EXCEPTION 'not_running'; END IF;
   SELECT * INTO v_e FROM contest_entries WHERE id = p_entry AND contest_id = p_contest FOR UPDATE;
   IF v_e.id IS NULL OR v_e.status IN ('withdrawn','removed') THEN RAISE EXCEPTION 'cannot_score'; END IF;
+  -- An operator who is also in the contest can't score, fix or void their own
+  -- turn; another operator has to. Prizes ride on this.
+  IF v_e.user_id = auth.uid() THEN RAISE EXCEPTION 'cannot_score_self'; END IF;
   IF v_e.attempts_used >= v_c.attempts_per_entry THEN RAISE EXCEPTION 'no_attempts_left'; END IF;
 
   INSERT INTO contest_attempts (contest_id, entry_id, score, recorded_by)
@@ -538,6 +541,9 @@ DECLARE v_a contest_attempts%ROWTYPE; v_dec int;
 BEGIN
   SELECT * INTO v_a FROM contest_attempts WHERE id = p_attempt;
   IF v_a.id IS NULL OR NOT contest_can_operate(v_a.contest_id) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+  IF EXISTS (SELECT 1 FROM contest_entries WHERE id = v_a.entry_id AND user_id = auth.uid()) THEN
+    RAISE EXCEPTION 'cannot_score_self';
+  END IF;
   IF p_score IS NULL OR p_score = 'NaN'::numeric OR abs(p_score) >= 100000000000 THEN
     RAISE EXCEPTION 'bad_score';
   END IF;
@@ -555,6 +561,9 @@ DECLARE v_a contest_attempts%ROWTYPE; v_cap int; v_e contest_entries%ROWTYPE;
 BEGIN
   SELECT * INTO v_a FROM contest_attempts WHERE id = p_attempt;
   IF v_a.id IS NULL OR NOT contest_can_operate(v_a.contest_id) THEN RAISE EXCEPTION 'not_allowed'; END IF;
+  IF EXISTS (SELECT 1 FROM contest_entries WHERE id = v_a.entry_id AND user_id = auth.uid()) THEN
+    RAISE EXCEPTION 'cannot_score_self';
+  END IF;
   PERFORM 1 FROM contests WHERE id = v_a.contest_id FOR UPDATE;
   UPDATE contest_attempts SET voided = true, updated_at = now() WHERE id = p_attempt;
   PERFORM contest_recompute_entry(v_a.entry_id);
@@ -585,6 +594,15 @@ BEGIN
     -- Back in line only makes sense with an attempt left; otherwise they're done.
     UPDATE contest_entries
     SET status = CASE WHEN attempts_used >= v_cap THEN 'done' ELSE 'waiting' END,
+        updated_at = now()
+    WHERE id = p_entry;
+  ELSIF v_e.user_id = auth.uid() THEN
+    -- An operator who is also in the contest, skipping or removing their own
+    -- entry, is leaving the line. Same as contest_withdraw: a score already on
+    -- the board stays, and they can sign up again. "Removed" is only ever
+    -- something another person did to you.
+    UPDATE contest_entries
+    SET status = CASE WHEN attempts_used > 0 THEN 'done' ELSE 'withdrawn' END,
         updated_at = now()
     WHERE id = p_entry;
   ELSE

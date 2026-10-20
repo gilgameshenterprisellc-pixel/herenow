@@ -220,7 +220,9 @@ export default function ContestScreen() {
         {board.can_view ? (
           <>
             <View style={styles.segment}>
-              {([['board', `Leaderboard`], ['line', `Line${board.line.length ? ` · ${board.line.length}` : ''}`]] as const).map(([k, label]) => (
+              {([['board', `Leaderboard`], ['line', `Line${board.line.length ? ` · ${board.line.length}` : ''}`]] as const)
+                .filter(([k]) => k === 'board' || c.status !== 'ended')
+                .map(([k, label]) => (
                 <TouchableOpacity
                   key={k}
                   style={[styles.segmentItem, tab === k && { backgroundColor: withAlpha(accent, 0.16), borderColor: withAlpha(accent, 0.5) }]}
@@ -231,10 +233,12 @@ export default function ContestScreen() {
               ))}
             </View>
 
-            {tab === 'board' ? (
+            {tab === 'board' || c.status === 'ended' ? (
               <View style={styles.list}>
                 {board.leaderboard.length === 0 ? (
-                  <Text style={styles.empty}>No scores yet. The first one up sets the bar.</Text>
+                  <Text style={styles.empty}>
+                    {c.status === 'ended' ? 'No scores were recorded.' : 'No scores yet. The first one up sets the bar.'}
+                  </Text>
                 ) : board.leaderboard.map((r) => (
                   <Reanimated.View key={r.entry_id} layout={LinearTransition.duration(280)} entering={FadeIn}
                     style={[styles.row, r.is_me && { borderColor: withAlpha(accent, 0.6), backgroundColor: withAlpha(accent, 0.08) }]}>
@@ -375,6 +379,22 @@ function MyPanel({ board, myName, busy, accent, onAccent, fmt, onJoin, onLeave }
             <Text style={[styles.smallBtnText, { color: onAccent }]}>Check in</Text>
           </TouchableOpacity>
         ) : null}
+      </View>
+    )
+  }
+
+  if (me && c.status === 'ended' && (me.status === 'waiting' || me.status === 'up' || me.status === 'no_show')) {
+    return (
+      <View style={styles.panel}>
+        <Ionicons name="flag-outline" size={22} color={accent} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={styles.panelTitle}>This contest has ended</Text>
+          <Text style={styles.panelBody}>
+            {me.best_score !== null
+              ? `Your best: ${fmt(me.best_score)}${me.rank ? `, ${ordinal(me.rank)} place` : ''}.`
+              : 'It ended before your turn. Thanks for signing up.'}
+          </Text>
+        </View>
       </View>
     )
   }
