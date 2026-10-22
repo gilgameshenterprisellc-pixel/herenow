@@ -10,7 +10,7 @@ import { CONSENT_DOCS, recordConsent } from '@/lib/consent'
 import { Link, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { screenText, blockedMessage } from '@/lib/textModeration'
-import { geocodeAddress, fetchBuildingPolygon, AUTO_APPROVE_THRESHOLD } from '@/lib/geocoding'
+import { geocodeAddress } from '@/lib/geocoding'
 
 type Mode = 'person' | 'venue'
 
@@ -190,7 +190,6 @@ export default function SignupScreen() {
       : username.toLowerCase().replace(/[^a-z0-9_]/g, '')
 
     const mappedType = venueType ? (VENUE_TYPE_MAP[venueType] ?? venueType.toLowerCase()) : 'venue'
-    const highConfidence = (coords?.confidence ?? 0) >= AUTO_APPROVE_THRESHOLD
 
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
@@ -198,8 +197,8 @@ export default function SignupScreen() {
       username: cleanUsername,
       phone: e164,
       is_venue_owner: isVenue,
-      // Always insert as pending — auto_approve_venue RPC sets it to approved atomically.
-      // This ensures no venue is ever marked approved without a zone existing.
+      // Every venue starts pending and stays pending until an admin approves it
+      // from /admin/venues. The geocoded pin below pre-fills that review form.
       venue_status: isVenue ? 'pending' : 'none',
       ...(isVenue ? {
         email:                    email.trim().toLowerCase(),
@@ -235,29 +234,11 @@ export default function SignupScreen() {
     // rather than recording the user as having agreed to something they never saw.
     void recordConsent(data.user.id)
 
-    // Auto-approve: Mapbox returned high-confidence coordinates — create the zone and
-    // flip venue_status to approved atomically inside the RPC.
-    // If the RPC fails, venue stays pending and falls to admin queue — no orphaned approvals.
-    // When Stripe is wired up, this same RPC gets called from the payment webhook instead.
-    if (isVenue && highConfidence && coords) {
-      // Fetch building polygon from OSM — precise footprint for check-in gating.
-      // Non-fatal: if OSM has no data, zone falls back to 75m circle.
-      const polygon = await fetchBuildingPolygon(coords.lat, coords.lng)
-
-      const { error: approveError } = await supabase.rpc('auto_approve_venue', {
-        p_profile_id:  data.user.id,
-        p_lat:         coords.lat,
-        p_lng:         coords.lng,
-        p_name:        venueName.trim(),
-        p_type:        mappedType,
-        p_radius:      10,
-        p_polygon_wkt: polygon?.wkt ?? null,
-      })
-      if (approveError) {
-        console.error('[signup] auto_approve_venue failed — venue stays pending:', approveError.message)
-      }
-    }
-
+    // No auto-approval. This used to call auto_approve_venue whenever Mapbox was
+    // confident about the address, which is nearly every real address: anyone
+    // who typed a bar's name and street got that bar, live, with no human ever
+    // looking. They could also claim an unowned pilot venue the same way.
+    // Approval is an admin decision now (supabase/venue_owner_vetting.sql).
     setLoading(false)
 
     if (isVenue) {
