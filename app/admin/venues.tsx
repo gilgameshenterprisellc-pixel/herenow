@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { sendNotification } from '@/lib/notifications'
 import { useToast } from '@/contexts/ToastContext'
 import { geocodeAddress, fetchBuildingPolygon, geocodeNominatim } from '@/lib/geocoding'
 import { PolygonDrawMap } from '@/components/PolygonDrawMap'
@@ -337,6 +338,14 @@ export default function AdminVenues() {
       if (error) {
         showToast(error.message ?? 'Approval failed. Try again.', 'error')
       } else {
+        // The pending screen promises the owner we'll tell them. Nothing did.
+        void sendNotification({
+          userId: venue.id,
+          type:   'venue_status',
+          title:  'Your venue is approved',
+          body:   `${form.zoneName.trim()} is live on HereNow. Open your dashboard to finish setting it up.`,
+          data:   { type: 'venue_status' },
+        }).catch(() => {})
         showToast(`${venue.display_name} is now live!`, 'success')
         load()
         setTab('live')
@@ -375,8 +384,26 @@ export default function AdminVenues() {
 
     const reasonText = denyPreset + (denyCustom.trim() ? `\n\n${denyCustom.trim()}` : '')
 
-    await supabase.rpc('admin_deny_venue', { p_profile_id: denyTarget.id })
-    await supabase.from('profiles').update({ denial_reason: reasonText }).eq('id', denyTarget.id)
+    // The reason is written inside the RPC. It used to be a separate client
+    // update of the applicant's profile, which RLS limits to your own row, so
+    // it changed nothing and the applicant saw no reason.
+    const { error } = await supabase.rpc('admin_deny_venue', {
+      p_profile_id: denyTarget.id,
+      p_reason:     reasonText,
+    })
+    if (error) {
+      setDenyingId(null)
+      showToast(error.message ?? 'Could not deny. Try again.', 'error')
+      return
+    }
+
+    void sendNotification({
+      userId: denyTarget.id,
+      type:   'venue_status',
+      title:  'Your venue application was not approved',
+      body:   'Open HereNow to see why and what to do next.',
+      data:   { type: 'venue_status' },
+    }).catch(() => {})
 
     setPending((prev) => prev.filter((v) => v.id !== denyTarget.id))
     showToast(`${denyTarget.display_name} application denied.`, 'info')

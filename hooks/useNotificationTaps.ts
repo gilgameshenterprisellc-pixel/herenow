@@ -37,6 +37,9 @@ export function useNotificationTaps() {
         } else if (data.type === 'venue_recap') {
           // Venue morning nudge — open the nightly venue recap.
           router.push('/venue/recap' as any)
+        } else if (data.type === 'venue_status') {
+          // Venue application approved or denied — the dashboard shows which.
+          router.push('/venue/dashboard' as any)
         } else if (data.route === 'circle') {
           router.push('/circle' as any)
         } else if (data.type === 'org_announcement' && data.org_id) {
