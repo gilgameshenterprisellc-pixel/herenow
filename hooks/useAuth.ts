@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Platform } from 'react-native'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { watchAuth } from '@/lib/authWatch'
 
 // A banned account gets ejected here, in the one place every screen's session
 // state flows through. Checking is_banned on the client rather than only at
@@ -32,24 +33,16 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let cancelled = false
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const ejected = await ejectIfBanned(session)
-      if (cancelled) return
-      setSession(ejected ? null : session)
+  // The ban check runs outside supabase-js's auth listener. Awaiting it inside
+  // the listener froze the launch screen whenever the app opened with an
+  // expired token (Jacob and Jamie, Oct 2026); lib/authWatch.ts explains why.
+  useEffect(() => watchAuth(supabase, {
+    isBanned: ejectIfBanned,
+    onSession: (next) => {
+      setSession(next)
       setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const ejected = await ejectIfBanned(session)
-      if (cancelled) return
-      setSession(ejected ? null : session)
-    })
-
-    return () => { cancelled = true; subscription.unsubscribe() }
-  }, [])
+    },
+  }), [])
 
   return { session, loading }
 }

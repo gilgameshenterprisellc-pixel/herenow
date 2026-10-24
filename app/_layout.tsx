@@ -30,6 +30,42 @@ if (Platform.OS !== 'web') {
   })
 }
 
+// Work that follows a sign-in. Called from the auth listener in RootLayout, one
+// tick later, never inside it.
+async function afterSignIn(userId: string) {
+  // Silently refresh the push token on sign-in if permission is already granted.
+  // The permission prompt itself waits for the first check-in (Jacob Q29).
+  registerPushToken(false)
+
+  if (Platform.OS !== 'web') return
+
+  // Web-only: restore pending profile created during email confirmation flow
+  const raw = localStorage.getItem('herenow_pending_profile')
+  if (!raw) return
+
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!existing) {
+    try {
+      const { displayName, username, isVenueOwner } = JSON.parse(raw)
+      await supabase.from('profiles').insert({
+        id:             userId,
+        display_name:   displayName,
+        username,
+        is_venue_owner: isVenueOwner ?? false,
+        venue_status:   isVenueOwner ? 'pending' : 'none',
+      })
+    } catch {}
+  }
+
+  localStorage.removeItem('herenow_pending_profile')
+  router.replace('/profile/edit')
+}
+
 function RootLayout() {
   useGeofenceTask()
   useNotificationTaps()
@@ -80,7 +116,10 @@ function RootLayout() {
   }, [])
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Keep this listener synchronous. supabase-js waits for every auth listener
+    // before its startup finishes, so awaiting a Supabase call in here can freeze
+    // the whole client (lib/authWatch.ts). The sign-in work runs on the next tick.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // PKCE recovery links don't announce themselves in the URL — this event is
       // the only reliable signal that a session came from "forgot password".
       if (event === 'PASSWORD_RECOVERY') {
@@ -88,38 +127,8 @@ function RootLayout() {
         return
       }
       if (event !== 'SIGNED_IN' || !session?.user) return
-
-      // Silently refresh the push token on sign-in if permission is already granted.
-      // The permission prompt itself waits for the first check-in (Jacob Q29).
-      registerPushToken(false)
-
-      if (Platform.OS !== 'web') return
-
-      // Web-only: restore pending profile created during email confirmation flow
-      const raw = localStorage.getItem('herenow_pending_profile')
-      if (!raw) return
-
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', session.user.id)
-        .maybeSingle()
-
-      if (!existing) {
-        try {
-          const { displayName, username, isVenueOwner } = JSON.parse(raw)
-          await supabase.from('profiles').insert({
-            id:             session.user.id,
-            display_name:   displayName,
-            username,
-            is_venue_owner: isVenueOwner ?? false,
-            venue_status:   isVenueOwner ? 'pending' : 'none',
-          })
-        } catch {}
-      }
-
-      localStorage.removeItem('herenow_pending_profile')
-      router.replace('/profile/edit')
+      const userId = session.user.id
+      setTimeout(() => { afterSignIn(userId) }, 0)
     })
 
     return () => subscription.unsubscribe()

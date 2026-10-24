@@ -12,16 +12,28 @@ import { supabase } from '@/lib/supabase'
 // Resolve where a logged-in user should land: venue owners go straight to the
 // venue dashboard, everyone else to the map. Returns null while resolving.
 // (Jacob: opening the app as a venue dropped you on the map first.)
-function useLoggedInDestination(userId: string | undefined): '/(tabs)' | '/venue/dashboard' | null {
-  const [dest, setDest] = useState<'/(tabs)' | '/venue/dashboard' | null>(null)
+// A lookup that fails or takes too long lands on the map instead of holding the
+// launch screen; a venue owner can still reach the dashboard from there.
+type LoggedInDestination = '/(tabs)' | '/venue/dashboard'
+const DESTINATION_TIMEOUT_MS = 5000
+
+function useLoggedInDestination(userId: string | undefined): LoggedInDestination | null {
+  const [dest, setDest] = useState<LoggedInDestination | null>(null)
   useEffect(() => {
     if (!userId) { setDest(null); return }
-    let cancelled = false
+    let done = false
+    const settle = (d: LoggedInDestination) => {
+      if (done) return
+      done = true
+      setDest(d)
+    }
+    const fallback = setTimeout(() => settle('/(tabs)'), DESTINATION_TIMEOUT_MS)
     supabase.from('profiles').select('is_venue_owner').eq('id', userId).maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setDest(data?.is_venue_owner ? '/venue/dashboard' : '/(tabs)')
-      })
-    return () => { cancelled = true }
+      .then(
+        ({ data }) => settle(data?.is_venue_owner ? '/venue/dashboard' : '/(tabs)'),
+        () => settle('/(tabs)'),
+      )
+    return () => { done = true; clearTimeout(fallback) }
   }, [userId])
   return dest
 }
