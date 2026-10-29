@@ -13,6 +13,8 @@ import { router } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import BackButton from '@/components/BackButton'
+import SocialLinksFields from '@/components/SocialLinksFields'
+import { normalizeSocialForm, socialInputsFrom, type SocialPlatform } from '@/lib/socialLinks'
 
 const RADIUS_OPTIONS = [
   { label: 'Small (bar, coffee shop)', meters: 80 },
@@ -147,6 +149,10 @@ export default function VenueEditScreen() {
   const [avatarUrl, setAvatarUrl]   = useState<string | null>(null)
   const [bannerUrl, setBannerUrl]   = useState<string | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState<'avatar' | 'banner' | null>(null)
+  // Social links. Null until we know the database has the column
+  // (supabase/venue_social_links.sql); the section stays hidden until then.
+  const [social, setSocial]             = useState<Record<SocialPlatform, string> | null>(null)
+  const [socialErrors, setSocialErrors] = useState<Partial<Record<SocialPlatform, string>>>({})
 
   // Time picker state
   type TimeTarget = { day: Day; field: 'from' | 'to' }
@@ -188,6 +194,21 @@ export default function VenueEditScreen() {
           .eq('id', user.id)
           .maybeSingle()
         setName(profile?.display_name ?? '')
+      }
+
+      // Social links come from their own queries so a build that ships before
+      // the column exists just hides the section. A venue still setting up
+      // starts from whatever it typed at signup.
+      if (z) {
+        const { data: zl, error: zlErr } = await supabase
+          .from('zones').select('social_links').eq('id', z.id).maybeSingle()
+        if (zlErr) console.warn('[venue/edit] social links unavailable:', zlErr.message)
+        else setSocial(socialInputsFrom((zl as any)?.social_links))
+      } else {
+        const { data: pl, error: plErr } = await supabase
+          .from('profiles').select('venue_social_links').eq('id', user.id).maybeSingle()
+        if (plErr) console.warn('[venue/edit] social links unavailable:', plErr.message)
+        else setSocial(socialInputsFrom((pl as any)?.venue_social_links))
       }
 
       setLoading(false)
@@ -337,6 +358,19 @@ export default function VenueEditScreen() {
     }
     if (!userId) return
 
+    // Only sent when the column exists (social !== null); an empty object
+    // clears every link.
+    let socialPatch: { social_links?: Record<string, string> } = {}
+    if (social) {
+      const { links, errors } = normalizeSocialForm(social)
+      setSocialErrors(errors)
+      if (Object.keys(errors).length > 0) {
+        showToast('Check your social links: one of them needs fixing.', 'error')
+        return
+      }
+      socialPatch = { social_links: links }
+    }
+
     setSaving(true)
 
     const openingHours = buildHoursText(schedule)
@@ -356,6 +390,7 @@ export default function VenueEditScreen() {
           capacity: capacity.trim() ? parseInt(capacity, 10) : null,
           chips,
           category,
+          ...socialPatch,
         })
         .eq('id', existingZone.id)
 
@@ -375,6 +410,7 @@ export default function VenueEditScreen() {
           capacity: capacity.trim() ? parseInt(capacity, 10) : null,
           chips,
           category,
+          ...socialPatch,
           created_by: userId,
           owner_id: userId,
           is_active: true,
@@ -583,6 +619,26 @@ export default function VenueEditScreen() {
           />
           <Text style={styles.charCount}>{description.length}/200</Text>
         </View>
+
+        {/* Social links — optional, shown as small icons on the venue profile */}
+        {social && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Social Links</Text>
+            <Text style={styles.sectionHint}>
+              Optional. Add the accounts you already run and guests will see them as small
+              icons on your HereNow profile. A handle like @yourvenue or a full link both work.
+            </Text>
+            <SocialLinksFields
+              values={social}
+              errors={socialErrors}
+              inputStyle={styles.input}
+              onChange={(platform, text) => {
+                setSocial(prev => (prev ? { ...prev, [platform]: text } : prev))
+                if (socialErrors[platform]) setSocialErrors(prev => ({ ...prev, [platform]: undefined }))
+              }}
+            />
+          </View>
+        )}
 
         {/* Operating Hours — day-by-day picker */}
         <View style={styles.section}>

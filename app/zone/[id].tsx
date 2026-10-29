@@ -37,6 +37,8 @@ import { fetchHighlights, type VenueHighlight } from '@/lib/highlights'
 import LiveContestCard from '@/components/LiveContestCard'
 import { useVenueContests } from '@/hooks/useContestBoard'
 import { openDirections } from '@/lib/directions'
+import { readSocialLinks, type SocialPlatform } from '@/lib/socialLinks'
+import VenueSocialLinks from '@/components/VenueSocialLinks'
 import { successBuzz } from '@/lib/haptics'
 import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFoundingBadge, BADGE_ICON_BY_SLUG, badgeInfo, type VenueBadge } from '@/lib/venueBadges'
 import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
@@ -87,6 +89,7 @@ export default function ZoneScreen() {
   const { showToast }              = useToast()
   const [userId, setUserId]         = useState<string | null>(null)
   const [zone, setZone]             = useState<any>(null)
+  const [socialLinks, setSocialLinks] = useState<{ platform: SocialPlatform; url: string }[]>([])
   const [loading, setLoading]       = useState(true)
   const [tab, setTab]               = useState<Tab>('pulse')
   // The Report / Block / Delete menu for Pulse posts and Chat messages.
@@ -213,6 +216,17 @@ export default function ZoneScreen() {
       }
       setZone(z)
       setLoading(false)
+
+      // Social links are their own query: a build that ships before
+      // supabase/venue_social_links.sql runs gets an error here and shows no
+      // links, instead of losing the whole venue page to a missing column.
+      const { data: sl, error: slErr } = await supabase
+        .from('zones')
+        .select('social_links')
+        .eq('id', id)
+        .maybeSingle()
+      if (slErr) console.warn('[zone] social links unavailable:', slErr.message)
+      else setSocialLinks(readSocialLinks((sl as any)?.social_links))
 
       // Load highlights (visible to all)
       const hl = await fetchHighlights(id)
@@ -953,6 +967,8 @@ export default function ZoneScreen() {
           {zone?.description ? (
             <Text style={styles.heroBio} numberOfLines={2}>{zone.description}</Text>
           ) : null}
+
+          <VenueSocialLinks links={socialLinks} />
 
           <View style={styles.heroActions}>
             <TouchableOpacity

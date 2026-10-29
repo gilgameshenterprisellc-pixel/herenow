@@ -11,6 +11,8 @@ import { Link, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { screenText, blockedMessage } from '@/lib/textModeration'
 import { geocodeAddress } from '@/lib/geocoding'
+import SocialLinksFields from '@/components/SocialLinksFields'
+import { normalizeSocialForm, type SocialPlatform } from '@/lib/socialLinks'
 
 type Mode = 'person' | 'venue'
 
@@ -44,6 +46,9 @@ export default function SignupScreen() {
   const [venueCity, setVenueCity]       = useState('')
   const [venueState, setVenueState]     = useState('')
   const [venueZip, setVenueZip]         = useState('')
+  const [showSocial, setShowSocial]     = useState(false)
+  const [social, setSocial]             = useState<Partial<Record<SocialPlatform, string>>>({})
+  const [socialErrors, setSocialErrors] = useState<Partial<Record<SocialPlatform, string>>>({})
   const [gender, setGender]             = useState('')
   const [loading, setLoading]           = useState(false)
   const [ageConfirmed, setAgeConfirmed] = useState(false)
@@ -103,6 +108,13 @@ export default function SignupScreen() {
       }
       if (!venueAddress.trim() || !venueCity.trim() || !venueState.trim() || !venueZip.trim()) {
         setErrorMsg("Enter your venue's full address so we can set up your check-in zone.")
+        return
+      }
+      const { errors } = normalizeSocialForm(social)
+      setSocialErrors(errors)
+      if (Object.keys(errors).length > 0) {
+        setShowSocial(true)
+        setErrorMsg('One of your social links needs fixing, or leave it blank.')
         return
       }
     } else {
@@ -233,6 +245,19 @@ export default function SignupScreen() {
     // failed write leaves the document outstanding, so ConsentGate asks again
     // rather than recording the user as having agreed to something they never saw.
     void recordConsent(data.user.id)
+
+    // Social links typed at signup wait on the profile until the venue is
+    // approved and gets its zone; a trigger copies them over then
+    // (supabase/venue_social_links.sql). Best effort: this must never fail a
+    // signup, and the venue can always add them later from Edit Venue.
+    if (isVenue) {
+      const { links } = normalizeSocialForm(social)
+      if (Object.keys(links).length > 0) {
+        const { error: slErr } = await supabase
+          .from('profiles').update({ venue_social_links: links }).eq('id', data.user.id)
+        if (slErr) console.warn('[signup] venue social links not saved:', slErr.message)
+      }
+    }
 
     // No auto-approval. This used to call auto_approve_venue whenever Mapbox was
     // confident about the address, which is nearly every real address: anyone
@@ -509,6 +534,28 @@ export default function SignupScreen() {
                   <Ionicons name={showPw ? 'eye-off' : 'eye'} size={18} color="#7A93AC" />
                 </TouchableOpacity>
               </View>
+
+              {/* Optional social links, folded away so the form stays short */}
+              <TouchableOpacity
+                style={styles.socialToggle}
+                onPress={() => setShowSocial(v => !v)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+              >
+                <Ionicons name={showSocial ? 'remove-circle-outline' : 'add-circle-outline'} size={16} color="#29B6F6" />
+                <Text style={styles.socialToggleText}>Add your social links (optional)</Text>
+              </TouchableOpacity>
+              {showSocial && (
+                <SocialLinksFields
+                  values={social}
+                  errors={socialErrors}
+                  inputStyle={styles.input}
+                  onChange={(platform, text) => {
+                    setSocial(prev => ({ ...prev, [platform]: text }))
+                    if (socialErrors[platform]) setSocialErrors(prev => ({ ...prev, [platform]: undefined }))
+                  }}
+                />
+              )}
             </Reanimated.View>
           )}
 
@@ -656,6 +703,11 @@ const styles = StyleSheet.create({
     fontSize: 12, fontWeight: '700', color: '#3A5C7A',
     textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4,
   },
+  socialToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start', paddingVertical: 10,
+  },
+  socialToggleText: { color: '#29B6F6', fontSize: 14, fontWeight: '700' },
   input: {
     backgroundColor: '#0B1526',
     borderWidth: 1,
