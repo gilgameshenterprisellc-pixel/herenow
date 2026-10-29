@@ -46,6 +46,7 @@ import ChatMessage from '@/components/ChatMessage'
 import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 import EventCard from '@/components/EventCard'
 import HeatBar from '@/components/HeatBar'
+import ExpandableText from '@/components/ExpandableText'
 import type { VenueEvent } from '@/lib/events'
 
 type Tab = 'people' | 'pulse' | 'chat' | 'events' | 'board'
@@ -951,7 +952,7 @@ export default function ZoneScreen() {
           )}
 
           {zone?.description ? (
-            <Text style={styles.heroBio} numberOfLines={2}>{zone.description}</Text>
+            <ExpandableText text={zone.description} style={styles.heroBio} />
           ) : null}
 
           <View style={styles.heroActions}>
