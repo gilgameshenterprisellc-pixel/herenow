@@ -43,6 +43,20 @@ Partner: Jacob (practice venue run in progress)
 
 ---
 
+## Current State (October 29, 2026)
+
+The PR History table below stops at #101. The newest work:
+
+- **Live on the App Store since Oct 16.** `app.json` is at 1.0.2 (build 15) after #296. As of Oct 29, no new build had gone to the App Store. 1.0.2 carries the launch-freeze fix (#295) and the client changes from #297 to #299. Joshua is waiting on Jacob's list so it all goes out as one bigger build (Codemagic, then review).
+- **#297, geofence outlines on the map.** `zones.building_polygon` (geography) is the real fence that check-in uses. `zones.polygon_wkt` (text) is only the copy the map draws. Since Aug 4, `admin_save_polygon` stopped writing polygon_wkt, so drawn outlines never showed and "Enter Venue" acted like a 10m circle. `supabase/polygon_wkt_sync.sql` now derives polygon_wkt by trigger (`zones_sync_polygon_wkt_trg`, `zone_display_wkt()`), with a backfill. `lib/wkt.ts` `wktOuterRing()` reads MULTIPOLYGON and holes. SQL run Oct 29; all 5 venues show outlines.
+- **#298, Read more on long venue bios:** `components/ExpandableText.tsx`.
+- **#299, venue social links.** `zones.social_links` (jsonb) is the one place they live. Links entered at signup wait in `profiles.venue_social_links`, and `zones_seed_social_links_trg` copies them when the zone is created or claimed. `lib/socialLinks.ts` normalizes handles and links and checks them again before display. They're editable in `app/venue/edit.tsx` and shown on `app/zone/[id].tsx`. SQL run Oct 29.
+- **#300, three functions the app called that production never had.** The 7-argument `admin_approve_venue` (venue approval broke once #294 made admin approval the only path), `admin_qr_placement_stats` (the Pilot Dashboard QR table had been empty since Aug 1), and the RSVP count, now recounted by trigger (`event_rsvps_sync_count_trg`). The app no longer writes `rsvp_count`. SQL: `supabase/missing_functions_oct29.sql`, run Oct 29.
+- **After any SQL work, re-run the RPC probe.** Parse every `supabase.rpc('fn', {keys})` call in the app, then GET `/rest/v1/rpc/fn?key=...` with the anon key. PostgREST runs GETs read-only, so nothing is written (a write errors with 25006). PGRST202 means the function is missing.
+- **Push and PRs** use the `gilgameshenterprisellc-pixel` gh account.
+
+---
+
 ## Core Concepts
 
 - **Zone** — a venue (bar, coffee shop, event space) with a GPS center + radius in meters
