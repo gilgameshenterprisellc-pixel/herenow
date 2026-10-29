@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons'
 import type { Zone } from '@/lib/zones'
 import { DARK_TILE_URL } from '@/lib/basemap'
 import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR, type VenueStatus } from '@/lib/venueStatus'
+import { wktOuterRing } from '@/lib/wkt'
 
 // Basemap URL + key policy live in lib/basemap.ts so the native and web maps
 // can never drift apart again. Native falls back to Apple's basemap when no key
@@ -60,17 +61,9 @@ const HEAT_OPACITY: Record<VenueStatus, number> = {
   nearby: 0.18,
 }
 
-// Parse PostGIS WKT POLYGON((lng lat, ...)) → {latitude, longitude}[] ring
+// The venue outline from zones.polygon_wkt, as react-native-maps coordinates.
 function parseWktRing(wkt: string | null | undefined): { latitude: number; longitude: number }[] {
-  if (!wkt) return []
-  const m = wkt.match(/POLYGON\s*\(\(([^)]+)\)\)/i)
-  if (!m) return []
-  return m[1].split(',').flatMap(pair => {
-    const parts = pair.trim().split(/\s+/)
-    const lng = parseFloat(parts[0])
-    const lat = parseFloat(parts[1])
-    return isNaN(lat) || isNaN(lng) ? [] : [{ latitude: lat, longitude: lng }]
-  })
+  return wktOuterRing(wkt).map(([lng, lat]) => ({ latitude: lat, longitude: lng }))
 }
 
 function hexToRgba(hex: string, alpha: number): string {

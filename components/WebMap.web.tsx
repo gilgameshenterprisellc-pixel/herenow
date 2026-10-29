@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { Zone } from '@/lib/zones'
 import { addDarkBasemap } from '@/lib/basemap'
 import { venueStatus, STATUS_STYLE, SUBSCRIBED_COLOR, type VenueStatus } from '@/lib/venueStatus'
+import { wktOuterRing } from '@/lib/wkt'
 
 interface Props {
   zones: Zone[]
@@ -172,17 +173,9 @@ function loadLeaflet(): Promise<any> {
   })
 }
 
-// Parse PostGIS WKT POLYGON((lng lat, ...)) → Leaflet [lat, lng][] ring
+// The venue outline from zones.polygon_wkt, as Leaflet [lat, lng] pairs.
 function parseWktRing(wkt: string | null | undefined): [number, number][] {
-  if (!wkt) return []
-  const m = wkt.match(/POLYGON\s*\(\(([^)]+)\)\)/i)
-  if (!m) return []
-  return m[1].split(',').flatMap(pair => {
-    const parts = pair.trim().split(/\s+/)
-    const lng = parseFloat(parts[0])
-    const lat = parseFloat(parts[1])
-    return isNaN(lat) || isNaN(lng) ? [] : [[lat, lng] as [number, number]]
-  })
+  return wktOuterRing(wkt).map(([lng, lat]) => [lat, lng] as [number, number])
 }
 
 export default function WebMap({
