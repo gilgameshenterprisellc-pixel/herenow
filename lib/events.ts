@@ -164,36 +164,21 @@ export async function toggleRsvp(eventId: string, currentlyRsvpd: boolean): Prom
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
+  // Only the RSVP row is written here. venue_events.rsvp_count is kept by a
+  // trigger on event_rsvps (supabase/missing_functions_oct29.sql): the client
+  // used to update it directly, which only the event's creator is allowed to
+  // do, so the count never moved for anyone else.
   if (currentlyRsvpd) {
-    await supabase
+    const { error } = await supabase
       .from('event_rsvps')
       .delete()
       .eq('event_id', eventId)
       .eq('user_id', user.id)
-
-    // Fetch current count and decrement, flooring at 0
-    const { data: eventData } = await supabase
-      .from('venue_events')
-      .select('rsvp_count')
-      .eq('id', eventId)
-      .maybeSingle()
-    if (eventData) {
-      await supabase
-        .from('venue_events')
-        .update({ rsvp_count: Math.max(0, (eventData.rsvp_count ?? 1) - 1) })
-        .eq('id', eventId)
-    }
+    if (error) console.warn('[events] un-RSVP failed:', error.message)
   } else {
-    await supabase
+    const { error } = await supabase
       .from('event_rsvps')
       .upsert({ event_id: eventId, user_id: user.id }, { onConflict: 'event_id,user_id' })
-
-    const { error: rpcError } = await supabase.rpc('increment_event_rsvp', { event_uuid: eventId })
-    if (rpcError) {
-      const { data } = await supabase.from('venue_events').select('rsvp_count').eq('id', eventId).maybeSingle()
-      if (data) {
-        await supabase.from('venue_events').update({ rsvp_count: (data.rsvp_count ?? 0) + 1 }).eq('id', eventId)
-      }
-    }
+    if (error) console.warn('[events] RSVP failed:', error.message)
   }
 }
