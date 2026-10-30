@@ -18,6 +18,8 @@ import { supabase } from '@/lib/supabase'
 import { fetchMyVenues, type VenueSubscription } from '@/lib/venueSubscriptions'
 import { seesBroadcast, broadcastZoneIds, type BroadcastViewer } from '@/lib/broadcastAudience'
 import { nightStart } from '@/lib/nights'
+import { fetchCities, viewerCity, fetchUniversalFeed } from '@/lib/broadcasts'
+import type { City } from '@/lib/universalFeed'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { useNotifications } from '@/hooks/useNotifications'
 import AnimatedBackground from '@/components/AnimatedBackground'
@@ -62,6 +64,9 @@ function timeAgo(iso: string): string {
 export default function UpdatesScreen() {
   const [myVenues, setMyVenues]     = useState<VenueSubscription[]>([])
   const [venueFeed, setVenueFeed]   = useState<VenueFeedItem[]>([])
+  // The city's Universal Feed and which city it is (null = none to show).
+  const [cityFeed, setCityFeed]     = useState<VenueFeedItem[]>([])
+  const [feedCity, setFeedCity]     = useState<City | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [venueLoaded, setVenueLoaded] = useState(false)
   const { activeSession } = useSessionContext()
@@ -78,6 +83,9 @@ export default function UpdatesScreen() {
   const loadVenueFeed = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    // Started now, awaited below: which city's Universal Feed to show.
+    const cityPromise = fetchCities().then(viewerCity)
 
     const subs = await fetchMyVenues()
     setMyVenues(subs)
@@ -191,6 +199,40 @@ export default function UpdatesScreen() {
       setVenueFeed([])
     }
 
+    // The city's Universal Feed (Jacob, Oct 29): public broadcasts from venues
+    // you don't already hear from. Venues you follow or are checked in to are
+    // left out here because their posts are already in the section above, and
+    // muted venues stay muted.
+    const city = await cityPromise
+    setFeedCity(city)
+    if (city) {
+      const muted = new Set(subs.filter((s) => s.muted).map((s) => s.zone_id))
+      const [items, { data: gone }] = await Promise.all([
+        fetchUniversalFeed(city.slug),
+        supabase.from('feed_dismissals').select('item_key').eq('user_id', user.id),
+      ])
+      const dismissedKeys = new Set((gone ?? []).map((d: any) => d.item_key))
+      setCityFeed(
+        items
+          .filter((it) => !zoneIds.includes(it.zone_id) && !muted.has(it.zone_id))
+          .map((it): VenueFeedItem => ({
+            id:             `${it.kind === 'announcement' ? 'anno' : 'promo'}-${it.id}`,
+            zone_id:        it.zone_id,
+            zone_name:      it.zone_name,
+            type:           it.kind,
+            title:          it.title,
+            description:    it.description ?? undefined,
+            message:        it.message,
+            discount_label: it.discount_label ?? undefined,
+            created_at:     it.at,
+          }))
+          .filter((it) => !dismissedKeys.has(it.id))
+          .slice(0, 15)
+      )
+    } else {
+      setCityFeed([])
+    }
+
     setVenueLoaded(true)
   }
 
@@ -198,6 +240,7 @@ export default function UpdatesScreen() {
   // users clear old items from their Updates).
   const dismissFeedItem = async (item: VenueFeedItem) => {
     setVenueFeed((prev) => prev.filter((it) => it.id !== item.id))
+    setCityFeed((prev) => prev.filter((it) => it.id !== item.id))
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     await supabase
@@ -245,12 +288,69 @@ export default function UpdatesScreen() {
 
   const insets = useSafeAreaInsets()
 
+  // One card for a venue broadcast or event, used by both venue sections.
+  const renderVenueCard = (item: VenueFeedItem) => (
+    <TouchableOpacity
+      key={item.id}
+      style={[styles.venueFeedCard, item.type === 'announcement' && styles.venueFeedCardAnnouncement]}
+      onPress={() => router.push(`/zone/${item.zone_id}` as any)}
+      activeOpacity={0.85}
+    >
+      <View style={styles.venueFeedHeader}>
+        <Ionicons
+          name={item.type === 'announcement' ? 'megaphone' : item.type === 'event' ? 'calendar' : 'pricetag'}
+          size={18}
+          color="#29B6F6"
+          style={styles.venueFeedEmoji}
+        />
+        <View style={styles.venueFeedMeta}>
+          <Text style={styles.venueFeedZone}>
+            {item.zone_name}
+            {item.here ? <Text style={styles.venueFeedHere}>  ·  You're here</Text> : null}
+          </Text>
+          <Text style={styles.venueFeedTime}>{timeAgo(item.created_at)}</Text>
+        </View>
+        <View style={[styles.venueFeedBadge, item.type === 'announcement' ? styles.badgeAnnouncement : item.type === 'event' ? styles.badgeEvent : styles.badgePromo]}>
+          <Text style={[styles.venueFeedBadgeText, item.type === 'announcement' ? styles.badgeAnnoText : item.type === 'event' ? styles.badgeEventText : styles.badgePromoText]}>
+            {item.type === 'announcement' ? 'Announcement' : item.type === 'event' ? 'Event' : 'Promo'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => dismissFeedItem(item)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.feedDismiss}
+        >
+          <Ionicons name="close" size={16} color="#7A93AC" />
+        </TouchableOpacity>
+      </View>
+      {(item.type === 'promotion' || item.type === 'event') && item.title && (
+        <Text style={styles.venueFeedTitle}>{item.title}</Text>
+      )}
+      {item.type === 'event' && item.starts_at && (
+        <Text style={styles.venueFeedEventDate}>
+          {new Date(item.starts_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+          {'  ·  '}
+          {new Date(item.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+        </Text>
+      )}
+      {item.discount_label && (
+        <View style={styles.discountPill}>
+          <Text style={styles.discountText}>{item.discount_label}</Text>
+        </View>
+      )}
+      {(item.description || item.message) && (
+        <Text style={styles.venueFeedDesc}>{item.description ?? item.message}</Text>
+      )}
+      <Text style={styles.venueFeedCta}>Tap to visit →</Text>
+    </TouchableOpacity>
+  )
+
   const webCenter = Platform.select({
     web: { maxWidth: 680, alignSelf: 'center' as const, width: '100%' as any } as any,
     default: {},
   })
 
-  const hasContent = myVenues.length > 0 || venueFeed.length > 0 || activityItems.length > 0
+  const hasContent = myVenues.length > 0 || venueFeed.length > 0 || cityFeed.length > 0 || activityItems.length > 0
 
   return (
     <View style={styles.container}>
@@ -305,61 +405,15 @@ export default function UpdatesScreen() {
         {venueFeed.length > 0 && (
           <View style={styles.venueFeedSection}>
             <Text style={styles.sectionLabel}>FROM YOUR VENUES</Text>
-            {venueFeed.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.venueFeedCard, item.type === 'announcement' && styles.venueFeedCardAnnouncement]}
-                onPress={() => router.push(`/zone/${item.zone_id}` as any)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.venueFeedHeader}>
-                  <Ionicons
-                    name={item.type === 'announcement' ? 'megaphone' : item.type === 'event' ? 'calendar' : 'pricetag'}
-                    size={18}
-                    color="#29B6F6"
-                    style={styles.venueFeedEmoji}
-                  />
-                  <View style={styles.venueFeedMeta}>
-                    <Text style={styles.venueFeedZone}>
-                      {item.zone_name}
-                      {item.here ? <Text style={styles.venueFeedHere}>  ·  You're here</Text> : null}
-                    </Text>
-                    <Text style={styles.venueFeedTime}>{timeAgo(item.created_at)}</Text>
-                  </View>
-                  <View style={[styles.venueFeedBadge, item.type === 'announcement' ? styles.badgeAnnouncement : item.type === 'event' ? styles.badgeEvent : styles.badgePromo]}>
-                    <Text style={[styles.venueFeedBadgeText, item.type === 'announcement' ? styles.badgeAnnoText : item.type === 'event' ? styles.badgeEventText : styles.badgePromoText]}>
-                      {item.type === 'announcement' ? 'Announcement' : item.type === 'event' ? 'Event' : 'Promo'}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => dismissFeedItem(item)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.feedDismiss}
-                  >
-                    <Ionicons name="close" size={16} color="#7A93AC" />
-                  </TouchableOpacity>
-                </View>
-                {(item.type === 'promotion' || item.type === 'event') && item.title && (
-                  <Text style={styles.venueFeedTitle}>{item.title}</Text>
-                )}
-                {item.type === 'event' && item.starts_at && (
-                  <Text style={styles.venueFeedEventDate}>
-                    {new Date(item.starts_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                    {'  ·  '}
-                    {new Date(item.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                  </Text>
-                )}
-                {item.discount_label && (
-                  <View style={styles.discountPill}>
-                    <Text style={styles.discountText}>{item.discount_label}</Text>
-                  </View>
-                )}
-                {(item.description || item.message) && (
-                  <Text style={styles.venueFeedDesc}>{item.description ?? item.message}</Text>
-                )}
-                <Text style={styles.venueFeedCta}>Tap to visit →</Text>
-              </TouchableOpacity>
-            ))}
+            {venueFeed.map(renderVenueCard)}
+          </View>
+        )}
+
+        {/* Around the city — the Universal Feed */}
+        {feedCity && cityFeed.length > 0 && (
+          <View style={styles.venueFeedSection}>
+            <Text style={styles.sectionLabel}>AROUND {feedCity.name.toUpperCase()}</Text>
+            {cityFeed.map(renderVenueCard)}
           </View>
         )}
 
