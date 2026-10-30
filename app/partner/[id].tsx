@@ -139,11 +139,19 @@ export default function PartnerScreen() {
                   {status === 'live' && <Stat n={stats.here_now} label="Here right now" />}
                   <Stat n={stats.guests} label="Guests during the window" />
                   <Stat n={stats.check_ins} label="Check-ins" />
+                  <Stat n={stats.first_visits} label="First visit here" hint="Never checked in here before" />
+                  <Stat n={stats.new_to_herenow} label="New to HereNow" hint="Joined HereNow and checked in here" />
+                  <Stat n={stats.new_followers} label="New venue followers" />
                   <Stat n={stats.broadcast_reach} label={`Saw a broadcast (${stats.broadcasts} sent)`} />
                   <Stat n={stats.contest_entries} label="Contest entries" />
-                  <Stat n={stats.new_members} label="New members" />
+                  <Stat
+                    n={stats.org_joins ?? stats.new_members}
+                    label={`Joined ${partner.organizations?.name ?? 'the organization'} on HereNow`}
+                  />
                 </View>
-                <Text style={styles.small}>Totals only. HereNow never shows who.</Text>
+                <Text style={styles.small}>
+                  Totals for the partnership window only. HereNow never shows who.
+                </Text>
               </View>
             )}
 
@@ -229,11 +237,15 @@ export default function PartnerScreen() {
   )
 }
 
-function Stat({ n, label }: { n: number; label: string }) {
+// A number the database didn't return (its SQL hasn't run yet) is left out
+// rather than shown as 0.
+function Stat({ n, label, hint }: { n: number | undefined; label: string; hint?: string }) {
+  if (n === undefined || n === null) return null
   return (
     <View style={styles.stat}>
       <Text style={styles.statNum}>{n}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+      {hint ? <Text style={styles.statHint}>{hint}</Text> : null}
     </View>
   )
 }
@@ -273,6 +285,7 @@ const styles = StyleSheet.create({
   },
   statNum:   { fontSize: 24, fontWeight: '900', color: '#f8fafc' },
   statLabel: { fontSize: 12, color: '#7A93AC' },
+  statHint:  { fontSize: 11, color: '#4A6580', lineHeight: 15 },
   input: {
     backgroundColor: '#0D1B2E', borderRadius: 10, padding: 12,
     color: '#f8fafc', fontSize: 14, borderWidth: 1, borderColor: '#1A2E4A',

@@ -43,6 +43,16 @@ export interface PartnerStats {
   broadcasts: number
   broadcast_reach: number
   contest_entries: number
+  // Defined in supabase/partner_stats_oct30.sql; missing until that runs.
+  /** First-ever check-in at this venue was during the window. */
+  first_visits?: number
+  /** Created a HereNow account during the window and checked in here. */
+  new_to_herenow?: number
+  /** Started following the venue during the window. */
+  new_followers?: number
+  /** Joined the partner's Organization on HereNow during the window. */
+  org_joins?: number
+  /** The old name for org_joins. */
   new_members: number
 }
 
