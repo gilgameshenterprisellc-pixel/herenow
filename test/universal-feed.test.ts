@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { slotsLeft, cityForPoint, universalFeedError, type City } from '../lib/universalFeed.ts'
+import { slotsLeft, cityForPoint, universalFeedError, defaultCity, type City } from '../lib/universalFeed.ts'
 
 const NOW = new Date('2026-10-30T18:00:00Z')
 const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOString()
@@ -40,4 +40,10 @@ test('the guard\'s errors read as plain instructions', () => {
   assert.match(universalFeedError('P0001: universal_feed_needs_everyone', 'Nashville') ?? '', /All followers/)
   assert.equal(universalFeedError('some other error', 'Nashville'), null)
   assert.equal(universalFeedError(undefined, null), null)
+})
+
+test('with no location and no check-ins, one city is the default and two means ask', () => {
+  assert.equal(defaultCity([NASHVILLE])?.slug, 'nashville')
+  assert.equal(defaultCity([NASHVILLE, CINCINNATI]), null)
+  assert.equal(defaultCity([]), null)
 })
