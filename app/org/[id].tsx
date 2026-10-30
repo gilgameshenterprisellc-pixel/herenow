@@ -16,6 +16,9 @@ import {
   fetchOrgEvents,
   type Organization, type OrgPost,
 } from '@/lib/organizations'
+import { fetchOrgPartnerships, type VenuePartner } from '@/lib/partners'
+import { partnerStatus, sortPartners, PARTNER_STATUS_LABEL } from '@/lib/partnerStatus'
+import { formatDateTime } from '@/components/DateTimeField'
 
 function timeAgo(iso: string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -38,6 +41,8 @@ export default function OrganizationScreen() {
   const [isOwner, setIsOwner]     = useState(false)
   const [posts, setPosts]         = useState<OrgPost[]>([])
   const [events, setEvents]       = useState<any[]>([])
+  // Venues that made this org a partner (owner only).
+  const [partnerships, setPartnerships] = useState<VenuePartner[]>([])
   const [loading, setLoading]     = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [joining, setJoining]     = useState(false)
@@ -63,9 +68,13 @@ export default function OrganizationScreen() {
     setMember(m)
     setIsOwner(!!user && o.owner_id === user.id)
 
-    const [p, e] = await Promise.all([fetchOrgPosts(id), fetchOrgEvents(id)])
+    const owner = !!user && o.owner_id === user.id
+    const [p, e, vp] = await Promise.all([
+      fetchOrgPosts(id), fetchOrgEvents(id), owner ? fetchOrgPartnerships(id) : Promise.resolve([]),
+    ])
     setPosts(p)
     setEvents(e)
+    setPartnerships(vp)
     setLoading(false)
     setRefreshing(false)
   }, [id])
@@ -191,6 +200,26 @@ export default function OrganizationScreen() {
                     {member ? '✓ Member — tap to leave' : 'Join'}
                   </Text>}
             </TouchableOpacity>
+          )}
+
+          {/* Partner venues: where this org is a venue's partner (Jacob, Oct 29) */}
+          {isOwner && partnerships.some((vp) => ['live', 'upcoming'].includes(partnerStatus(vp))) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Partner venues</Text>
+              {sortPartners(partnerships)
+                .filter((vp) => ['live', 'upcoming'].includes(partnerStatus(vp)))
+                .map((vp) => (
+                  <TouchableOpacity key={vp.id} style={styles.partnerRow} onPress={() => router.push(`/partner/${vp.id}` as any)}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.partnerVenue}>{vp.zones?.name ?? 'Venue'}{vp.label ? ` · ${vp.label}` : ''}</Text>
+                      <Text style={styles.partnerWhen}>
+                        {PARTNER_STATUS_LABEL[partnerStatus(vp)]} · {formatDateTime(new Date(vp.starts_at))} to {formatDateTime(new Date(vp.ends_at))}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#7A93AC" />
+                  </TouchableOpacity>
+                ))}
+            </View>
           )}
 
           {/* Owner tools */}
@@ -324,6 +353,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#1A2E4A', gap: 10,
   },
   ownerStripText: { fontSize: 12, fontWeight: '700', color: '#C9940C' },
+  partnerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 56,
+    backgroundColor: '#0D1B2E', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: '#22c55e55',
+  },
+  partnerVenue: { fontSize: 15, fontWeight: '800', color: '#f8fafc' },
+  partnerWhen:  { fontSize: 12, color: '#7A93AC' },
   ownerStats: { flexDirection: 'row', gap: 10 },
   ownerStat: { flex: 1, alignItems: 'center', gap: 2 },
   ownerStatNum: { fontSize: 20, fontWeight: '800', color: '#f8fafc' },

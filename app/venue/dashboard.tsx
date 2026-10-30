@@ -1423,6 +1423,10 @@ export default function VenueDashboard() {
             <Ionicons name={UI.announce} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Broadcast</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/partners' as any)}>
+            <Ionicons name="ribbon-outline" size={24} color="#29B6F6" style={styles.actionEmoji} />
+            <Text style={styles.actionLabel}>Partners</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => venue && router.push(`/board/${venue.id}` as any)}>
             <Ionicons name={UI.board} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>The Board</Text>

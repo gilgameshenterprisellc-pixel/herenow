@@ -22,8 +22,9 @@ import { platformConfirm } from '@/lib/confirm'
 import BackButton from '@/components/BackButton'
 
 // Set up a contest: what it's called, who presents it, how it looks, how it's
-// scored. Opened three ways: ?id= to edit, ?zoneId= for a venue owner making
-// one, ?orgId= for an organization making one at its host venue.
+// scored. Opened four ways: ?id= to edit, ?zoneId= for a venue owner making
+// one, ?orgId= for an organization making one at its host venue, and
+// ?orgId=&zoneId= for an organization making one at a venue it partners with.
 
 export default function EditContestScreen() {
   const params = useLocalSearchParams<{ id?: string; zoneId?: string; orgId?: string }>()
@@ -84,6 +85,16 @@ export default function EditContestScreen() {
           score_decimals: c.score_decimals, higher_wins: c.higher_wins }))
         setOperators(b.ops?.operators ?? [])
         setHasScores((b.ops?.attempts ?? []).some((a) => !a.voided))
+      } else if (params.orgId && params.zoneId) {
+        // An org running a contest at a venue that made it a partner (the
+        // database checks the grant; the venue approved it by granting).
+        const [{ data: org }, { data: z }] = await Promise.all([
+          supabase.from('organizations').select('name').eq('id', params.orgId).maybeSingle(),
+          supabase.from('zones').select('name').eq('id', params.zoneId).maybeSingle(),
+        ])
+        if (cancelled) return
+        setVenueName(z?.name ?? null)
+        if (org?.name) setPresentedBy(org.name)
       } else if (params.orgId) {
         // An org runs contests at the venue it calls home.
         const { data: org } = await supabase
