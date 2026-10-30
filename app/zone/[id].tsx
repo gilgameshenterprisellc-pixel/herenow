@@ -1337,9 +1337,11 @@ export default function ZoneScreen() {
                   <BroadcastCard key={a.id} kind="announcement" name={zone?.name ?? 'This venue'}
                     message={a.message} imageUrl={a.image_url} at={a.publish_at} />
                 ))}
-                {sponsorPosts.map((b) => (
+                {/* Only the newest sponsor post, so the Pulse stays about the
+                    guests (Jacob, Oct 30). Every one of them is in Updates. */}
+                {sponsorPosts.slice(0, 1).map((b) => (
                   <BroadcastCard key={b.id} kind="sponsor" name={b.organizations?.name ?? 'Partner'}
-                    message={b.message} at={b.created_at} />
+                    message={b.message} imageUrl={b.image_url} at={b.created_at} />
                 ))}
               </>
             }
