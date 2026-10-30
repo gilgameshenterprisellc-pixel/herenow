@@ -154,7 +154,7 @@ export default function PartnerScreen() {
     if (!partner) return
     platformConfirm(
       `End the ${partner.organizations?.name ?? ''} partnership now?`,
-      'They lose broadcast, hosting and stats access right away.',
+      'They can\'t broadcast or set anything up here from now on. They keep the totals for the time it ran. Posts they already sent stay up tonight; delete them below if you want them gone now.',
       async () => {
         const ok = await revokePartner(partner.id)
         if (ok) setPartner({ ...partner, revoked_at: new Date().toISOString() })

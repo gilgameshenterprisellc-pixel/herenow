@@ -162,7 +162,8 @@ export default function UpdatesScreen() {
           zone_id:      p.zone_id,
           user_id:      user.id,
         }))
-        supabase.from('promo_views').upsert(viewRows, { onConflict: 'promotion_id,user_id', ignoreDuplicates: true }).then(() => {})
+        supabase.from('promo_views').upsert(viewRows, { onConflict: 'promotion_id,user_id', ignoreDuplicates: true })
+          .then(({ error }) => { if (error) console.warn('[updates] promo view log failed:', error.message) })
       }
 
       const promoItems: VenueFeedItem[] = (promos ?? []).map((p: any) => ({

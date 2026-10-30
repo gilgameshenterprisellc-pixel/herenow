@@ -84,7 +84,7 @@ export default function VenuePartnersScreen() {
   const handleRevoke = (p: VenuePartner) => {
     platformConfirm(
       `End ${p.organizations?.name ?? 'this'} partnership now?`,
-      'They lose broadcast, hosting and stats access right away. Contests and events they already made stay up; you can still hide them.',
+      'They can\'t broadcast or set anything up here from now on. They keep the totals for the time it ran. Contests and events they already made stay up, and so do tonight\'s posts; you can hide the contests and delete the posts from the partnership page.',
       async () => {
         const ok = await revokePartner(p.id)
         if (!ok) { showToast('Could not end it. Try again.', 'error'); return }
