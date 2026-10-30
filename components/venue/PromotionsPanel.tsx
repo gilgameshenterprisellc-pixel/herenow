@@ -9,6 +9,8 @@ import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { screenText, blockedMessage } from '@/lib/textModeration'
+import UniversalFeedToggle from '@/components/venue/UniversalFeedToggle'
+import { universalFeedError } from '@/lib/universalFeed'
 
 interface Promotion {
   id: string
@@ -34,6 +36,7 @@ function formatDateTime(date: Date): string {
 export default function PromotionsPanel() {
   const { showToast } = useToast()
   const [zoneId, setZoneId]         = useState<string | null>(null)
+  const [cityName, setCityName]     = useState<string | null>(null)
   const [promos, setPromos]         = useState<Promotion[]>([])
   const [loading, setLoading]       = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -43,6 +46,8 @@ export default function PromotionsPanel() {
   const [description, setDescription] = useState('')
   const [discountLabel, setDiscountLabel] = useState('')
   const [audience, setAudience]     = useState<'all' | 'subscribers'>('all')
+  const [toCity, setToCity]         = useState(false)
+  const [sentCount, setSentCount]   = useState(0)
 
   // Time window state
   const [hasTimeWindow, setHasTimeWindow] = useState(false)
@@ -99,10 +104,11 @@ export default function PromotionsPanel() {
     if (!user) { router.replace('/(auth)/login'); return }
 
     const { data: zone } = await supabase
-      .from('zones').select('id').eq('owner_id', user.id).maybeSingle()
+      .from('zones').select('id, cities(name)').eq('owner_id', user.id).maybeSingle()
 
     if (!zone) { setLoading(false); setRefreshing(false); return }
     setZoneId(zone.id)
+    setCityName((zone as any).cities?.name ?? null)
 
     const { data } = await supabase
       .from('venue_promotions')
@@ -138,6 +144,7 @@ export default function PromotionsPanel() {
         description:    description.trim() || null,
         discount_label: discountLabel.trim() || null,
         audience,
+        post_to_feed:   toCity,
         starts_at:      hasTimeWindow && startsAt ? startsAt.toISOString() : null,
         ends_at:        hasTimeWindow && endsAt   ? endsAt.toISOString()   : null,
       })
@@ -146,7 +153,8 @@ export default function PromotionsPanel() {
 
     if (error) {
       console.warn('[promotions] insert failed:', error.message)
-      showToast('Failed to post promotion. Try again.', 'error')
+      showToast(universalFeedError(error.message, cityName) ?? 'Failed to post promotion. Try again.', 'error')
+      if (toCity) setSentCount((n) => n + 1) // re-read what's left
     }
     if (!error && data) {
       setPromos((prev) => [data as Promotion, ...prev])
@@ -154,6 +162,9 @@ export default function PromotionsPanel() {
       setDescription('')
       setDiscountLabel('')
       setHasTimeWindow(false)
+      if (toCity) showToast(`Posted, and sent to the ${cityName ?? 'city'} feed.`, 'success')
+      setToCity(false)
+      setSentCount((n) => n + 1)
       setStartsAt(null)
       setEndsAt(null)
     }
@@ -348,6 +359,15 @@ export default function PromotionsPanel() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <UniversalFeedToggle
+          zoneId={zoneId}
+          cityName={cityName}
+          audience={audience}
+          value={toCity}
+          onChange={setToCity}
+          refreshKey={sentCount}
+        />
 
         <TouchableOpacity
           style={[styles.createBtn, (!title.trim() || saving) && styles.createBtnDisabled]}

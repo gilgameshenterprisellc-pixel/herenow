@@ -12,6 +12,8 @@ import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { screenText, blockedMessage } from '@/lib/textModeration'
 import DateTimeField, { formatDateTime } from '@/components/DateTimeField'
+import UniversalFeedToggle from '@/components/venue/UniversalFeedToggle'
+import { universalFeedError } from '@/lib/universalFeed'
 
 interface Announcement {
   id: string
@@ -30,6 +32,7 @@ interface Announcement {
 export default function AnnouncementsPanel() {
   const { showToast } = useToast()
   const [zoneId, setZoneId]         = useState<string | null>(null)
+  const [cityName, setCityName]     = useState<string | null>(null)
   const [noZone, setNoZone]         = useState(false)
   const [annos, setAnnos]           = useState<Announcement[]>([])
   const [loading, setLoading]       = useState(true)
@@ -41,6 +44,8 @@ export default function AnnouncementsPanel() {
   const [audience, setAudience]       = useState<'all' | 'subscribers'>('all')
   const [when, setWhen]               = useState<'now' | 'later'>('now')
   const [publishAt, setPublishAt]     = useState<Date | null>(null)
+  const [toCity, setToCity]           = useState(false)
+  const [sentCount, setSentCount]     = useState(0)
   const [localImageUri, setLocalImageUri] = useState<string | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
 
@@ -49,10 +54,11 @@ export default function AnnouncementsPanel() {
     if (!user) { router.replace('/(auth)/login'); return }
 
     const { data: zone } = await supabase
-      .from('zones').select('id').eq('owner_id', user.id).maybeSingle()
+      .from('zones').select('id, cities(name)').eq('owner_id', user.id).maybeSingle()
 
     if (!zone) { setNoZone(true); setLoading(false); setRefreshing(false); return }
     setZoneId(zone.id)
+    setCityName((zone as any).cities?.name ?? null)
 
     const { data } = await supabase
       .from('venue_announcements')
@@ -172,6 +178,7 @@ export default function AnnouncementsPanel() {
         message:      message.trim(),
         audience,
         image_url:    uploadedImageUrl ?? null,
+        post_to_feed: toCity,
         // Left out for "now" so the database stamps it (publish_at default now()).
         ...(scheduled && publishAt ? { publish_at: publishAt.toISOString() } : {}),
       })
@@ -180,7 +187,8 @@ export default function AnnouncementsPanel() {
 
     if (error) {
       console.warn('[announcements] insert failed:', error.message)
-      showToast('Failed to send announcement. Try again.', 'error')
+      showToast(universalFeedError(error.message, cityName) ?? 'Failed to send announcement. Try again.', 'error')
+      if (toCity) setSentCount((n) => n + 1) // re-read what's left
       setSending(false)
       return
     }
@@ -192,8 +200,11 @@ export default function AnnouncementsPanel() {
       setUploadedImageUrl(null)
       setWhen('now')
       setPublishAt(null)
+      setToCity(false)
+      setSentCount((n) => n + 1)
       showToast(
         scheduled && publishAt ? `Scheduled for ${formatDateTime(publishAt)}.`
+          : toCity ? `Sent to your followers and the ${cityName ?? 'city'} feed.`
           : audience === 'subscribers' ? 'Sent to your subscribers.' : 'Sent to your followers.',
         'success',
       )
@@ -332,6 +343,15 @@ export default function AnnouncementsPanel() {
             <DateTimeField value={publishAt} onChange={setPublishAt} placeholder="Tap to pick when it goes out" />
           )}
         </View>
+
+        <UniversalFeedToggle
+          zoneId={zoneId}
+          cityName={cityName}
+          audience={audience}
+          value={toCity}
+          onChange={setToCity}
+          refreshKey={sentCount}
+        />
 
         <TouchableOpacity
           style={[styles.sendBtn, (!message.trim() || sending || uploading) && styles.sendBtnDisabled]}
