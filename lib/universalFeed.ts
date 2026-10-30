@@ -62,3 +62,14 @@ export function universalFeedError(message: string | undefined, cityName: string
   }
   return null
 }
+
+/**
+ * The city to show when the app can't tell where someone is: no location
+ * permission and no check-in yet (Jacob, Oct 30: "Could we default to their
+ * selected city?"). Nobody picks a city in HereNow, so while there is one city
+ * it's that one; once there are two, this returns null and the feed should
+ * ask instead of guessing.
+ */
+export function defaultCity(cities: City[]): City | null {
+  return cities.length === 1 ? cities[0] : null
+}

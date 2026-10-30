@@ -1,7 +1,7 @@
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
 import { nightStart } from './nights'
-import { cityForPoint, slotsLeft, UNIVERSAL_FEED_WINDOW_DAYS, type City } from './universalFeed'
+import { cityForPoint, defaultCity, slotsLeft, UNIVERSAL_FEED_WINDOW_DAYS, type City } from './universalFeed'
 
 export interface VenueAnnouncement {
   id: string
@@ -99,7 +99,9 @@ async function quietCoords(): Promise<{ lat: number; lng: number } | null> {
 
 // Which city's Universal Feed to show (Jacob: someone visiting Nashville sees
 // Nashville's, wherever they live). Where they are now if location is allowed;
-// otherwise the city of the last venue they checked in to.
+// otherwise the city of the last venue they checked in to; and for someone
+// brand new with neither, the default city (Jacob, Oct 30). Location that is
+// allowed and outside every city means no feed: then we know they're elsewhere.
 export async function viewerCity(cities: City[]): Promise<City | null> {
   if (cities.length === 0) return null
   const here = await quietCoords()
@@ -115,6 +117,7 @@ export async function viewerCity(cities: City[]): Promise<City | null> {
     .limit(1)
     .maybeSingle()
   if (error) { console.warn('[broadcasts] last check-in lookup failed:', error.message); return null }
+  if (!data) return defaultCity(cities)
   const slug = (data as any)?.zones?.city_slug as string | undefined
   return cities.find((c) => c.slug === slug) ?? null
 }
