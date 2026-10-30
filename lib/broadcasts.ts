@@ -46,6 +46,7 @@ export interface UniversalItem {
   zone_id: string
   zone_name: string
   message?: string
+  image_url?: string | null
   title?: string
   description?: string | null
   discount_label?: string | null
@@ -127,7 +128,7 @@ export async function fetchUniversalFeed(citySlug: string): Promise<UniversalIte
   const [annos, promos] = await Promise.all([
     supabase
       .from('venue_announcements')
-      .select('id, zone_id, message, publish_at, zones!inner(name, city_slug)')
+      .select('id, zone_id, message, image_url, publish_at, zones!inner(name, city_slug)')
       .eq('post_to_feed', true)
       .eq('zones.city_slug', citySlug)
       .gte('publish_at', since)
@@ -150,7 +151,7 @@ export async function fetchUniversalFeed(citySlug: string): Promise<UniversalIte
   return [
     ...(annos.data ?? []).map((a: any): UniversalItem => ({
       kind: 'announcement', id: a.id, zone_id: a.zone_id, zone_name: a.zones?.name ?? 'Venue',
-      message: a.message, at: a.publish_at,
+      message: a.message, image_url: a.image_url, at: a.publish_at,
     })),
     ...(promos.data ?? []).map((p: any): UniversalItem => ({
       kind: 'promotion', id: p.id, zone_id: p.zone_id, zone_name: p.zones?.name ?? 'Venue',

@@ -38,6 +38,8 @@ interface VenueFeedItem {
   message?: string
   discount_label?: string
   starts_at?: string
+  /** An announcement's or sponsor post's flyer or photo. */
+  image_url?: string | null
   created_at: string
   /** Reached you because you're checked in there, not because you follow it. */
   here?: boolean
@@ -135,7 +137,7 @@ export default function UpdatesScreen() {
         // publish_at in the future = scheduled, not out yet.
         supabase
           .from('venue_announcements')
-          .select('id, zone_id, message, audience, publish_at, zones(name)')
+          .select('id, zone_id, message, image_url, audience, publish_at, zones(name)')
           .in('zone_id', zoneIds)
           .lte('publish_at', now)
           .order('publish_at', { ascending: false })
@@ -181,6 +183,7 @@ export default function UpdatesScreen() {
         zone_name:  a.zones?.name ?? 'Venue',
         type:       'announcement' as const,
         message:    a.message,
+        image_url:  a.image_url,
         created_at: a.publish_at,
         here:       hereOnly(a.zone_id),
       }))
@@ -202,6 +205,7 @@ export default function UpdatesScreen() {
         zone_name:  `${b.organizations?.name ?? 'A partner'} at ${b.zones?.name ?? 'this venue'}`,
         type:       'sponsor' as const,
         message:    b.message,
+        image_url:  b.image_url,
         created_at: b.created_at,
         here:       true,
       }))
@@ -241,6 +245,7 @@ export default function UpdatesScreen() {
             description:    it.description ?? undefined,
             message:        it.message,
             discount_label: it.discount_label ?? undefined,
+            image_url:      it.image_url,
             created_at:     it.at,
           }))
           .filter((it) => !dismissedKeys.has(it.id))
@@ -357,6 +362,9 @@ export default function UpdatesScreen() {
           <Text style={styles.discountText}>{item.discount_label}</Text>
         </View>
       )}
+      {item.image_url ? (
+        <Image source={{ uri: item.image_url }} style={styles.venueFeedMedia} resizeMode="cover" />
+      ) : null}
       {(item.description || item.message) && (
         <Text style={styles.venueFeedDesc}>{item.description ?? item.message}</Text>
       )}
@@ -531,6 +539,7 @@ const styles = StyleSheet.create({
   venueFeedEventDate: { fontSize: 12, fontWeight: '700', color: '#a855f7', marginTop: 2 },
   venueFeedTitle:  { fontSize: 15, fontWeight: '800', color: '#f8fafc' },
   venueFeedDesc:   { fontSize: 13, color: '#8EADC7', lineHeight: 18 },
+  venueFeedMedia:  { width: '100%', aspectRatio: 4 / 3, borderRadius: 10, backgroundColor: '#07101F' },
   venueFeedCta:    { fontSize: 12, color: '#29B6F6', fontWeight: '600' },
   discountPill: {
     backgroundColor: '#22c55e18', borderRadius: 8,

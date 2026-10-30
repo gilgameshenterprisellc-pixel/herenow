@@ -31,6 +31,8 @@ export interface PartnerBroadcast {
   zone_id: string
   org_id: string
   message: string
+  /** A flyer or photo (supabase/sponsor_photos_oct30.sql). */
+  image_url?: string | null
   created_at: string
   organizations?: { name: string } | null
   zones?: { name: string } | null
@@ -172,7 +174,11 @@ export async function fetchPartnerBroadcasts(partnerId: string): Promise<Partner
   return (data ?? []) as PartnerBroadcast[]
 }
 
-export async function sendPartnerBroadcast(partner: VenuePartner, message: string): Promise<{ ok: boolean; row?: PartnerBroadcast }> {
+export async function sendPartnerBroadcast(
+  partner: VenuePartner,
+  message: string,
+  imageUrl?: string | null,
+): Promise<{ ok: boolean; row?: PartnerBroadcast }> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false }
   const { data, error } = await supabase
@@ -183,6 +189,8 @@ export async function sendPartnerBroadcast(partner: VenuePartner, message: strin
       org_id: partner.org_id,
       created_by: user.id,
       message: message.trim(),
+      // Only sent with a photo, so a text post still works if the column is missing.
+      ...(imageUrl ? { image_url: imageUrl } : {}),
     })
     .select('*')
     .single()

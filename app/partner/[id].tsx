@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Platform, RefreshControl,
+  ActivityIndicator, Platform, RefreshControl, Image, Alert, ActionSheetIOS,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import * as ImagePicker from 'expo-image-picker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
-import { getAuthedUser } from '@/lib/supabase'
+import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { screenText, blockedMessage } from '@/lib/textModeration'
+import { screenImage } from '@/lib/moderation'
 import BackButton from '@/components/BackButton'
 import { formatDateTime } from '@/components/DateTimeField'
 import {
@@ -34,6 +36,9 @@ export default function PartnerScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
+  // A flyer or photo for the broadcast (Jacob, Oct 30), uploaded on pick.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
 
   const load = useCallback(async () => {
     const user = await getAuthedUser()
@@ -57,12 +62,75 @@ export default function PartnerScreen() {
   const status = partner ? partnerStatus(partner) : 'ended'
   const open = status === 'live' || status === 'upcoming'
 
+  // Same path as Pulse photos: venue-media bucket, then the optional image
+  // screen, and the file is removed if the screen turns it down.
+  const attachPhoto = async (source: 'library' | 'camera') => {
+    if (!partner) return
+    setPhotoUploading(true)
+    try {
+      let result: ImagePicker.ImagePickerResult
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync()
+        if (status !== 'granted') { showToast('Camera access needed for photos.', 'error'); return }
+        result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 })
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (status !== 'granted') { showToast('Photo access needed.', 'error'); return }
+        result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 })
+      }
+      if (result.canceled || !result.assets[0]) return
+
+      const asset = result.assets[0]
+      const fileName = `sponsor/${partner.zone_id}/${partner.org_id}/${Date.now()}.jpg`
+      const response = await fetch(asset.uri)
+      const arrayBuffer = await response.arrayBuffer()
+      const { error: uploadError } = await supabase.storage
+        .from('venue-media')
+        .upload(fileName, arrayBuffer, { contentType: asset.mimeType || 'image/jpeg' })
+      if (uploadError) {
+        console.warn('[partner] photo upload failed:', uploadError.message)
+        showToast('Upload failed. Try again.', 'error')
+        return
+      }
+      const { data: urlData } = supabase.storage.from('venue-media').getPublicUrl(fileName)
+
+      const screen = await screenImage(urlData.publicUrl)
+      if (!screen.ok) {
+        await supabase.storage.from('venue-media').remove([fileName]).catch(() => {})
+        showToast(screen.reason ?? 'That photo can\'t be posted.', 'error')
+        return
+      }
+      setPhotoUrl(urlData.publicUrl)
+    } catch {
+      showToast('Could not attach photo. Try again.', 'error')
+    } finally {
+      setPhotoUploading(false)
+    }
+  }
+
+  const pickPhoto = () => {
+    // Web has no camera action sheet, and Alert.alert is a no-op there.
+    if (Platform.OS === 'web') { attachPhoto('library'); return }
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        (i) => { if (i === 1) attachPhoto('camera'); else if (i === 2) attachPhoto('library') },
+      )
+    } else {
+      Alert.alert('Add a photo', 'A flyer or photo for this broadcast.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => attachPhoto('camera') },
+        { text: 'From Library', onPress: () => attachPhoto('library') },
+      ])
+    }
+  }
+
   const handleSend = async () => {
-    if (!partner || !message.trim()) return
+    if (!partner || !message.trim() || photoUploading) return
     const screen = screenText(message)
     if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     setSending(true)
-    const res = await sendPartnerBroadcast(partner, message)
+    const res = await sendPartnerBroadcast(partner, message, photoUrl)
     setSending(false)
     if (!res.ok || !res.row) {
       showToast('Could not send. The partnership may have ended.', 'error')
@@ -70,6 +138,7 @@ export default function PartnerScreen() {
     }
     setBroadcasts((prev) => [res.row!, ...prev])
     setMessage('')
+    setPhotoUrl(null)
     showToast(`Sent to everyone checked in at ${partner.zones?.name ?? 'the venue'}.`, 'success')
   }
 
@@ -153,7 +222,7 @@ export default function PartnerScreen() {
                 {status === 'live' ? (
                   <>
                     <Text style={styles.small}>
-                      Everyone checked in at {partner.zones?.name ?? 'the venue'} sees this in Updates and the Pulse, until they leave.
+                      Everyone checked in at {partner.zones?.name ?? 'the venue'} sees this in Updates until they leave. Your newest post also sits at the top of the venue's Pulse, marked Sponsor.
                     </Text>
                     <TextInput
                       style={[styles.input, styles.multiline]}
@@ -165,10 +234,25 @@ export default function PartnerScreen() {
                       maxLength={300}
                     />
                     <Text style={styles.count}>{message.length}/300</Text>
+                    {photoUrl ? (
+                      <View style={styles.photoWrap}>
+                        <Image source={{ uri: photoUrl }} style={styles.photo} resizeMode="cover" />
+                        <TouchableOpacity style={styles.photoRemove} onPress={() => setPhotoUrl(null)} hitSlop={10}>
+                          <Ionicons name="close" size={16} color="#f8fafc" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity style={styles.secondaryBtn} onPress={pickPhoto} disabled={photoUploading}>
+                        {photoUploading
+                          ? <ActivityIndicator color="#29B6F6" size="small" />
+                          : <Ionicons name="camera-outline" size={16} color="#29B6F6" />}
+                        <Text style={styles.secondaryBtnText}>{photoUploading ? 'Uploading...' : 'Add flyer or photo'}</Text>
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity
-                      style={[styles.primaryBtn, (!message.trim() || sending) && styles.disabled]}
+                      style={[styles.primaryBtn, (!message.trim() || sending || photoUploading) && styles.disabled]}
                       onPress={handleSend}
-                      disabled={!message.trim() || sending}
+                      disabled={!message.trim() || sending || photoUploading}
                     >
                       {sending ? <ActivityIndicator color="#050A15" size="small" /> : <Text style={styles.primaryBtnText}>Send to guests</Text>}
                     </TouchableOpacity>
@@ -217,6 +301,7 @@ export default function PartnerScreen() {
                         </TouchableOpacity>
                       )}
                     </View>
+                    {b.image_url ? <Image source={{ uri: b.image_url }} style={styles.photo} resizeMode="cover" /> : null}
                     <Text style={styles.sentText}>{b.message}</Text>
                   </View>
                 ))}
@@ -287,6 +372,12 @@ const styles = StyleSheet.create({
     minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: '#1A2E4A', backgroundColor: '#07101F',
   },
   secondaryBtnText: { fontSize: 13, fontWeight: '700', color: '#29B6F6' },
+  photoWrap: { position: 'relative' },
+  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: 10, backgroundColor: '#07101F' },
+  photoRemove: {
+    position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#050A15CC', alignItems: 'center', justifyContent: 'center',
+  },
   sent: { backgroundColor: '#0D1B2E', borderRadius: 12, padding: 12, gap: 4, borderWidth: 1, borderColor: '#1A2E4A' },
   sentText: { fontSize: 14, color: '#D0E8F5', lineHeight: 20 },
 })
