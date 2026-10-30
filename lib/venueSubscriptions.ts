@@ -13,6 +13,8 @@ export interface VenueSubscription {
   zone_id: string
   subscribed_at: string
   is_subscriber: boolean
+  /** Silenced: the venue's broadcasts stay out of Updates (still a follow). */
+  muted: boolean
   zones: {
     id: string
     name: string
@@ -96,11 +98,33 @@ export async function fetchMyVenues(): Promise<VenueSubscription[]> {
   if (!user) return []
   const { data, error } = await supabase
     .from('venue_subscriptions')
-    .select('id, zone_id, subscribed_at, is_subscriber, zones(id, name, type)')
+    .select('id, zone_id, subscribed_at, is_subscriber, muted, zones(id, name, type)')
     .eq('user_id', user.id)
     .order('subscribed_at', { ascending: false })
-  if (error) return []
+  if (error) {
+    console.warn('[venueSubscriptions] fetchMyVenues failed:', error.message)
+    return []
+  }
   return (data ?? []) as unknown as VenueSubscription[]
+}
+
+// Mute keeps the follow (and any subscription) but keeps the venue's broadcasts
+// out of Updates (Jacob, Oct 29: "something where users can silence updates
+// from venues").
+export async function setVenueMuted(zoneId: string, muted: boolean): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+  const { error } = await supabase
+    .from('venue_subscriptions')
+    .update({ muted })
+    .eq('user_id', user.id)
+    .eq('zone_id', zoneId)
+  if (error) {
+    console.warn('[venueSubscriptions] setVenueMuted failed:', error.message)
+    return false
+  }
+  logEvent(muted ? 'venue_mute' : 'venue_unmute', { zoneId })
+  return true
 }
 
 export async function fetchFollowerCount(zoneId: string): Promise<number> {

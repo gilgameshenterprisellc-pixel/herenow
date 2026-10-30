@@ -185,7 +185,7 @@ export default function PromotionsPanel() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
     >
       <Text style={styles.hint}>
-        Promotions appear on your venue page and in your followers' feeds. Great for happy hours, events, and deals.
+        Promotions go to your followers' Updates, and anyone checked in sees your live ones there too. Set a time window to schedule one ahead. Great for happy hours, events, and deals.
       </Text>
 
       {/* Existing promos */}

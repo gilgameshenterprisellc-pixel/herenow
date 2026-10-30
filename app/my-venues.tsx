@@ -6,12 +6,14 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { fetchMyVenues, unsubscribeFromVenue, type VenueSubscription } from '@/lib/venueSubscriptions'
+import { fetchMyVenues, unsubscribeFromVenue, setVenueMuted, type VenueSubscription } from '@/lib/venueSubscriptions'
+import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import BackButton from '@/components/BackButton'
 
 export default function MyVenuesScreen() {
   const insets = useSafeAreaInsets()
+  const { showToast } = useToast()
   const [venues, setVenues]       = useState<VenueSubscription[]>([])
   const [loading, setLoading]     = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -36,6 +38,21 @@ export default function MyVenuesScreen() {
       },
       { confirmText: 'Unfollow', destructive: true }
     )
+  }
+
+  // Mute keeps the follow but keeps the venue out of Updates (Jacob, Oct 29).
+  const toggleMute = async (v: VenueSubscription) => {
+    const next = !v.muted
+    setVenues((prev) => prev.map((x) => (x.id === v.id ? { ...x, muted: next } : x)))
+    const ok = await setVenueMuted(v.zone_id, next)
+    if (!ok) {
+      setVenues((prev) => prev.map((x) => (x.id === v.id ? { ...x, muted: !next } : x)))
+      showToast('Could not change that. Try again.', 'error')
+      return
+    }
+    showToast(next
+      ? `Muted. ${v.zones?.name ?? 'This venue'} stays followed but won't show up in Updates.`
+      : `Unmuted. ${v.zones?.name ?? 'This venue'} is back in your Updates.`, 'success')
   }
 
   return (
@@ -74,9 +91,21 @@ export default function MyVenuesScreen() {
                     <Text style={styles.cardType}>{item.zones.type}</Text>
                   )}
                   <Text style={styles.cardSince}>
-                    Following since {new Date(item.subscribed_at).toLocaleDateString()}
+                    {item.muted ? 'Muted · ' : ''}Following since {new Date(item.subscribed_at).toLocaleDateString()}
                   </Text>
                 </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.muteBtn}
+                onPress={() => toggleMute(item)}
+                accessibilityRole="button"
+                accessibilityLabel={item.muted ? `Unmute ${item.zones?.name ?? 'venue'}` : `Mute ${item.zones?.name ?? 'venue'}`}
+              >
+                <Ionicons
+                  name={item.muted ? 'notifications-off' : 'notifications-outline'}
+                  size={18}
+                  color={item.muted ? '#7A93AC' : '#29B6F6'}
+                />
               </TouchableOpacity>
               <TouchableOpacity style={styles.unfollowBtn} onPress={() => handleUnfollow(item)}>
                 <Text style={styles.unfollowText}>Unfollow</Text>
@@ -127,6 +156,10 @@ const styles = StyleSheet.create({
   cardName:  { fontSize: 15, fontWeight: '800', color: '#f8fafc' },
   cardType:  { fontSize: 12, color: '#7A93AC', textTransform: 'capitalize' },
   cardSince: { fontSize: 11, color: '#4A6580' },
+  muteBtn: {
+    minWidth: 48, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center',
+    borderLeftWidth: 1, borderLeftColor: '#1A2E4A',
+  },
   unfollowBtn: {
     paddingHorizontal: 14, paddingVertical: 14,
     borderLeftWidth: 1, borderLeftColor: '#1A2E4A',

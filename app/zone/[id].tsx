@@ -44,6 +44,8 @@ import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFounding
 import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
+import VenueAnnouncementCard from '@/components/VenueAnnouncementCard'
+import { fetchTonightsAnnouncements, type VenueAnnouncement } from '@/lib/broadcasts'
 import ChatMessage from '@/components/ChatMessage'
 import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 import EventCard from '@/components/EventCard'
@@ -194,6 +196,17 @@ export default function ZoneScreen() {
     if (!visibleTabs.some((t) => t.id === tab) && visibleTabs[0]) setTab(visibleTabs[0].id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zone?.chat_enabled, zone?.pulse_enabled])
+
+  // Tonight's venue announcements sit at the top of the Pulse for everyone in
+  // the room, follow or not (Jacob, Oct 29). Re-read whenever the Pulse refreshes.
+  const [tonightAnnos, setTonightAnnos] = useState<VenueAnnouncement[]>([])
+  useEffect(() => {
+    if (tab !== 'pulse' || !canViewFeed) return
+    let cancelled = false
+    fetchTonightsAnnouncements(id, { subscriber: isPatron || isOwner })
+      .then((a) => { if (!cancelled) setTonightAnnos(a) })
+    return () => { cancelled = true }
+  }, [id, tab, canViewFeed, isPatron, isOwner, pulsePosts])
 
   // Chat shows the sender's display name ("Jordan P."), the same form used on
   // People cards. Nothing in the app posts anonymously.
@@ -1286,7 +1299,14 @@ export default function ZoneScreen() {
             data={pulsePosts}
             keyExtractor={(p) => p.id}
             contentContainerStyle={styles.list}
-            ListHeaderComponent={venueInfo}
+            ListHeaderComponent={
+              <>
+                {venueInfo}
+                {tonightAnnos.map((a) => (
+                  <VenueAnnouncementCard key={a.id} announcement={a} venueName={zone?.name ?? 'This venue'} />
+                ))}
+              </>
+            }
             renderItem={({ item }) => (
               <PulsePostCard
                 post={item}
