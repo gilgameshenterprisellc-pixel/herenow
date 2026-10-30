@@ -44,8 +44,9 @@ import { fetchVenueBadges, checkAndAwardVenueBadges, sortVenueBadges, isFounding
 import { followVenue, unfollowVenue, isFollowingVenue, subscribeAsPatron, isSubscriberOfVenue } from '@/lib/venueSubscriptions'
 import PersonCard from '@/components/PersonCard'
 import PulsePostCard from '@/components/PulsePostCard'
-import VenueAnnouncementCard from '@/components/VenueAnnouncementCard'
+import BroadcastCard from '@/components/BroadcastCard'
 import { fetchTonightsAnnouncements, type VenueAnnouncement } from '@/lib/broadcasts'
+import { fetchLivePartners, fetchTonightsPartnerBroadcasts, type VenuePartner, type PartnerBroadcast } from '@/lib/partners'
 import ChatMessage from '@/components/ChatMessage'
 import ActionSheet, { type ActionSheetConfig } from '@/components/ActionSheet'
 import EventCard from '@/components/EventCard'
@@ -199,14 +200,27 @@ export default function ZoneScreen() {
 
   // Tonight's venue announcements sit at the top of the Pulse for everyone in
   // the room, follow or not (Jacob, Oct 29). Re-read whenever the Pulse refreshes.
+  // Partner broadcasts join them, for guests checked in (the database enforces
+  // that); a guest seeing one counts toward the partner's reach.
   const [tonightAnnos, setTonightAnnos] = useState<VenueAnnouncement[]>([])
+  const [sponsorPosts, setSponsorPosts] = useState<PartnerBroadcast[]>([])
   useEffect(() => {
     if (tab !== 'pulse' || !canViewFeed) return
     let cancelled = false
     fetchTonightsAnnouncements(id, { subscriber: isPatron || isOwner })
       .then((a) => { if (!cancelled) setTonightAnnos(a) })
+    fetchTonightsPartnerBroadcasts(id, { countView: isCheckedIn })
+      .then((b) => { if (!cancelled) setSponsorPosts(b) })
     return () => { cancelled = true }
-  }, [id, tab, canViewFeed, isPatron, isOwner, pulsePosts])
+  }, [id, tab, canViewFeed, isCheckedIn, isPatron, isOwner, pulsePosts])
+
+  // Live partners, shown on the venue page: "Presented with Monster".
+  const [livePartners, setLivePartners] = useState<VenuePartner[]>([])
+  useEffect(() => {
+    let cancelled = false
+    fetchLivePartners(id).then((p) => { if (!cancelled) setLivePartners(p) })
+    return () => { cancelled = true }
+  }, [id])
 
   // Chat shows the sender's display name ("Jordan P."), the same form used on
   // People cards. Nothing in the app posts anonymously.
@@ -846,6 +860,23 @@ export default function ZoneScreen() {
   // People/Chat/Events, which now get the full height.
   const venueInfo = (
     <View>
+      {livePartners.length > 0 && (
+        <View style={styles.presentedWrap}>
+          <Ionicons name="ribbon" size={14} color="#c084fc" />
+          <Text style={styles.presentedText}>
+            Presented with{' '}
+            {livePartners.map((p, i) => (
+              <Text key={p.id}>
+                {i > 0 ? ' & ' : ''}
+                <Text style={styles.presentedOrg} onPress={() => router.push(`/org/${p.org_id}` as any)}>
+                  {p.organizations?.name ?? 'a partner'}
+                </Text>
+              </Text>
+            ))}
+            {livePartners.length === 1 && livePartners[0].label ? ` · ${livePartners[0].label}` : ''}
+          </Text>
+        </View>
+      )}
       {venueBadges.length > 0 && (
         <View style={styles.badgeStrip}>
           <ScrollView
@@ -1303,7 +1334,12 @@ export default function ZoneScreen() {
               <>
                 {venueInfo}
                 {tonightAnnos.map((a) => (
-                  <VenueAnnouncementCard key={a.id} announcement={a} venueName={zone?.name ?? 'This venue'} />
+                  <BroadcastCard key={a.id} kind="announcement" name={zone?.name ?? 'This venue'}
+                    message={a.message} imageUrl={a.image_url} at={a.publish_at} />
+                ))}
+                {sponsorPosts.map((b) => (
+                  <BroadcastCard key={b.id} kind="sponsor" name={b.organizations?.name ?? 'Partner'}
+                    message={b.message} at={b.created_at} />
                 ))}
               </>
             }
@@ -1961,6 +1997,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     gap: 12,
   },
+  presentedWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginBottom: 8, paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: '#a855f714', borderRadius: 10, borderWidth: 1, borderColor: '#a855f740',
+  },
+  presentedText: { flex: 1, fontSize: 13, color: '#D0E8F5' },
+  presentedOrg:  { fontWeight: '800', color: '#c084fc' },
   badgeStrip: {
     borderBottomWidth: 1,
     borderBottomColor: '#0D1B2E',

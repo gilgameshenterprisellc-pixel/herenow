@@ -19,6 +19,7 @@ import { fetchMyVenues, type VenueSubscription } from '@/lib/venueSubscriptions'
 import { seesBroadcast, broadcastZoneIds, type BroadcastViewer } from '@/lib/broadcastAudience'
 import { nightStart } from '@/lib/nights'
 import { fetchCities, viewerCity, fetchUniversalFeed } from '@/lib/broadcasts'
+import { fetchTonightsPartnerBroadcasts } from '@/lib/partners'
 import type { City } from '@/lib/universalFeed'
 import { useSessionContext } from '@/contexts/SessionContext'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -31,7 +32,7 @@ interface VenueFeedItem {
   id: string
   zone_id: string
   zone_name: string
-  type: 'promotion' | 'announcement' | 'event'
+  type: 'promotion' | 'announcement' | 'event' | 'sponsor'
   title?: string
   description?: string
   message?: string
@@ -48,6 +49,7 @@ const NOTIF_META: Record<string, { icon: IoniconsName; color: string }> = {
   event_rsvp:         { icon: 'calendar-outline',         color: '#a855f7' },
   badge_earned:       { icon: 'ribbon-outline',           color: '#f59e0b' },
   venue_announcement: { icon: 'megaphone-outline',        color: '#f97316' },
+  venue_partner:      { icon: 'ribbon-outline',           color: '#c084fc' },
   system:             { icon: 'radio-outline',            color: '#7A93AC' },
 }
 
@@ -84,8 +86,13 @@ export default function UpdatesScreen() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Started now, awaited below: which city's Universal Feed to show.
+    // Started now, awaited below: which city's Universal Feed to show, and any
+    // partner (sponsor) broadcasts at the venue you're checked in to, which the
+    // database only returns while you're there (Jacob, Oct 29).
     const cityPromise = fetchCities().then(viewerCity)
+    const sponsorPromise = checkedInZone
+      ? fetchTonightsPartnerBroadcasts(checkedInZone, { countView: true })
+      : Promise.resolve([])
 
     const subs = await fetchMyVenues()
     setMyVenues(subs)
@@ -189,8 +196,18 @@ export default function UpdatesScreen() {
         created_at:  e.created_at,
       }))
 
+      const sponsorItems: VenueFeedItem[] = (await sponsorPromise).map((b) => ({
+        id:         `sponsor-${b.id}`,
+        zone_id:    b.zone_id,
+        zone_name:  `${b.organizations?.name ?? 'A partner'} at ${b.zones?.name ?? 'this venue'}`,
+        type:       'sponsor' as const,
+        message:    b.message,
+        created_at: b.created_at,
+        here:       true,
+      }))
+
       setVenueFeed(
-        [...promoItems, ...annoItems, ...eventItems]
+        [...sponsorItems, ...promoItems, ...annoItems, ...eventItems]
           .filter((it) => !dismissed.has(it.id))
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .slice(0, 30)
@@ -277,6 +294,8 @@ export default function UpdatesScreen() {
       router.push(`/messages/${d.we_met_id}` as any)
     } else if (n.type === 'badge_earned') {
       router.push('/badges')
+    } else if (n.type === 'venue_partner' && d?.partner_id) {
+      router.push(`/partner/${d.partner_id}` as any)
     } else if (n.type === 'venue_status') {
       router.push('/venue/dashboard' as any)
     } else if (n.type.startsWith('contest_') && d?.contest_id) {
@@ -298,7 +317,7 @@ export default function UpdatesScreen() {
     >
       <View style={styles.venueFeedHeader}>
         <Ionicons
-          name={item.type === 'announcement' ? 'megaphone' : item.type === 'event' ? 'calendar' : 'pricetag'}
+          name={item.type === 'announcement' ? 'megaphone' : item.type === 'event' ? 'calendar' : item.type === 'sponsor' ? 'ribbon' : 'pricetag'}
           size={18}
           color="#29B6F6"
           style={styles.venueFeedEmoji}
@@ -310,9 +329,9 @@ export default function UpdatesScreen() {
           </Text>
           <Text style={styles.venueFeedTime}>{timeAgo(item.created_at)}</Text>
         </View>
-        <View style={[styles.venueFeedBadge, item.type === 'announcement' ? styles.badgeAnnouncement : item.type === 'event' ? styles.badgeEvent : styles.badgePromo]}>
-          <Text style={[styles.venueFeedBadgeText, item.type === 'announcement' ? styles.badgeAnnoText : item.type === 'event' ? styles.badgeEventText : styles.badgePromoText]}>
-            {item.type === 'announcement' ? 'Announcement' : item.type === 'event' ? 'Event' : 'Promo'}
+        <View style={[styles.venueFeedBadge, item.type === 'announcement' ? styles.badgeAnnouncement : item.type === 'event' || item.type === 'sponsor' ? styles.badgeEvent : styles.badgePromo]}>
+          <Text style={[styles.venueFeedBadgeText, item.type === 'announcement' ? styles.badgeAnnoText : item.type === 'event' || item.type === 'sponsor' ? styles.badgeEventText : styles.badgePromoText]}>
+            {item.type === 'announcement' ? 'Announcement' : item.type === 'event' ? 'Event' : item.type === 'sponsor' ? 'Sponsor' : 'Promo'}
           </Text>
         </View>
         <TouchableOpacity
