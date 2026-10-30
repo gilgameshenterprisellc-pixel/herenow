@@ -160,8 +160,7 @@ function RootLayout() {
           <Stack.Screen name="venue/dashboard" />
           <Stack.Screen name="venue/edit" />
           <Stack.Screen name="venue/highlights" />
-          <Stack.Screen name="venue/promotions" />
-          <Stack.Screen name="venue/announcements" />
+          <Stack.Screen name="venue/broadcast" />
           <Stack.Screen name="venue/submit" />
           <Stack.Screen name="my-venues" />
           <Stack.Screen name="contest/[id]" />

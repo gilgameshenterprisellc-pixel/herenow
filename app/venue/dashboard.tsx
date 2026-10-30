@@ -1413,17 +1413,15 @@ export default function VenueDashboard() {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/edit' as any)}>
-            <Ionicons name={UI.editVenue} size={24} color="#29B6F6" style={styles.actionEmoji} />
-            <Text style={styles.actionLabel}>Edit Venue</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={() => venue && router.push(`/zone/event/create?zoneId=${venue.id}` as any)}>
-            <Ionicons name={UI.addEvent} size={24} color="#29B6F6" style={styles.actionEmoji} />
-            <Text style={styles.actionLabel}>Add Event</Text>
-          </TouchableOpacity>
+          {/* Edit Venue lives only in the header now, which stays on screen while
+              scrolling; Add Event is the button on the Events page (Jacob, Oct 29). */}
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/events' as any)}>
             <Ionicons name={UI.manageEvents} size={24} color="#29B6F6" style={styles.actionEmoji} />
-            <Text style={styles.actionLabel}>Manage Events</Text>
+            <Text style={styles.actionLabel}>Events</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/broadcast' as any)}>
+            <Ionicons name={UI.announce} size={24} color="#29B6F6" style={styles.actionEmoji} />
+            <Text style={styles.actionLabel}>Broadcast</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => venue && router.push(`/board/${venue.id}` as any)}>
             <Ionicons name={UI.board} size={24} color="#29B6F6" style={styles.actionEmoji} />
@@ -1436,14 +1434,6 @@ export default function VenueDashboard() {
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/highlights' as any)}>
             <Ionicons name={UI.highlights} size={24} color="#29B6F6" style={styles.actionEmoji} />
             <Text style={styles.actionLabel}>Highlights</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/promotions' as any)}>
-            <Ionicons name={UI.promotions} size={24} color="#29B6F6" style={styles.actionEmoji} />
-            <Text style={styles.actionLabel}>Promotions</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/announcements' as any)}>
-            <Ionicons name={UI.announce} size={24} color="#29B6F6" style={styles.actionEmoji} />
-            <Text style={styles.actionLabel}>Announce</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/venue/gallery' as any)}>
             <Ionicons name={UI.gallery} size={24} color="#29B6F6" style={styles.actionEmoji} />
