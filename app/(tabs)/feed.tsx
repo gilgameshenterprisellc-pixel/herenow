@@ -16,6 +16,9 @@ import { router } from 'expo-router'
 import { TAB_SAFE_BOTTOM } from './_layout'
 import { supabase } from '@/lib/supabase'
 import { fetchMyVenues, type VenueSubscription } from '@/lib/venueSubscriptions'
+import { seesBroadcast, broadcastZoneIds, type BroadcastViewer } from '@/lib/broadcastAudience'
+import { nightStart } from '@/lib/nights'
+import { useSessionContext } from '@/contexts/SessionContext'
 import { useNotifications } from '@/hooks/useNotifications'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import { markOneRead, markAllRead, type Notification } from '@/lib/notifications'
@@ -33,6 +36,8 @@ interface VenueFeedItem {
   discount_label?: string
   starts_at?: string
   created_at: string
+  /** Reached you because you're checked in there, not because you follow it. */
+  here?: boolean
 }
 
 const NOTIF_META: Record<string, { icon: IoniconsName; color: string }> = {
@@ -59,6 +64,8 @@ export default function UpdatesScreen() {
   const [venueFeed, setVenueFeed]   = useState<VenueFeedItem[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [venueLoaded, setVenueLoaded] = useState(false)
+  const { activeSession } = useSessionContext()
+  const checkedInZone = activeSession?.zone_id ?? null
 
   const { onScroll } = useTabBarScroll()
   const { notifications, loading: notifLoading, refresh: refreshNotifs } = useNotifications()
@@ -75,17 +82,33 @@ export default function UpdatesScreen() {
     const subs = await fetchMyVenues()
     setMyVenues(subs)
 
-    if (subs.length > 0) {
-      const zoneIds = subs.map((s) => s.zone_id)
-      // Zones where this user is a paid-in-attention subscriber (checked in)
-      const subscribedZones = new Set(subs.filter((s) => s.is_subscriber).map((s) => s.zone_id))
+    // Who this viewer is to each venue: following (muted venues left out),
+    // subscribed, and checked in right now. lib/broadcastAudience has the rules.
+    const viewer: BroadcastViewer = {
+      following:     new Set(subs.filter((s) => !s.muted).map((s) => s.zone_id)),
+      subscribed:    new Set(subs.filter((s) => s.is_subscriber).map((s) => s.zone_id)),
+      checkedInZone,
+      nightStartMs:  nightStart().getTime(),
+    }
+    const zoneIds = broadcastZoneIds(viewer)
+    const followedIds = Array.from(viewer.following)
+
+    if (zoneIds.length > 0) {
       const now = new Date().toISOString()
 
-      // A 'subscribers'-only post is visible only if you subscribe to that venue.
-      const audienceOk = (row: { zone_id: string; audience?: string | null }) =>
-        row.audience !== 'subscribers' || subscribedZones.has(row.zone_id)
+      // Upcoming events from venues you follow/subscribe to (Jacob: events
+      // created on the dashboard should reach followers + subscribers).
+      const eventsQuery = followedIds.length > 0
+        ? supabase
+            .from('venue_events')
+            .select('id, zone_id, title, description, starts_at, ends_at, created_at, zones(name)')
+            .in('zone_id', followedIds)
+            .or(`ends_at.is.null,ends_at.gte.${now}`)
+            .order('starts_at', { ascending: true })
+            .limit(20)
+        : Promise.resolve({ data: [] as any[] })
 
-      const [{ data: promosRaw }, { data: annosRaw }, { data: eventsRaw }, { data: dismissedRaw }] = await Promise.all([
+      const [promosRes, annosRes, { data: eventsRaw }, { data: dismissedRaw }] = await Promise.all([
         supabase
           .from('venue_promotions')
           .select('id, zone_id, title, description, discount_label, audience, created_at, zones(name)')
@@ -94,28 +117,26 @@ export default function UpdatesScreen() {
           .or(`ends_at.is.null,ends_at.gte.${now}`)
           .order('created_at', { ascending: false })
           .limit(20),
+        // publish_at in the future = scheduled, not out yet.
         supabase
           .from('venue_announcements')
-          .select('id, zone_id, message, audience, created_at, zones(name)')
+          .select('id, zone_id, message, audience, publish_at, zones(name)')
           .in('zone_id', zoneIds)
-          .order('created_at', { ascending: false })
+          .lte('publish_at', now)
+          .order('publish_at', { ascending: false })
           .limit(20),
-        // Upcoming events from venues you follow/subscribe to (Jacob: events
-        // created on the dashboard should reach followers + subscribers).
-        supabase
-          .from('venue_events')
-          .select('id, zone_id, title, description, starts_at, ends_at, created_at, zones(name)')
-          .in('zone_id', zoneIds)
-          .or(`ends_at.is.null,ends_at.gte.${now}`)
-          .order('starts_at', { ascending: true })
-          .limit(20),
+        eventsQuery,
         supabase.from('feed_dismissals').select('item_key').eq('user_id', user.id),
       ])
+      if (promosRes.error) console.warn('[updates] promotions query failed:', promosRes.error.message)
+      if (annosRes.error) console.warn('[updates] announcements query failed:', annosRes.error.message)
 
       const dismissed = new Set((dismissedRaw ?? []).map((d: any) => d.item_key))
-      const promos = (promosRaw ?? []).filter(audienceOk)
-      const annos  = (annosRaw ?? []).filter(audienceOk)
+      const promos = (promosRes.data ?? []).filter((p: any) => seesBroadcast('promotion', p, viewer))
+      const annos  = (annosRes.data ?? []).filter((a: any) => seesBroadcast('announcement', { ...a, at: a.publish_at }, viewer))
       const events = (eventsRaw ?? [])
+      // Broadcasts that reach you only because you're in the room get a "here now" tag.
+      const hereOnly = (zoneId: string) => zoneId === checkedInZone && !viewer.following.has(zoneId)
 
       // Log promo views (fire-and-forget)
       if ((promos ?? []).length > 0) {
@@ -136,6 +157,7 @@ export default function UpdatesScreen() {
         description:    p.description,
         discount_label: p.discount_label,
         created_at:     p.created_at,
+        here:           hereOnly(p.zone_id),
       }))
 
       const annoItems: VenueFeedItem[] = (annos ?? []).map((a: any) => ({
@@ -144,7 +166,8 @@ export default function UpdatesScreen() {
         zone_name:  a.zones?.name ?? 'Venue',
         type:       'announcement' as const,
         message:    a.message,
-        created_at: a.created_at,
+        created_at: a.publish_at,
+        here:       hereOnly(a.zone_id),
       }))
 
       const eventItems: VenueFeedItem[] = (events ?? []).map((e: any) => ({
@@ -188,9 +211,10 @@ export default function UpdatesScreen() {
     setRefreshing(false)
   }
 
-  // Load venue feed on first render (notifications loaded by hook)
+  // Load venue feed on first render (notifications loaded by hook), and again
+  // on check-in/out: being in a room adds that venue's broadcasts for tonight.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadVenueFeed() }, [])
+  useEffect(() => { loadVenueFeed() }, [checkedInZone])
 
   // Opening the Updates tab clears the unread badge (Jacob #12).
   useEffect(() => {
@@ -296,7 +320,10 @@ export default function UpdatesScreen() {
                     style={styles.venueFeedEmoji}
                   />
                   <View style={styles.venueFeedMeta}>
-                    <Text style={styles.venueFeedZone}>{item.zone_name}</Text>
+                    <Text style={styles.venueFeedZone}>
+                      {item.zone_name}
+                      {item.here ? <Text style={styles.venueFeedHere}>  ·  You're here</Text> : null}
+                    </Text>
                     <Text style={styles.venueFeedTime}>{timeAgo(item.created_at)}</Text>
                   </View>
                   <View style={[styles.venueFeedBadge, item.type === 'announcement' ? styles.badgeAnnouncement : item.type === 'event' ? styles.badgeEvent : styles.badgePromo]}>
@@ -417,6 +444,7 @@ const styles = StyleSheet.create({
   venueFeedEmoji:  { fontSize: 20 },
   venueFeedMeta:   { flex: 1, gap: 1 },
   venueFeedZone:   { fontSize: 13, fontWeight: '700', color: '#f8fafc' },
+  venueFeedHere:   { fontSize: 11, fontWeight: '700', color: '#22c55e' },
   venueFeedTime:   { fontSize: 11, color: '#7A93AC' },
   venueFeedBadge:  { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
   badgePromo:         { backgroundColor: '#29B6F610', borderColor: '#29B6F630' },

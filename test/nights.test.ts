@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { nightBucket, tzOffsetMs, NIGHT_TZ } from '../lib/nights.ts'
+import { nightBucket, nightStart, tzOffsetMs, NIGHT_TZ } from '../lib/nights.ts'
 
 // "Your Nights" showed "Invalid Date" in the app but read correctly on the web
 // (Jacob, build 24). The cause was re-parsing a localized date string:
@@ -101,4 +101,34 @@ test('tzOffsetMs tracks daylight saving', () => {
   // offset would put half the year's nights in the wrong bucket.
   assert.equal(tzOffsetMs(new Date('2026-08-08T02:00:00Z'), NIGHT_TZ), -5 * 3_600_000)
   assert.equal(tzOffsetMs(new Date('2026-01-08T02:00:00Z'), NIGHT_TZ), -6 * 3_600_000)
+})
+
+// nightStart decides which venue announcements a checked-in guest sees (tonight's
+// only), so it has to agree with nightBucket about where a night begins.
+const FRI_6AM_CDT = '2026-08-07T11:00:00.000Z' // Fri Aug 7, 6:00am CDT
+
+test('nightStart is the 6am that opened the current night', () => {
+  assert.equal(nightStart(new Date(FRI_9PM_CDT)).toISOString(), FRI_6AM_CDT)
+  assert.equal(nightStart(new Date(SAT_1AM_CDT)).toISOString(), FRI_6AM_CDT)
+  assert.equal(nightStart(new Date(SAT_5AM_CDT)).toISOString(), FRI_6AM_CDT)
+})
+
+test('nightStart rolls over exactly at 6am', () => {
+  const SAT_6AM_CDT = '2026-08-08T11:00:00.000Z'
+  assert.equal(nightStart(new Date(SAT_6AM_CDT)).toISOString(), SAT_6AM_CDT)
+  assert.equal(nightStart(new Date('2026-08-08T10:59:59.000Z')).toISOString(), FRI_6AM_CDT)
+})
+
+test('nightStart lands on 6am across the fall-back change', () => {
+  // Clocks fall back at 2am on Sun Nov 1, 2026. At 3am CST the night began at
+  // 6am CDT on Saturday (11:00Z), not 6am CST (12:00Z).
+  assert.equal(nightStart(new Date('2026-11-01T09:00:00Z')).toISOString(), '2026-10-31T11:00:00.000Z')
+  // And Sunday's own night starts at 6am CST.
+  assert.equal(nightStart(new Date('2026-11-01T18:00:00Z')).toISOString(), '2026-11-01T12:00:00.000Z')
+})
+
+test('nightStart agrees with nightBucket', () => {
+  for (const iso of [FRI_9PM_CDT, SAT_1AM_CDT, SAT_5AM_CDT, SAT_8PM_CDT]) {
+    assert.equal(nightBucket(nightStart(new Date(iso)).toISOString()).key, nightBucket(iso).key)
+  }
 })

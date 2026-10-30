@@ -11,18 +11,22 @@ import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
 import { screenText, blockedMessage } from '@/lib/textModeration'
+import DateTimeField, { formatDateTime } from '@/components/DateTimeField'
 
 interface Announcement {
   id: string
   message: string
   image_url: string | null
   created_at: string
+  /** When it goes out. In the future = scheduled. */
+  publish_at: string
 }
 
 // The Announcement half of the venue's Broadcast screen (app/venue/broadcast.tsx).
-// Announcements reach Updates only. They no longer push to every subscriber's
-// phone (Jacob, Oct 29: "I don't want every broadcast automatically generating
-// a phone push notification").
+// Announcements reach followers' Updates, and tonight's reach everyone checked
+// in (Updates + the Pulse). They go out now or at a scheduled time, and they no
+// longer push to every subscriber's phone (Jacob, Oct 29: "I don't want every
+// broadcast automatically generating a phone push notification").
 export default function AnnouncementsPanel() {
   const { showToast } = useToast()
   const [zoneId, setZoneId]         = useState<string | null>(null)
@@ -35,6 +39,8 @@ export default function AnnouncementsPanel() {
 
   const [message, setMessage]         = useState('')
   const [audience, setAudience]       = useState<'all' | 'subscribers'>('all')
+  const [when, setWhen]               = useState<'now' | 'later'>('now')
+  const [publishAt, setPublishAt]     = useState<Date | null>(null)
   const [localImageUri, setLocalImageUri] = useState<string | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
 
@@ -50,9 +56,9 @@ export default function AnnouncementsPanel() {
 
     const { data } = await supabase
       .from('venue_announcements')
-      .select('id, message, image_url, created_at')
+      .select('id, message, image_url, created_at, publish_at')
       .eq('zone_id', zone.id)
-      .order('created_at', { ascending: false })
+      .order('publish_at', { ascending: false })
       .limit(30)
 
     setAnnos((data ?? []) as Announcement[])
@@ -148,6 +154,11 @@ export default function AnnouncementsPanel() {
     const screen = screenText(message)
     if (!screen.ok) { showToast(blockedMessage(screen.category), 'error'); return }
     if (uploading) { showToast('Image still uploading, please wait.', 'error'); return }
+    const scheduled = when === 'later'
+    if (scheduled && (!publishAt || publishAt.getTime() < Date.now() + 60_000)) {
+      showToast('Pick a time at least a minute from now.', 'error')
+      return
+    }
 
     setSending(true)
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -161,8 +172,10 @@ export default function AnnouncementsPanel() {
         message:      message.trim(),
         audience,
         image_url:    uploadedImageUrl ?? null,
+        // Left out for "now" so the database stamps it (publish_at default now()).
+        ...(scheduled && publishAt ? { publish_at: publishAt.toISOString() } : {}),
       })
-      .select('id, message, image_url, created_at')
+      .select('id, message, image_url, created_at, publish_at')
       .single()
 
     if (error) {
@@ -177,7 +190,13 @@ export default function AnnouncementsPanel() {
       setMessage('')
       setLocalImageUri(null)
       setUploadedImageUrl(null)
-      showToast(audience === 'subscribers' ? 'Sent to your subscribers.' : 'Sent to your followers.', 'success')
+      setWhen('now')
+      setPublishAt(null)
+      showToast(
+        scheduled && publishAt ? `Scheduled for ${formatDateTime(publishAt)}.`
+          : audience === 'subscribers' ? 'Sent to your subscribers.' : 'Sent to your followers.',
+        'success',
+      )
     }
     setSending(false)
   }
@@ -217,7 +236,7 @@ export default function AnnouncementsPanel() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
     >
       <Text style={styles.hint}>
-        Announcements go straight to your followers' feeds — use them for last-minute updates, schedule changes, or flyers.
+        Announcements go to your followers' Updates, and everyone checked in tonight sees them in Updates and the Pulse. Use them for last-minute updates, schedule changes, or flyers.
       </Text>
 
       {noZone ? (
@@ -292,6 +311,28 @@ export default function AnnouncementsPanel() {
           </View>
         </View>
 
+        {/* When — now, or held until a set time */}
+        <View style={styles.audienceWrap}>
+          <Text style={styles.feedLabel}>When?</Text>
+          <View style={styles.audienceRow}>
+            <TouchableOpacity
+              style={[styles.audienceChip, when === 'now' && styles.audienceChipOn]}
+              onPress={() => setWhen('now')}
+            >
+              <Text style={[styles.audienceChipText, when === 'now' && styles.audienceChipTextOn]}>Send now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.audienceChip, when === 'later' && styles.audienceChipOn]}
+              onPress={() => setWhen('later')}
+            >
+              <Text style={[styles.audienceChipText, when === 'later' && styles.audienceChipTextOn]}>Schedule</Text>
+            </TouchableOpacity>
+          </View>
+          {when === 'later' && (
+            <DateTimeField value={publishAt} onChange={setPublishAt} placeholder="Tap to pick when it goes out" />
+          )}
+        </View>
+
         <TouchableOpacity
           style={[styles.sendBtn, (!message.trim() || sending || uploading) && styles.sendBtnDisabled]}
           onPress={handleSend}
@@ -299,7 +340,7 @@ export default function AnnouncementsPanel() {
         >
           {sending
             ? <ActivityIndicator color="#050A15" size="small" />
-            : <Text style={styles.sendBtnText}>Send Announcement</Text>
+            : <Text style={styles.sendBtnText}>{when === 'later' ? 'Schedule Announcement' : 'Send Announcement'}</Text>
           }
         </TouchableOpacity>
       </View>}
@@ -309,11 +350,18 @@ export default function AnnouncementsPanel() {
         <ActivityIndicator color="#29B6F6" style={{ marginTop: 20 }} />
       ) : annos.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>SENT ANNOUNCEMENTS</Text>
+          <Text style={styles.sectionLabel}>YOUR ANNOUNCEMENTS</Text>
           {annos.map((a) => (
             <View key={a.id} style={styles.annoCard}>
               <View style={styles.annoTop}>
-                <Text style={styles.annoTime}>{timeAgo(a.created_at)}</Text>
+                {new Date(a.publish_at).getTime() > Date.now() ? (
+                  <View style={styles.scheduledBadge}>
+                    <Ionicons name="time-outline" size={12} color="#c084fc" />
+                    <Text style={styles.scheduledText}>Scheduled · {formatDateTime(new Date(a.publish_at))}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.annoTime}>{timeAgo(a.publish_at)}</Text>
+                )}
                 <TouchableOpacity onPress={() => handleDelete(a.id)} style={styles.deleteBtn}>
                   <Text style={styles.deleteBtnText}>✕</Text>
                 </TouchableOpacity>
@@ -404,6 +452,10 @@ const styles = StyleSheet.create({
   },
   annoTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   annoTime: { fontSize: 11, color: '#7A93AC', flex: 1 },
+  scheduledBadge: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+  },
+  scheduledText: { fontSize: 11, fontWeight: '700', color: '#c084fc' },
   deleteBtn:     { padding: 4 },
   deleteBtnText: { fontSize: 14, color: '#7A93AC' },
   annoMessage:   { fontSize: 14, color: '#D0E8F5', lineHeight: 20 },

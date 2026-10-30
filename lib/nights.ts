@@ -54,3 +54,16 @@ export function nightBucket(iso: string): { key: string; label: string } {
     }),
   }
 }
+
+// When the current night out began: the most recent 6am in Nashville at or
+// before `now`. A venue's announcements reach the people checked in from this
+// point on, so a guest who walks in tonight sees tonight's, not last week's.
+export function nightStart(now: Date = new Date()): Date {
+  const wall = new Date(now.getTime() + tzOffsetMs(now, NIGHT_TZ))
+  let startWall = Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate(), NIGHT_ROLLOVER_HOUR)
+  if (wall.getUTCHours() < NIGHT_ROLLOVER_HOUR) startWall -= 86_400_000
+  // Convert with the offset in force at 6am, not now's: a DST change at 2am
+  // sits between the two, and using now's offset would land an hour off.
+  const guess = startWall - tzOffsetMs(now, NIGHT_TZ)
+  return new Date(startWall - tzOffsetMs(new Date(guess), NIGHT_TZ))
+}
