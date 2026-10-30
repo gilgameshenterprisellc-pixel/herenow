@@ -1,30 +1,29 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Platform, RefreshControl, Switch,
+  TextInput, ActivityIndicator, Platform, RefreshControl,
   Image, Alert, ActionSheetIOS,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase, getAuthedUser } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { platformConfirm } from '@/lib/confirm'
-import { sendNotification } from '@/lib/notifications'
 import { screenText, blockedMessage } from '@/lib/textModeration'
-import BackButton from '@/components/BackButton'
 
 interface Announcement {
   id: string
   message: string
-  post_to_feed: boolean
   image_url: string | null
   created_at: string
 }
 
-export default function VenueAnnouncementsScreen() {
-  const insets = useSafeAreaInsets()
+// The Announcement half of the venue's Broadcast screen (app/venue/broadcast.tsx).
+// Announcements reach Updates only. They no longer push to every subscriber's
+// phone (Jacob, Oct 29: "I don't want every broadcast automatically generating
+// a phone push notification").
+export default function AnnouncementsPanel() {
   const { showToast } = useToast()
   const [zoneId, setZoneId]         = useState<string | null>(null)
   const [noZone, setNoZone]         = useState(false)
@@ -35,7 +34,6 @@ export default function VenueAnnouncementsScreen() {
   const [uploading, setUploading]   = useState(false)
 
   const [message, setMessage]         = useState('')
-  const [postToFeed, setPostToFeed]   = useState(false)
   const [audience, setAudience]       = useState<'all' | 'subscribers'>('all')
   const [localImageUri, setLocalImageUri] = useState<string | null>(null)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
@@ -52,7 +50,7 @@ export default function VenueAnnouncementsScreen() {
 
     const { data } = await supabase
       .from('venue_announcements')
-      .select('id, message, post_to_feed, image_url, created_at')
+      .select('id, message, image_url, created_at')
       .eq('zone_id', zone.id)
       .order('created_at', { ascending: false })
       .limit(30)
@@ -161,46 +159,25 @@ export default function VenueAnnouncementsScreen() {
         zone_id:      zoneId,
         created_by:   authUser.id,
         message:      message.trim(),
-        post_to_feed: postToFeed,
         audience,
         image_url:    uploadedImageUrl ?? null,
       })
-      .select('id, message, post_to_feed, image_url, created_at')
+      .select('id, message, image_url, created_at')
       .single()
 
     if (error) {
+      console.warn('[announcements] insert failed:', error.message)
       showToast('Failed to send announcement. Try again.', 'error')
       setSending(false)
       return
     }
 
-    if (!error && data) {
+    if (data) {
       setAnnos((prev) => [data as Announcement, ...prev])
       setMessage('')
-      setPostToFeed(false)
       setLocalImageUri(null)
       setUploadedImageUrl(null)
-      showToast('Announcement sent to your followers!', 'success')
-
-      // Notify all subscribers (best-effort, non-blocking)
-      supabase
-        .from('venue_subscriptions')
-        .select('user_id')
-        .eq('zone_id', zoneId)
-        .then(({ data: subs }) => {
-          if (!subs) return
-          const preview = message.trim().slice(0, 80)
-          subs.forEach(({ user_id }) => {
-            if (user_id === authUser.id) return
-            sendNotification({
-              userId: user_id,
-              type: 'venue_announcement',
-              title: 'New announcement',
-              body: preview,
-              data: { zone_id: zoneId },
-            }).catch(() => {})
-          })
-        })
+      showToast(audience === 'subscribers' ? 'Sent to your subscribers.' : 'Sent to your followers.', 'success')
     }
     setSending(false)
   }
@@ -228,170 +205,136 @@ export default function VenueAnnouncementsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <BackButton onPress={() => router.canGoBack() ? router.back() : router.replace('/venue/dashboard' as any)} />
-        <Text style={styles.title}>Announcements</Text>
-      </View>
+    <ScrollView
+      keyboardDismissMode="on-drag"
+      style={styles.scroll}
+      contentContainerStyle={[
+        styles.content,
+        Platform.select({ web: { maxWidth: 600, alignSelf: 'center' as any, width: '100%' as any } as any, default: {} }) as any,
+      ]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
+    >
+      <Text style={styles.hint}>
+        Announcements go straight to your followers' feeds — use them for last-minute updates, schedule changes, or flyers.
+      </Text>
 
-      <ScrollView
-        keyboardDismissMode="on-drag"
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          Platform.select({ web: { maxWidth: 600, alignSelf: 'center' as any, width: '100%' as any } as any, default: {} }) as any,
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#29B6F6" />}
-      >
-        <Text style={styles.hint}>
-          Announcements go straight to your followers' feeds — use them for last-minute updates, schedule changes, or flyers.
-        </Text>
-
-        {noZone ? (
-          <View style={styles.section}>
-            <View style={{ backgroundColor: '#0D1B2E', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#1A2E4A', alignItems: 'center', gap: 10 }}>
-              <Ionicons name="megaphone" size={26} color="#29B6F6" />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#f8fafc', textAlign: 'center' }}>Announcements not available</Text>
-              <Text style={{ fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 }}>Your venue isn't set up yet or your account isn't linked as the venue owner. Contact support if this looks wrong.</Text>
-            </View>
+      {noZone ? (
+        <View style={styles.section}>
+          <View style={{ backgroundColor: '#0D1B2E', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#1A2E4A', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="megaphone" size={26} color="#29B6F6" />
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#f8fafc', textAlign: 'center' }}>Announcements not available</Text>
+            <Text style={{ fontSize: 13, color: '#7A93AC', textAlign: 'center', lineHeight: 18 }}>Your venue isn't set up yet or your account isn't linked as the venue owner. Contact support if this looks wrong.</Text>
           </View>
-        ) : null}
+        </View>
+      ) : null}
 
-        {/* Compose */}
-        {!noZone && <View style={styles.section}>
-          <Text style={styles.sectionLabel}>SEND ANNOUNCEMENT</Text>
+      {/* Compose */}
+      {!noZone && <View style={styles.section}>
+        <Text style={styles.sectionLabel}>SEND ANNOUNCEMENT</Text>
 
-          <TextInput
-            style={[styles.input, styles.multiline]}
-            value={message}
-            onChangeText={setMessage}
-            placeholder="e.g. DJ starts at 10pm tonight — come through"
-            placeholderTextColor="#4A6580"
-            multiline
-            maxLength={300}
-          />
-          <Text style={styles.charCount}>{message.length}/300</Text>
+        <TextInput
+          style={[styles.input, styles.multiline]}
+          value={message}
+          onChangeText={setMessage}
+          placeholder="e.g. DJ starts at 10pm tonight — come through"
+          placeholderTextColor="#4A6580"
+          multiline
+          maxLength={300}
+        />
+        <Text style={styles.charCount}>{message.length}/300</Text>
 
-          {/* Image attachment */}
-          {localImageUri ? (
-            <View style={styles.imagePreviewWrap}>
-              <Image source={{ uri: localImageUri }} style={styles.imagePreview} resizeMode="cover" />
-              {uploading && (
-                <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator color="#fff" />
-                  <Text style={styles.uploadingText}>Uploading...</Text>
-                </View>
-              )}
-              {!uploading && (
-                <TouchableOpacity style={styles.removeImageBtn} onPress={removeImage}>
-                  <Text style={styles.removeImageText}>✕</Text>
-                </TouchableOpacity>
-              )}
-              {!uploading && uploadedImageUrl && (
-                <View style={styles.uploadedBadge}>
-                  <Text style={styles.uploadedBadgeText}>✓ Ready</Text>
-                </View>
-              )}
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
-              <Ionicons name="camera" size={22} color="#29B6F6" style={styles.addImageEmoji} />
-              <Text style={styles.addImageText}>Add flyer or photo</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Audience — who among your followers sees this */}
-          <View style={styles.audienceWrap}>
-            <Text style={styles.feedLabel}>Who sees this?</Text>
-            <View style={styles.audienceRow}>
-              <TouchableOpacity
-                style={[styles.audienceChip, audience === 'all' && styles.audienceChipOn]}
-                onPress={() => setAudience('all')}
-              >
-                <Text style={[styles.audienceChipText, audience === 'all' && styles.audienceChipTextOn]}>All followers</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.audienceChip, audience === 'subscribers' && styles.audienceChipGoldOn]}
-                onPress={() => setAudience('subscribers')}
-              >
-                <Text style={[styles.audienceChipText, audience === 'subscribers' && styles.audienceChipTextGoldOn]}> ★ Subscribers only </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.feedRow}>
-            <View style={styles.feedRowText}>
-              <Text style={styles.feedLabel}>Post to universal feed</Text>
-              <Text style={styles.feedSub}>Visible to all HereNow users, not just followers</Text>
-            </View>
-            <Switch
-              value={postToFeed}
-              onValueChange={setPostToFeed}
-              trackColor={{ false: '#1A2E4A', true: '#29B6F6' }}
-              thumbColor="#f8fafc"
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.sendBtn, (!message.trim() || sending || uploading) && styles.sendBtnDisabled]}
-            onPress={handleSend}
-            disabled={!message.trim() || sending || uploading}
-          >
-            {sending
-              ? <ActivityIndicator color="#050A15" size="small" />
-              : <Text style={styles.sendBtnText}>Send Announcement</Text>
-            }
-          </TouchableOpacity>
-        </View>}
-
-        {/* History */}
-        {loading ? (
-          <ActivityIndicator color="#29B6F6" style={{ marginTop: 20 }} />
-        ) : annos.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>SENT ANNOUNCEMENTS</Text>
-            {annos.map((a) => (
-              <View key={a.id} style={styles.annoCard}>
-                <View style={styles.annoTop}>
-                  <Text style={styles.annoTime}>{timeAgo(a.created_at)}</Text>
-                  {a.post_to_feed && (
-                    <View style={styles.feedBadge}>
-                      <Text style={styles.feedBadgeText}>Feed</Text>
-                    </View>
-                  )}
-                  <TouchableOpacity onPress={() => handleDelete(a.id)} style={styles.deleteBtn}>
-                    <Text style={styles.deleteBtnText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.annoMessage}>{a.message}</Text>
-                {a.image_url && (
-                  <Image
-                    source={{ uri: a.image_url }}
-                    style={styles.annoImage}
-                    resizeMode="cover"
-                  />
-                )}
+        {/* Image attachment */}
+        {localImageUri ? (
+          <View style={styles.imagePreviewWrap}>
+            <Image source={{ uri: localImageUri }} style={styles.imagePreview} resizeMode="cover" />
+            {uploading && (
+              <View style={styles.uploadingOverlay}>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.uploadingText}>Uploading...</Text>
               </View>
-            ))}
+            )}
+            {!uploading && (
+              <TouchableOpacity style={styles.removeImageBtn} onPress={removeImage}>
+                <Text style={styles.removeImageText}>✕</Text>
+              </TouchableOpacity>
+            )}
+            {!uploading && uploadedImageUrl && (
+              <View style={styles.uploadedBadge}>
+                <Text style={styles.uploadedBadgeText}>✓ Ready</Text>
+              </View>
+            )}
           </View>
-        ) : null}
-      </ScrollView>
-    </View>
+        ) : (
+          <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
+            <Ionicons name="camera" size={22} color="#29B6F6" style={styles.addImageEmoji} />
+            <Text style={styles.addImageText}>Add flyer or photo</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Audience — who among your followers sees this */}
+        <View style={styles.audienceWrap}>
+          <Text style={styles.feedLabel}>Who sees this?</Text>
+          <View style={styles.audienceRow}>
+            <TouchableOpacity
+              style={[styles.audienceChip, audience === 'all' && styles.audienceChipOn]}
+              onPress={() => setAudience('all')}
+            >
+              <Text style={[styles.audienceChipText, audience === 'all' && styles.audienceChipTextOn]}>All followers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.audienceChip, audience === 'subscribers' && styles.audienceChipGoldOn]}
+              onPress={() => setAudience('subscribers')}
+            >
+              <Text style={[styles.audienceChipText, audience === 'subscribers' && styles.audienceChipTextGoldOn]}> ★ Subscribers only </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.sendBtn, (!message.trim() || sending || uploading) && styles.sendBtnDisabled]}
+          onPress={handleSend}
+          disabled={!message.trim() || sending || uploading}
+        >
+          {sending
+            ? <ActivityIndicator color="#050A15" size="small" />
+            : <Text style={styles.sendBtnText}>Send Announcement</Text>
+          }
+        </TouchableOpacity>
+      </View>}
+
+      {/* History */}
+      {loading ? (
+        <ActivityIndicator color="#29B6F6" style={{ marginTop: 20 }} />
+      ) : annos.length > 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>SENT ANNOUNCEMENTS</Text>
+          {annos.map((a) => (
+            <View key={a.id} style={styles.annoCard}>
+              <View style={styles.annoTop}>
+                <Text style={styles.annoTime}>{timeAgo(a.created_at)}</Text>
+                <TouchableOpacity onPress={() => handleDelete(a.id)} style={styles.deleteBtn}>
+                  <Text style={styles.deleteBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.annoMessage}>{a.message}</Text>
+              {a.image_url && (
+                <Image
+                  source={{ uri: a.image_url }}
+                  style={styles.annoImage}
+                  resizeMode="cover"
+                />
+              )}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050A15' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingBottom: 14,
-    borderBottomWidth: 1, borderBottomColor: '#0D1B2E',
-  },
-  backBtn:  { padding: 8 },
-  backText: { fontSize: 22, color: '#f8fafc' },
-  title:    { fontSize: 18, fontWeight: '800', color: '#f8fafc', flex: 1 },
   scroll:   { flex: 1 },
   content:  { padding: 16, gap: 20, paddingBottom: 60 },
   hint:     { fontSize: 13, color: '#7A93AC', lineHeight: 19 },
@@ -437,12 +380,6 @@ const styles = StyleSheet.create({
   },
   uploadedBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
-  feedRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#0D1B2E', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: '#1A2E4A',
-  },
-  feedRowText: { flex: 1, gap: 2 },
   feedLabel:   { fontSize: 14, fontWeight: '700', color: '#f8fafc' },
   audienceWrap: { gap: 8 },
   audienceRow: { flexDirection: 'row', gap: 8 },
@@ -455,7 +392,6 @@ const styles = StyleSheet.create({
   audienceChipText: { fontSize: 13, fontWeight: '700', color: '#7A93AC' },
   audienceChipTextOn: { color: '#29B6F6' },
   audienceChipTextGoldOn: { color: '#f59e0b' },
-  feedSub:     { fontSize: 12, color: '#7A93AC' },
   sendBtn: {
     backgroundColor: '#29B6F6', borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
@@ -468,12 +404,6 @@ const styles = StyleSheet.create({
   },
   annoTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   annoTime: { fontSize: 11, color: '#7A93AC', flex: 1 },
-  feedBadge: {
-    backgroundColor: '#29B6F610', borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: '#29B6F630',
-  },
-  feedBadgeText: { fontSize: 10, color: '#29B6F6', fontWeight: '700' },
   deleteBtn:     { padding: 4 },
   deleteBtnText: { fontSize: 14, color: '#7A93AC' },
   annoMessage:   { fontSize: 14, color: '#D0E8F5', lineHeight: 20 },
